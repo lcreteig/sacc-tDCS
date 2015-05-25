@@ -1,4 +1,4 @@
-function [data,timeStamps] = sacctDCS_Main_noET(xp,placeHolderFlag,overlap)
+function [data,timeStamps] = sacctDCS_Main_ET(xp,placeHolderFlag,overlap)
 
 try
     %% Setup
@@ -184,7 +184,7 @@ try
                 save(filename,'data', 'xp', 'timeStamps')
                 
                 % save ET-file
-                fullEDFname = sprintf([xp.dataFolder '%s_%s_block%i_%s.edf'], xp.subject, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
+                fullEDFname = sprintf([xp.dataFolder '%s_%s_%s_block%i_%s.edf'], xp.codename, xp.subject, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
                 Eyelink('CloseFile');
                 Eyelink('WaitForModeReady', 500); % helps to avoid errors in retrieving files
                 try
@@ -218,7 +218,7 @@ catch err
         save(filename,'data', 'xp', 'timeStamps')
         
         % save ET-file
-        fullEDFname = sprintf([xp.backupFolder '%s_%s_block%i_%s.edf'], xp.subject, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
+        fullEDFname = sprintf([xp.backupFolder '%s_%s_%s_block%i_%s.edf'], xp.codename, xp.subject, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
         Eyelink('CloseFile');
         Eyelink('WaitForModeReady', 500); % helps to avoid errors in retrieving files
         try
