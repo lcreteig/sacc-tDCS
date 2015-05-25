@@ -1,4 +1,4 @@
-function [xp] = sacctDCS_getParams(subjectID,environment,task,screenDist)
+function [xp] = sacctDCS_getParams(subjectID,tDCScode,environment,task,screenDist)
 
 % GETPARAMS_SACCTDCS Set the eXperimental Parameters for sacc-tDCS.
 
@@ -35,6 +35,7 @@ xp.environment = environment;
 xp.experiment = 'pro-saccade task for frontal eye field tDCS';
 xp.codename = 'sacc-tDCS'; %prepended to all saved files
 xp.subject = subjectID;
+xp.tDCS = tDCScode;
 xp.task = task;
 xp.date = datestr(now); %current date and time
 
@@ -102,6 +103,7 @@ xp.placeColor = xp.targetColor;
 
 % Presentation times in seconds
 xp.fixTime = [0.300 0.700]+0.200; % [lowerbound upperbound], each trial is random number in between
+xp.transTime = 1.000;% fixation at first and last trial of every block
 
 %% Keys
 xp.abortKey = 'ESCAPE';

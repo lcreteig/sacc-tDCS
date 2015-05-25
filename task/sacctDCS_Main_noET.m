@@ -83,7 +83,7 @@ try
         for iBlock = 1:xp.nBlocks(iLeg)
             
             targetSide = repmat([-1;1],xp.nTrials/2,1);
-            targetSide = shuffle(targetSide);
+            targetSide = Shuffle(targetSide);
             
             ISI = xp.fixTime(1) + (xp.fixTime(2) - xp.fixTime(1)).*rand(xp.nTrials,2);
             ISI = round(ISI / ifi) * ifi;
@@ -142,19 +142,23 @@ try
                 
             end %trial loop
             
+            if iBlock < xp.nBlocks(iLeg)
+            
             DrawFormattedText(windowPtr, textBreak, 'center', 'center', blackInt); % draw pause text
             Screen('Flip', windowPtr);
             %save back-up of data so far
-            filename = [xp.backupFolder data(iLeg).codename '_' data(iLeg).subject '_' data(iLeg).task '_' ...
+            filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
                 datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
             save(filename,'data', 'xp', 'timeStamps')
             KbStrokeWait;
+            
+            end
             
         end % block loop
         
         DrawFormattedText(windowPtr, textLeg, 'center', 'center', blackInt); % draw pause text
         Screen('Flip', windowPtr);
-        KBStrokeWait;
+        KbStrokeWait;
         
     end % leg loop
     
@@ -163,7 +167,7 @@ try
     pause(5);
     
     %% Save data and close
-    filename = [xp.behavDataFolder data(iLeg).codename '_' data(iLeg).subject '_' data(iLeg).task '.mat'];
+    filename = [xp.dataFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '.mat'];
     save(filename,'data', 'xp', 'timeStamps');
     
     sca; %Screen('CloseAll'), to regain control of monitor
@@ -173,8 +177,8 @@ try
 catch err
     
     %save back-up of data so far
-    filename = [xp.backupFolder data(iLeg).codename '_' data(iLeg).subject '_' data(iLeg).task '_' ...
-        datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
+    filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
+                datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
     save(filename,'data', 'xp', 'timeStamps')
     
     sca;
