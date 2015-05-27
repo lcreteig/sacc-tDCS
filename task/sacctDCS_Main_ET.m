@@ -233,6 +233,7 @@ try
     sca; %Screen('CloseAll'), to regain control of monitor
     ShowCursor; % show mouse again
     Priority(0); % restore priority
+    Eyelink('command', 'clear_screen 0'); % clear tracker display
     
 catch err
     
@@ -245,6 +246,7 @@ catch err
         % save ET-file
         fullEDFname = sprintf([xp.backupFolder '%s_%s_%s_block%i_%s.edf'], xp.codename, xp.subject, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
         Eyelink('CloseFile');
+        Eyelink('command', 'clear_screen 0'); % clear tracker display
         Eyelink('WaitForModeReady', 500); % helps to avoid errors in retrieving files
         try
             status = Eyelink('ReceiveFile', EDFname, fullEDFname); %this collects the file from the eyelink

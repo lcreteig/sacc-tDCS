@@ -17,13 +17,14 @@ end
 fprintf('Running experiment on a ''%s'' tracker.\n', vs);
 
 % Set some parameters of the eyetracker through the link
+Eyelink('command', ['add_file_preamble_text ''' xp.codename '_'  xp.subject '_' num2str(leg) '_' num2str(block) '''']); %write experiment details to start of file
+Eyelink('command', 'enable_automatic_calibration = YES'); %automatically move to next calibration point (this can become unset for some reason sometimes)
 Eyelink('command', 'calibration_type = HV9'); %set 9-point calibration
 Eyelink('command', 'active_eye = LEFT'); %record left eye
 Eyelink('command', 'recording_parse_type = GAZE'); % use gaze data to process events
 %determine thresholds for on-line parsing of eye data into events
 Eyelink('command', 'set_parser_configuration = 0'); %0 matches "cognitive" configuration in manual (more conservative); 1 is psychophysical (more sensitive)
 Eyelink('command', 'pupil_size_diameter = YES'); %to convert pupil area to diameter
-Eyelink('command', ['add_file_preamble_text' xp.codename '_'  xp.subject '_' leg '_' block]);
 %"file_sample_data" specifies what types of samples will be written to the EDF file
 Eyelink('command', 'file_sample_data = LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS'); %DEFAULT: LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS
 %"file_event_data" sets data in events written to the EDF file
@@ -46,8 +47,8 @@ end
 EyelinkDoTrackerSetup(el);
 
 % Draw shapes to host pc at saccade target locations, for online viewing of gaze cursor
-Eyelink('Command', 'set_idle_mode'); % must be offline to draw to EyeLink screen
-Eyelink('Command', 'clear_screen 7'); % clear tracker display
+Eyelink('command', 'set_idle_mode'); % must be offline to draw to EyeLink screen
+Eyelink('command', 'clear_screen 7'); % clear tracker display
 Eyelink('command', 'draw_cross %d %d 0', stimCoords(1,1), stimCoords(1,2)); %draw left target location
 Eyelink('command', 'draw_cross %d %d 0', stimCoords(2,1), stimCoords(2,2)); %draw center target location
 Eyelink('command', 'draw_cross %d %d 0', stimCoords(3,1), stimCoords(3,2)); %draw right target location
