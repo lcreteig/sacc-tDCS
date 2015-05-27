@@ -7,8 +7,6 @@ function [xp] = sacctDCS_getParams(subjectID,tDCScode,environment,task,screenDis
 %ADD elconfig
 %ADD eyetracking
 %ADD gaze contingent
-%clear ET screen
-%missing leg names in data files, add tDCS code
 
 %% I/O
 

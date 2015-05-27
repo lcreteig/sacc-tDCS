@@ -9,7 +9,7 @@ try
         overlap = 0; % in seconds
     end
     
-    for i = 1:length(xp.nLegs)
+    for i = 1:xp.nLegs
         data(i).experiment = xp.experiment;
         data(i).codename = xp.codename;
         data(i).task = xp.task;
@@ -204,12 +204,12 @@ try
              Eyelink('Message', sprintf('leg %i block %i stopped at %f', iLeg, iBlock, GetSecs));
              
                 %save back-up of data so far
-                filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
-                    datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
+                filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.legNames{iLeg} '_' ...
+                    datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
                 save(filename,'data', 'xp', 'timeStamps')
                 
                 % save ET-file
-                fullEDFname = sprintf([xp.dataFolder '%s_%s_%s_block%i_%s.edf'], xp.codename, xp.subject, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
+                fullEDFname = sprintf([xp.dataFolder '%s_%s_%s_%s_block%i_%s.edf'], xp.codename, xp.subject, xp.tDCS, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
                 Eyelink('CloseFile');
                 Eyelink('WaitForModeReady', 500); % helps to avoid errors in retrieving files
                 try
