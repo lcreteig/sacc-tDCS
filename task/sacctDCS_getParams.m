@@ -7,6 +7,8 @@ function [xp] = sacctDCS_getParams(subjectID,tDCScode,environment,task,screenDis
 %ADD elconfig
 %ADD eyetracking
 %ADD gaze contingent
+%clear ET screen
+%missing leg names in data files, add tDCS code
 
 %% I/O
 
@@ -47,13 +49,15 @@ switch task
         xp.nLegs = 1;
         xp.legNames = {'practice'};
         xp.nBlocks = 1;
-        xp.nTrials = 40;
+        xp.nTrials = 140;
+        xp.breaksPerBlock = 1;
         
     case 'main' 
         xp.nLegs = 3;
         xp.legNames = {'pre'; 'tDCS'; 'post'};
         xp.nBlocks = [3 3 6]; % blocks per leg
-        xp.nTrials = 40; % trials per block
+        xp.nTrials = 140; % trials per block
+        xp.breaksPerBlock = 1; %number of short, timed breaks in each block
 end
 
 %% Screen
@@ -77,7 +81,7 @@ switch environment
 end
 
 xp.screenDist = screenDist; % subject-screen distance in cm.
-Screen('Resolution',xp.screenNum,xp.screenRes(1),xp.screenRes(2),xp.screenRefresh); % set monitor to desired settings
+%Screen('Resolution',xp.screenNum,xp.screenRes(1),xp.screenRes(2),xp.screenRefresh); % set monitor to desired settings
 
 %% Stimuli
 
@@ -102,7 +106,8 @@ xp.placeColor = xp.targetColor;
 %% Timing
 
 % Presentation times in seconds
-xp.fixTime = [0.300 0.700]+0.200; % [lowerbound upperbound], each trial is random number in between
+xp.saccadeTime = 0.300;
+xp.fixTime = [0.300 0.700]+xp.saccadeTime; % [lowerbound upperbound], each trial is random number in between
 xp.transTime = 1.000;% fixation at first and last trial of every block
 
 %% Keys

@@ -42,7 +42,8 @@ try
     
     %%%TEXT%%%
     textStart = 'Press any key to begin.';
-    textBreak = 'You may take a short break now. Press any key to resume';
+    textBreak = 'Half-way through the current block.\nPlease do not move your head; the task will resume shortly!';
+    textBlock = 'You may take a short break now. Press any key to resume';
     textLeg = 'Please wait for the experimenter.';
     textEnd = 'Experiment complete!';
     
@@ -61,10 +62,11 @@ try
     %%%TIMING%%%
     
     %initialize a structure for keeping stimulus onset timeStamps
-    timeStamps.fixDur = round(xp.fixTime / ifi) * ifi;
-    timeStamps.transDur = round(xp.transTime / ifi) * ifi;
     
     for i = 1:xp.nLegs
+        timeStamps(i).transDur = round(xp.transTime / ifi) * ifi;
+        timeStamps(i).fixDur = zeros(xp.nBlocks(i),xp.nTrials);
+        timeStamps(i).targetDur = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).fix =  zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).target = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).leg  = xp.legNames{i};
@@ -78,7 +80,7 @@ try
     %Specify coordinates to draw to EyeLink PC screen
     stimCoords(1,:) = [centerX-targetEcc centerY];
     stimCoords(2,:) = [centerX, centerY];
-    stimCoords(3,:) = [centerX+targetEcc center Y];
+    stimCoords(3,:) = [centerX+targetEcc centerY];
     
     %% Experiment loop
     
@@ -94,9 +96,14 @@ try
             
             ISI = xp.fixTime(1) + (xp.fixTime(2) - xp.fixTime(1)).*rand(xp.nTrials,2);
             ISI = round(ISI / ifi) * ifi;
+            timeStamps(iLeg).fixDur(iBlock,:) = ISI(:,1);
+            timeStamps(iLeg).targetDur(iBlock,:) = ISI(:,2);
             
             %Setup the eye tracker
             EDFname = sacctDCS_ELconfig(windowPtr, xp, iLeg, iBlock, stimCoords);
+            
+            %Run timer
+            countDownTimer(windowPtr,'center','center',5);
             
             %Fixation
             if placeHolderFlag
@@ -156,6 +163,8 @@ try
                 data(iLeg).targetSide(iBlock,iTrial) = targetSide(iTrial);
                 timeStamps(iBlock,iTrial).fix = tFixOnset;
                 timeStamps(iBlock,iTrial).target = tTargetOnset;
+                 
+                WaitSecs(xp.saccadeTime); % wait for saccade before sending messages
                 
                 Eyelink('Message', sprintf('trial %i stopped at %f', iTrial, GetSecs));
                 WaitSecs(0.001); % wait a bit, as the eyelink is not always able to write many messages in a short interval
@@ -164,20 +173,36 @@ try
                 Eyelink('Message', sprintf('trial %i parameter target saccade direction : %i', iTrial, targetSide(iTrial)));
                 Eyelink('Message', sprintf('trial %i parameter fixation saccade direction : %i', iTrial, -1*targetSide(iTrial)));
                 
+                if ~mod(iTrial,floor(xp.nTrials/(xp.breaksPerBlock+1))+1) % if it's time for a break
+                    DrawFormattedText(windowPtr, textBreak, 'center', 'center', blackInt,[],[],[],2); % draw break text
+                    Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+                    Eyelink('Message', sprintf('leg %i block %i paused at %f', iLeg, iBlock, GetSecs));
+                    WaitSecs(5);
+                    countDownTimer(windowPtr,'center','center',5);
+                    
+                    if placeHolderFlag
+                        Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
+                    end
+                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
+                    tFixOnset = Screen('Flip', windowPtr);
+                    Eyelink('Message', sprintf('leg %i block %i resumed at %f', iLeg, iBlock, GetSecs));
+                end
+                 
             end %trial loop
             
             if iBlock < xp.nBlocks(iLeg)
                 
-                DrawFormattedText(windowPtr, textBreak, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr, tFixOnset + 1); % flip one second after final fixation
+                DrawFormattedText(windowPtr, textBlock, 'center', 'center', blackInt); % draw pause text
+                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
             elseif iBlock == xp.nBlocks(iLeg) && iLeg < xp.nLegs
                 DrawFormattedText(windowPtr, textLeg, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr);
+                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
             else
                 DrawFormattedText(windowPtr, textEnd, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr);
+                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
             end
-            
+             Eyelink('Message', sprintf('leg %i block %i stopped at %f', iLeg, iBlock, GetSecs));
+             
                 %save back-up of data so far
                 filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
                     datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];

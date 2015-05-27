@@ -42,7 +42,8 @@ try
     
     %%%TEXT%%%
     textStart = 'Press any key to begin.';
-    textBreak = 'You may take a short break now. Press any key to resume';
+    textBreak = 'Half-way through the current block.\nPlease do not move your head; the task will resume shortly!';
+    textBlock = 'You may take a short break now. Press any key to resume';
     textLeg = 'Please wait for the experimenter.';
     textEnd = 'Experiment complete!';
     
@@ -61,9 +62,10 @@ try
     %%%TIMING%%%
     
     %initialize a structure for keeping stimulus onset timeStamps
-    timeStamps.fixDur = round(xp.fixTime / ifi) * ifi;
-    
     for i = 1:xp.nLegs
+        timeStamps(i).transDur = round(xp.transTime / ifi) * ifi;
+        timeStamps(i).fixDur = zeros(xp.nBlocks(i),xp.nTrials);
+        timeStamps(i).targetDur = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).fix =  zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).target = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).leg  = xp.legNames{i};
@@ -87,6 +89,11 @@ try
             
             ISI = xp.fixTime(1) + (xp.fixTime(2) - xp.fixTime(1)).*rand(xp.nTrials,2);
             ISI = round(ISI / ifi) * ifi;
+            timeStamps(iLeg).fixDur(iBlock,:) = ISI(:,1);
+            timeStamps(iLeg).targetDur(iBlock,:) = ISI(:,2);
+            
+            %Run timer
+            countDownTimer(windowPtr,'center','center',5);
             
             %Fixation
             if placeHolderFlag
@@ -140,31 +147,44 @@ try
                 timeStamps(iBlock,iTrial).fix = tFixOnset;
                 timeStamps(iBlock,iTrial).target = tTargetOnset;
                 
+                if ~mod(iTrial,floor(xp.nTrials/(xp.breaksPerBlock+1))+1) % if it's time for a break
+                    DrawFormattedText(windowPtr, textBreak, 'center', 'center', blackInt,[],[],[],2); % draw break text
+                    Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+                    WaitSecs(5);
+                    countDownTimer(windowPtr,'center','center',5);
+                    
+                    if placeHolderFlag
+                        Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
+                    end
+                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
+                    tFixOnset = Screen('Flip', windowPtr);
+                end
+                
             end %trial loop
             
             if iBlock < xp.nBlocks(iLeg)
+                
+                DrawFormattedText(windowPtr, textBlock, 'center', 'center', blackInt); % draw pause text
+                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+            elseif iBlock == xp.nBlocks(iLeg) && iLeg < xp.nLegs
+                DrawFormattedText(windowPtr, textLeg, 'center', 'center', blackInt); % draw pause text
+                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
+            else
+                DrawFormattedText(windowPtr, textEnd, 'center', 'center', blackInt); % draw pause text
+                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
+            end
             
-            DrawFormattedText(windowPtr, textBreak, 'center', 'center', blackInt); % draw pause text
-            Screen('Flip', windowPtr);
             %save back-up of data so far
             filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
                 datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
             save(filename,'data', 'xp', 'timeStamps')
-            KbStrokeWait;
             
-            end
+            KbStrokeWait;
             
         end % block loop
         
-        DrawFormattedText(windowPtr, textLeg, 'center', 'center', blackInt); % draw pause text
-        Screen('Flip', windowPtr);
-        KbStrokeWait;
-        
     end % leg loop
     
-    DrawFormattedText(windowPtr, textEnd, 'center', 'center', blackInt); % draw pause text
-    Screen('Flip', windowPtr);
-    pause(5);
     
     %% Save data and close
     filename = [xp.dataFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '.mat'];
@@ -176,10 +196,12 @@ try
     
 catch err
     
-    %save back-up of data so far
-    filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
-                datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
-    save(filename,'data', 'xp', 'timeStamps')
+    if exist('iTrial' , 'var')
+        %save back-up of data so far
+        filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
+            datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
+        save(filename,'data', 'xp', 'timeStamps')
+    end
     
     sca;
     ShowCursor; 
