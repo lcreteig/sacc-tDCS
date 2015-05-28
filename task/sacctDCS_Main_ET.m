@@ -161,8 +161,8 @@ try
                 
                 %Store data
                 data(iLeg).targetSide(iBlock,iTrial) = targetSide(iTrial);
-                timeStamps(iBlock,iTrial).fix = tFixOnset;
-                timeStamps(iBlock,iTrial).target = tTargetOnset;
+                timeStamps(iLeg).fix(iBlock,iTrial) = tFixOnset;
+                timeStamps(iLeg).target(iBlock,iTrial) = tTargetOnset;
                  
                 WaitSecs(xp.saccadeTime); % wait for saccade before sending messages
                 
