@@ -19,11 +19,12 @@ startAtBlock = str2double(answer{8});
 
 placeHolderFlag = false;
 overlap = 0;
+expISI = 1;
 
 if str2double(answer{6})
     [data,timeStamps] = sacctDCS_Main_ET(xp,startAtLeg,startAtBlock);
 else
-    [data,timeStamps] = sacctDCS_Main_noET(xp,placeHolderFlag,overlap,startAtLeg,startAtBlock);
+    [data,timeStamps] = sacctDCS_Main_noET(xp,placeHolderFlag,overlap,expISI,startAtLeg,startAtBlock);
 end
 
 assignin('base', 'xp', xp);

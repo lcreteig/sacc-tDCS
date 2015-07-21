@@ -116,9 +116,10 @@ xp.placeColor = xp.targetColor;
 %% Timing
 
 % Presentation times in seconds
-xp.saccadeTime = 0.300;
-xp.fixTime = [0.300 0.700]+xp.saccadeTime; % [lowerbound upperbound], each trial is random number in between
-xp.transTime = 1.000;% fixation at first and last trial of every block
+xp.maxSaccadeTime = 0.400; % time that will be checked for saccades post-stimulus
+xp.fixTime = [0.300 3]; % [lowerbound upperbound], each trial is drawn in between following an exponential distribution
+xp.mu = 0.5; % approximate mean of the truncated exponential distribution
+xp.transTime = 1.000;% fixation after last trial of every block
 
 %% Keys
 xp.abortKey = 'ESCAPE';

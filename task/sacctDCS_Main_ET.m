@@ -74,10 +74,24 @@ try
     for iLeg = startAtLeg:xp.nLegs
         for iBlock = startAtBlock:xp.nBlocks(iLeg)
             
+            %%%RANDOMIZE%%%
+            
+            %%%Randomize hemifield%%%
             targetSide = repmat([-1;1],xp.nTrials/2,1);
             targetSide = Shuffle(targetSide);
             
-            ISI = xp.fixTime(1) + (xp.fixTime(2) - xp.fixTime(1)).*rand(xp.nTrials,2);
+            %%%Randomize ISI%%%
+            lowBound = xp.fixTime(1);
+            upBound = xp.fixTime(2);
+            Mu = xp.mu - lowBound;
+            % get cumulative probalities from exponential cdf
+            lowBoundP = expcdf(lowBound, Mu);
+            upBoundP = expcdf(upBound , Mu);
+            % draw uniformly from this range
+            probDraw = lowBoundP + (upBoundP - lowBoundP) .* rand(xp.nTrials, 2);
+            % evaluate the exponential funxtion at the drawn probabilities
+            ISI = expinv(probDraw, Mu);
+            % round to ifi and store
             ISI = round(ISI / ifi) * ifi;
             timeStamps(iLeg).fixDur(iBlock,:) = ISI(:,1);
             timeStamps(iLeg).targetDur(iBlock,:) = ISI(:,2);
