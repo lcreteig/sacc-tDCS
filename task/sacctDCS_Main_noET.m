@@ -81,8 +81,8 @@ try
     Screen('Flip', windowPtr); % flip to screen
     KbStrokeWait; % wait for a key press
     
-    for iLeg = 1:xp.nLegs
-        for iBlock = 1:xp.nBlocks(iLeg)
+    for iLeg = startAtLeg:xp.nLegs
+        for iBlock = startAtBlock:xp.nBlocks(iLeg)
             
             targetSide = repmat([-1;1],xp.nTrials/2,1);
             targetSide = Shuffle(targetSide);
@@ -109,7 +109,7 @@ try
                     if placeHolderFlag
                         Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
                     end
-                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
+                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
                     Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
                     tTargetOnset = Screen('Flip', windowPtr, tFixOnset + ISI(iTrial,2) - slack);
                 end

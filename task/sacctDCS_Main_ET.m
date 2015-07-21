@@ -1,4 +1,4 @@
-function [data,timeStamps] = sacctDCS_Main_ET(xp)
+function [data,timeStamps] = sacctDCS_Main_ET(xp,startAtLeg,startAtBlock)
 
 try
     %% Setup
@@ -71,8 +71,8 @@ try
     Screen('Flip', windowPtr); % flip to screen
     KbStrokeWait; % wait for a key press
     
-    for iLeg = 1:xp.nLegs
-        for iBlock = 1:xp.nBlocks(iLeg)
+    for iLeg = startAtLeg:xp.nLegs
+        for iBlock = startAtBlock:xp.nBlocks(iLeg)
             
             targetSide = repmat([-1;1],xp.nTrials/2,1);
             targetSide = Shuffle(targetSide);
