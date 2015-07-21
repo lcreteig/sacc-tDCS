@@ -18,6 +18,7 @@ fprintf('Running experiment on a ''%s'' tracker.\n', vs);
 
 % Set some parameters of the eyetracker through the link
 Eyelink('command', ['add_file_preamble_text ''' xp.codename '_'  xp.subject '_' num2str(leg) '_' num2str(block) '''']); %write experiment details to start of file
+Eyelink('Command', 'simulation_screen_distance = %d', 100)
 Eyelink('command', 'enable_automatic_calibration = YES'); %automatically move to next calibration point (this can become unset for some reason sometimes)
 Eyelink('command', 'calibration_type = HV9'); %set 9-point calibration
 Eyelink('command', 'active_eye = LEFT'); %record left eye
@@ -55,8 +56,7 @@ Eyelink('command', 'draw_cross %d %d 0', stimCoords(3,1), stimCoords(3,2)); %dra
 
 % Send screen info
 Eyelink('message', 'DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, xp.screenRes(1)-1, xp.screenRes(2)-1);
-Eyelink('message', sprintf('degrees per pixel %f', dva2pix(1,[],xp.screenRes,xp.screenDim,xp.screenDist)));
-
+Eyelink('message', sprintf('degrees per pixel %f',  2 * tan(1/2 * pi/180) * xp.screenDist * (xp.screenRes(1) / xp.screenDim(1))));
 
 % Start recording eye position 
 if Eyelink('IsConnected')~=1 % Make sure we're still connected.
