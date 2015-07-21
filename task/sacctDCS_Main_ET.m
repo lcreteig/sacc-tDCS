@@ -1,13 +1,7 @@
-function [data,timeStamps] = sacctDCS_Main_ET(xp,placeHolderFlag,overlap)
+function [data,timeStamps] = sacctDCS_Main_ET(xp)
 
 try
     %% Setup
-    
-    if nargin < 2
-        placeHolderFlag = true;
-    elseif nargin < 3
-        overlap = 0; % in seconds
-    end
     
     for i = 1:xp.nLegs
         data(i).experiment = xp.experiment;
@@ -51,14 +45,6 @@ try
     targetSize = dva2pix(xp.targetSize,[],xp.screenRes,xp.screenDim,xp.screenDist); %convert target size to pixels
     targetEcc = dva2pix(xp.targetEcc,[],xp.screenRes,xp.screenDim,xp.screenDist); %convert target eccentricity to pixels
     
-    %%%PLACEHOLDERS%%%
-    if placeHolderFlag
-        placeSize = dva2pix(xp.placeSize,[],xp.screenRes,xp.screenDim,xp.screenDist);
-        placeHolder(:,1) = CenterRectOnPoint([0 0 placeSize placeSize], centerX-targetEcc, centerY); % left placeholder
-        placeHolder(:,2) = CenterRectOnPoint([0 0 placeSize placeSize], centerX, centerY); % center placeholder
-        placeHolder(:,3) = CenterRectOnPoint([0 0 placeSize placeSize], centerX+targetEcc, centerY); % right placeholder
-    end
-    
     %%%TIMING%%%
     
     %initialize a structure for keeping stimulus onset timeStamps
@@ -72,9 +58,6 @@ try
         timeStamps(i).leg  = xp.legNames{i};
     end
     
-    if overlap
-        overlap = round(overlap / ifi) * ifi;
-    end
     
     %%%EyeLink%%%
     %Specify coordinates to draw to EyeLink PC screen
@@ -106,9 +89,6 @@ try
             countDownTimer(windowPtr,'center','center',5);
             
             %Fixation
-            if placeHolderFlag
-                Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
-            end
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
             tFixOnset = Screen('Flip', windowPtr);
             Eyelink('Message', sprintf('leg %i block %i started at %f', iLeg, iBlock, tFixOnset));
@@ -118,39 +98,13 @@ try
                 Eyelink('Message', sprintf('trial %i started at %f', iTrial, GetSecs));
                 
                 %Target
-                if overlap
-                    if placeHolderFlag
-                        Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
-                    end
-                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                    Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                    tTargetOnset = Screen('Flip', windowPtr, tFixOnset + ISI(iTrial,1) - slack);
-                    Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 1, tTargetOnset));
-                end
-                
-                if placeHolderFlag
-                    Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
-                end
                 Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                tTargetOnset = Screen('Flip', windowPtr, tFixOnset + ISI(iTrial,1) + overlap - slack);
+                tTargetOnset = Screen('Flip', windowPtr, tFixOnset + ISI(iTrial,1) - slack);
                 Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 1, tTargetOnset));
                 
                 %Fixation
-                if overlap
-                    if placeHolderFlag
-                        Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
-                    end
-                    Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
-                    tFixOnset = Screen('Flip', windowPtr, tTargetOnset +ISI(iTrial,2));
-                    Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 2, tFixOnset));
-                end
-                
-                if placeHolderFlag
-                    Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
-                end
                 Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
-                tFixOnset = Screen('Flip', windowPtr, tTargetOnset + ISI(iTrial,2) + overlap - slack);
+                tFixOnset = Screen('Flip', windowPtr, tTargetOnset + ISI(iTrial,2) - slack);
                 Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 2, tFixOnset));
                 
                 %Check for keypresses
@@ -180,9 +134,6 @@ try
                     WaitSecs(5);
                     countDownTimer(windowPtr,'center','center',5);
                     
-                    if placeHolderFlag
-                        Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
-                    end
                     Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
                     tFixOnset = Screen('Flip', windowPtr);
                     Eyelink('Message', sprintf('leg %i block %i resumed at %f', iLeg, iBlock, GetSecs));
