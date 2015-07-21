@@ -12,7 +12,13 @@ function [xp] = sacctDCS_getParams(subjectID,tDCScode,environment,task,screenDis
 
 switch environment
     
-    case 'lab' %L1.01
+      case 'L1.09'
+        xp.dataFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'data', filesep);
+        xp.backupFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'data', 'backup', filesep);
+        xp.taskFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'task', filesep);
+        addpath(genpath(xp.taskFolder));
+    
+    case 'L1.01'
         xp.dataFolder = fullfile('/Users', 'test', 'Documents', 'Leon', 'sacc-tDCS', 'data', filesep);
         xp.backupFolder = fullfile('/Users', 'test', 'Documents', 'Leon', 'sacc-tDCS', 'data', 'backup', filesep);
         xp.taskFolder = fullfile('/Users', 'test', 'Documents', 'Leon', 'sacc-tDCS', 'task', filesep);
@@ -62,7 +68,13 @@ end
 
 switch environment
     
-    case 'lab'
+       case 'L1.09'
+         xp.screenNum = 2;
+         xp.screenDim = [51 28.5]; % screen dimensions [width height] in cm.
+         xp.screenRes = [1920 1080]; % screen dimensions [width height] in pixels.
+         xp.screenRefresh = 120;
+    
+    case 'L1.01'
         xp.screenNum = 0;
         xp.screenDim = [47.4 29.6]; % screen dimensions [width height] in cm.
         xp.screenRes = [1600 1200]; % screen dimensions [width height] in pixels.
@@ -79,7 +91,7 @@ switch environment
 end
 
 xp.screenDist = screenDist; % subject-screen distance in cm.
-%Screen('Resolution',xp.screenNum,xp.screenRes(1),xp.screenRes(2),xp.screenRefresh); % set monitor to desired settings
+Screen('Resolution',xp.screenNum,xp.screenRes(1),xp.screenRes(2),xp.screenRefresh); % set monitor to desired settings
 
 %% Stimuli
 
