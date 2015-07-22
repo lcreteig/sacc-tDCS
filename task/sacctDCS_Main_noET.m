@@ -42,7 +42,7 @@ try
     
     %%%TEXT%%%
     textStart = 'Press any key to begin.';
-    textBreak = 'Half-way through the current block.\nPlease do not move your head; the task will resume shortly!';
+    textBreak = 'Please look at the dot and resume the task by pressing any key.';
     textBlock = 'You may take a short break now. Press any key to resume';
     textLeg = 'Please wait for the experimenter.';
     textEnd = 'Experiment complete!';
@@ -73,6 +73,12 @@ try
     
     if overlap
         overlap = round(overlap / ifi) * ifi;
+    end
+    
+    breakTrials = zeros(1,xp.breaksPerBlock);
+    
+    for i = 1:xp.breaksPerBlock
+        breakTrials(i) = floor(xp.nTrials/(xp.breaksPerBlock+1)*i);
     end
     
     %% Experiment loop
@@ -112,8 +118,11 @@ try
             timeStamps(iLeg).fixDur(iBlock,:) = ISI(:,1);
             timeStamps(iLeg).targetDur(iBlock,:) = ISI(:,2);
             
-            %Run timer
-            countDownTimer(windowPtr,'center','center',5);
+            %Draw start screen
+            DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2);
+            Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
+            Screen('Flip', windowPtr); 
+            KbStrokeWait;
             
             %Fixation
             if placeHolderFlag
@@ -167,11 +176,11 @@ try
                 timeStamps(iBlock,iTrial).fix = tFixOnset;
                 timeStamps(iBlock,iTrial).target = tTargetOnset;
                 
-                if ~mod(iTrial,floor(xp.nTrials/(xp.breaksPerBlock+1))+1) % if it's time for a break
-                    DrawFormattedText(windowPtr, textBreak, 'center', 'center', blackInt,[],[],[],2); % draw break text
-                    Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
-                    WaitSecs(5);
-                    countDownTimer(windowPtr,'center','center',5);
+               if ismember(iTrial, breakTrials) % if it's time for a break
+                    DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2); % draw pause text
+                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
+                    Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+                    KbStrokeWait;
                     
                     if placeHolderFlag
                         Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
@@ -183,16 +192,15 @@ try
             end %trial loop
             
             if iBlock < xp.nBlocks(iLeg)
-                
-                DrawFormattedText(windowPtr, textBlock, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+                breakText = textBlock;
             elseif iBlock == xp.nBlocks(iLeg) && iLeg < xp.nLegs
-                DrawFormattedText(windowPtr, textLeg, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
+                breakText = textLeg;
             else
-                DrawFormattedText(windowPtr, textEnd, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
+                breakText = textEnd;
             end
+            
+            DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
+            Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
             
             %save back-up of data so far
             filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...

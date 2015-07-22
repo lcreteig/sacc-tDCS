@@ -36,7 +36,7 @@ try
     
     %%%TEXT%%%
     textStart = 'Press any key to begin.';
-    textBreak = 'Half-way through the current block.\nPlease do not move your head; the task will resume shortly!';
+    textBreak = 'Blink to your hearts content, but please do not move your head!\n Look at the dot for 2 seconds, then press any key to resume.';
     textBlock = 'You may take a short break now. Press any key to resume';
     textLeg = 'Please wait for the experimenter.';
     textEnd = 'Experiment complete!';
@@ -56,6 +56,12 @@ try
         timeStamps(i).fix =  zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).target = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).leg  = xp.legNames{i};
+    end
+    
+    breakTrials = zeros(1,xp.breaksPerBlock);
+    
+    for i = 1:xp.breaksPerBlock
+        breakTrials(i) = floor(xp.nTrials/(xp.breaksPerBlock+1)*i);
     end
     
     %%%EyeLink%%%
@@ -101,8 +107,11 @@ try
             %Start EyeLink calibration and recording
             EDFname = sacctDCS_ELrecord(windowPtr, xp, iLeg, iBlock);
             
-            %Run timer
-            countDownTimer(windowPtr,'center','center',5);
+            %Draw start screen
+            DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2);
+            Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
+            Screen('Flip', windowPtr); 
+            KbStrokeWait;
             
             %Fixation
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
@@ -143,12 +152,12 @@ try
                 Eyelink('Message', sprintf('trial %i parameter target saccade direction : %i', iTrial, targetSide(iTrial)));
                 Eyelink('Message', sprintf('trial %i parameter fixation saccade direction : %i', iTrial, -1*targetSide(iTrial)));
                 
-                if ~mod(iTrial,floor(xp.nTrials/(xp.breaksPerBlock+1))+1) % if it's time for a break
-                    DrawFormattedText(windowPtr, textBreak, 'center', 'center', blackInt,[],[],[],2); % draw break text
-                    Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+                if ismember(iTrial, breakTrials) % if it's time for a break
+                    DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2); % draw pause text
+                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
+                    Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
                     Eyelink('Message', sprintf('leg %i block %i paused at %f', iLeg, iBlock, GetSecs));
-                    WaitSecs(5);
-                    countDownTimer(windowPtr,'center','center',5);
+                    KbStrokeWait;
                     
                     Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
                     tFixOnset = Screen('Flip', windowPtr);
@@ -158,17 +167,14 @@ try
             end %trial loop
             
             if iBlock < xp.nBlocks(iLeg)
-                
-                DrawFormattedText(windowPtr, textBlock, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+                breakText = textBlock;
             elseif iBlock == xp.nBlocks(iLeg) && iLeg < xp.nLegs
-                DrawFormattedText(windowPtr, textLeg, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
+                breakText = textLeg;
             else
-                DrawFormattedText(windowPtr, textEnd, 'center', 'center', blackInt); % draw pause text
-                Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
+                breakText = textEnd;
             end
-             Eyelink('Message', sprintf('leg %i block %i stopped at %f', iLeg, iBlock, GetSecs));
+            DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
+            Eyelink('Message', sprintf('leg %i block %i stopped at %f', iLeg, iBlock, GetSecs));
              
                 %save back-up of data so far
                 filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.legNames{iLeg} '_' ...

@@ -108,6 +108,7 @@ xp.TextStyle = 0; %0 = normal, 1 = bold, 2 = italic.
 xp.targetEcc = 8; % displacement along horizontal meridian
 xp.targetSize = 0.5;
 xp.targetColor = 0; % single contrast value (0-255)
+xp.driftColor = [255 0 0]; % dot color during pause
 
 %%%PLACEHOLDERS%%%
 xp.placeSize = xp.targetSize*1.25;
