@@ -49,19 +49,19 @@ xp.date = datestr(now); %current date and time
 
 switch task
     
-    case 'practice' 
+    case 'practice'
         xp.nLegs = 1;
         xp.legNames = {'practice'};
         xp.nBlocks = 1;
-        xp.nTrials = 140;
-        xp.breaksPerBlock = 1;
+        xp.nTrials = 120;
+        xp.breaksPerBlock = 5;
         
-    case 'main' 
+    case 'main'
         xp.nLegs = 3;
         xp.legNames = {'pre'; 'tDCS'; 'post'};
         xp.nBlocks = [3 3 6]; % blocks per leg
-        xp.nTrials = 140; % trials per block
-        xp.breaksPerBlock = 1; %number of short, timed breaks in each block
+        xp.nTrials = 120; % trials per block
+        xp.breaksPerBlock = 5; %number of short, timed breaks in each block
 end
 
 %% Screen
@@ -113,6 +113,10 @@ xp.driftColor = [255 0 0]; % dot color during pause
 %%%PLACEHOLDERS%%%
 xp.placeSize = xp.targetSize*1.25;
 xp.placeColor = xp.targetColor;
+
+%% Eye tracking
+
+xp.maxSaccDev = 2; % degrees that end-point of saccade can maximally deviate, and still include it in feedback
 
 %% Timing
 
