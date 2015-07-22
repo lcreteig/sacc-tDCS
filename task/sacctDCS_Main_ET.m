@@ -11,6 +11,8 @@ try
         data(i).date = xp.date;
         data(i).targetSide = zeros(xp.nBlocks(i),xp.nTrials);
         data(i).leg = xp.legNames{i};
+        data(i).saccLatency = nan(xp.nBlocks(i),xp.nTrials,2);
+        data(i).saccAccuracy = nan(xp.nBlocks(i),xp.nTrials,2);
     end
     
     AssertOpenGL; %normally in PsychDefaultSetup
@@ -40,6 +42,9 @@ try
     textBlock = 'You may take a short break now. Press any key to resume';
     textLeg = 'Please wait for the experimenter.';
     textEnd = 'Experiment complete!';
+    textFB = ['Your average reaction time was %.f milliseconds.\n' ...
+        'The endpoint of your eye movements were off by %.2f millimeters on average.\n ' ...
+        'Great job; try and see if you can get these scores down even further!'];
     
     %%%TARGETS%%%
     targetSize = dva2pix(xp.targetSize,[],xp.screenRes,xp.screenDim,xp.screenDist); %convert target size to pixels
@@ -51,11 +56,14 @@ try
     
     for i = 1:xp.nLegs
         timeStamps(i).transDur = round(xp.transTime / ifi) * ifi;
+        timeStamps(i).maxSaccadeTime = round(xp.maxSaccadeTime / ifi) * ifi;
         timeStamps(i).fixDur = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).targetDur = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).fix =  zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).target = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).leg  = xp.legNames{i};
+        timeStamps(i).saccTarget = zeros(xp.nBlocks(i),xp.nTrials);
+        timeStamps(i).saccFix = zeros(xp.nBlocks(i),xp.nTrials);
     end
     
     breakTrials = zeros(1,xp.breaksPerBlock);
@@ -69,6 +77,7 @@ try
     stimCoords(1,:) = [centerX-targetEcc centerY];
     stimCoords(2,:) = [centerX, centerY];
     stimCoords(3,:) = [centerX+targetEcc centerY];
+    maxSaccDev = dva2pix(xp.maxSaccDev, [] ,xp.screenRes,xp.screenDim,xp.screenDist);
     
     %Setup the eye tracker
     [ELdefaults, ELconfig] = sacctDCS_ELconfig(stimCoords);
@@ -116,7 +125,7 @@ try
             %Fixation
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
             tFixOnset = Screen('Flip', windowPtr);
-            Eyelink('Message', sprintf('leg %i block %i started at %f', iLeg, iBlock, tFixOnset));
+            Eyelink('Message', sprintf('leg %i block %i started at %f', iLeg, iBlock, tISIonset(1)));
             
             for iTrial = 1:xp.nTrials
                 
@@ -124,13 +133,63 @@ try
                 
                 %Target
                 Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                tTargetOnset = Screen('Flip', windowPtr, tFixOnset + ISI(iTrial,1) - slack);
-                Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 1, tTargetOnset));
+                tISIonset(2) = Screen('Flip', windowPtr, tISIonset(1) + ISI(iTrial,1) - slack);
+                Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 1, tISIonset(2)));
+                stimTime = Eyelink('TrackerTime');
+                timeStamps(iLeg).target(iBlock,iTrial) = tISIonset(2);
+
+                % Check for saccades
+                saccMade = false;
+                while GetSecs < tISIonset(2) + timeStamps(iLeg).maxSaccadeTime % check for saccades % check untill the minimum ISI, minus 2 frames to have some slack for the next flip
+                    evtype = Eyelink('GetNextDataType'); % check identity of current event
+                    if evtype==ELconfig.ENDSACC % if it is an end saccade event
+                         evt = Eyelink('GetFloatData', evtype); % fetch data for the event
+                         if sqrt(((centerX+targetSide(iTrial)*targetEcc) - evt.genx)^2 + (centerY - evt.geny)^2) < maxSaccDev
+                             tISIonset(2) = GetSecs;
+                             saccMade = true;
+                             break
+                         end
+                    end
+                end
+                
+                if saccMade % if there was a saccade/we were able to get it
+                    data(iLeg).saccLatency(iBlock,iTrial,1) = evt.sttime - stimTime*1000; %calculate latency
+                    data(iLeg).saccAccuracy(iBlock,iTrial,1) = sqrt(((centerX+targetSide(iTrial)*targetEcc) - evt.genx)^2 + (centerY - evt.geny)^2); %calculate error in pixels
+                else
+                    tISIonset(2) = tISIonset(2) + timeStamps(iLeg).maxSaccadeTime;
+                end
+                timeStamps(iLeg).saccTarget(iBlock,iTrial) = tISIonset(2);
+                
                 
                 %Fixation
                 Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
-                tFixOnset = Screen('Flip', windowPtr, tTargetOnset + ISI(iTrial,2) - slack);
-                Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 2, tFixOnset));
+                tISIonset(1) = Screen('Flip', windowPtr, tISIonset(2) + ISI(iTrial,2) - slack);
+                Eyelink('Message', sprintf('trial %i phase %i started at %f', iTrial, 2, tISIonset(1)));
+                stimTime = Eyelink('TrackerTime');
+                timeStamps(iLeg).fix(iBlock,iTrial) = tISIonset(1);
+
+                % Check for saccades
+                saccMade = false;
+                while GetSecs < tISIonset(1) + timeStamps(iLeg).maxSaccadeTime % check for saccades
+                    evtype = Eyelink('GetNextDataType'); % check identity of current event
+                    if evtype==ELconfig.ENDSACC % if it is an end saccade event
+                        evt = Eyelink('GetFloatData', evtype); % fetch data for the event
+                        if sqrt((centerX - evt.genx)^2 + (centerY - evt.geny)^2) < maxSaccDev
+                            tISIonset(1) = GetSecs;
+                            saccMade = true;
+                            break
+                        end
+                    end
+                end
+                
+                if saccMade % if there was a saccade/we were able to get it
+                    data(iLeg).saccLatency(iBlock,iTrial,2) = evt.sttime - stimTime*1000; %calculate latency
+                    data(iLeg).saccAccuracy(iBlock,iTrial,2) = sqrt((centerX - evt.genx)^2 + (centerY - evt.geny)^2); %calculate error in pixels
+                else
+                    tISIonset(1) = tISIonset(1) + timeStamps(iLeg).maxSaccadeTime;
+                end
+                timeStamps(iLeg).saccFix(iBlock,iTrial) = tISIonset(1);
+                
                 
                 %Check for keypresses
                 [~,~,keyCode] = KbCheck;
@@ -140,17 +199,18 @@ try
                 
                 %Store data
                 data(iLeg).targetSide(iBlock,iTrial) = targetSide(iTrial);
-                timeStamps(iLeg).fix(iBlock,iTrial) = tFixOnset;
-                timeStamps(iLeg).target(iBlock,iTrial) = tTargetOnset;
                  
-                WaitSecs(xp.saccadeTime); % wait for saccade before sending messages
-                
                 Eyelink('Message', sprintf('trial %i stopped at %f', iTrial, GetSecs));
                 WaitSecs(0.001); % wait a bit, as the eyelink is not always able to write many messages in a short interval
-                Eyelink('Message', sprintf('trial %i parameter fixation-target interval : %s', iTrial, ISI(iTrial,1)));
-                Eyelink('Message', sprintf('trial %i parameter target-fixation interval : %s', iTrial, ISI(iTrial,2)));
+                Eyelink('Message', sprintf('trial %i parameter fixation-target interval : %f', iTrial, ISI(iTrial,1)));
+                Eyelink('Message', sprintf('trial %i parameter target-fixation interval : %f', iTrial, ISI(iTrial,2)));
                 Eyelink('Message', sprintf('trial %i parameter target saccade direction : %i', iTrial, targetSide(iTrial)));
                 Eyelink('Message', sprintf('trial %i parameter fixation saccade direction : %i', iTrial, -1*targetSide(iTrial)));
+                WaitSecs(0.001);
+                Eyelink('Message', sprintf('trial %i parameter target saccade latency : %f', iTrial, data(iLeg).saccLatency(iBlock,iTrial,1)));
+                Eyelink('Message', sprintf('trial %i parameter fixation saccade latency : %f', iTrial, data(iLeg).saccLatency(iBlock,iTrial,2)));
+                Eyelink('Message', sprintf('trial %i parameter target saccade accuracy : %f', iTrial, data(iLeg).saccAccuracy(iBlock,iTrial,1)));
+                Eyelink('Message', sprintf('trial %i parameter fixation saccade accuracy : %f', iTrial, data(iLeg).saccAccuracy(iBlock,iTrial,2)));
                 
                 if ismember(iTrial, breakTrials) % if it's time for a break
                     DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2); % draw pause text
@@ -160,7 +220,7 @@ try
                     KbStrokeWait;
                     
                     Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
-                    tFixOnset = Screen('Flip', windowPtr);
+                    tISIonset(1) = Screen('Flip', windowPtr);
                     Eyelink('Message', sprintf('leg %i block %i resumed at %f', iLeg, iBlock, GetSecs));
                 end
                  
@@ -174,6 +234,12 @@ try
                 breakText = textEnd;
             end
             DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
+            % select data from saccades to lateral targets only for feedback
+            latFBdata = data(iLeg).saccLatency(iBlock,:,1);
+            accFBdata = data(iLeg).saccAccuracy(iBlock,:,1);
+            FB = sprintf(textFB, mean(latFBdata(~isnan(latFBdata))), mean(accFBdata(~isnan(accFBdata))./(xp.screenRes(1)/xp.screenDim(1))*10) ); %format feedback text
+            DrawFormattedText(windowPtr, FB, 'center', centerY*0.6, blackInt,[],[],[],2); % draw feedback text
+            Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack);
             Eyelink('Message', sprintf('leg %i block %i stopped at %f', iLeg, iBlock, GetSecs));
              
                 %save back-up of data so far

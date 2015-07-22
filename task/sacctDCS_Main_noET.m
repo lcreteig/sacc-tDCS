@@ -64,6 +64,7 @@ try
     %initialize a structure for keeping stimulus onset timeStamps
     for i = 1:xp.nLegs
         timeStamps(i).transDur = round(xp.transTime / ifi) * ifi;
+        timeStamps(i).maxSaccadeTime = round(xp.maxSaccadeTime / ifi) * ifi;
         timeStamps(i).fixDur = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).targetDur = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).fix =  zeros(xp.nBlocks(i),xp.nTrials);
@@ -129,7 +130,7 @@ try
                 Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
             end
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
-            tFixOnset = Screen('Flip', windowPtr);
+            tISIonset(1) = Screen('Flip', windowPtr);
             
             for iTrial = 1:xp.nTrials
                 
@@ -140,14 +141,14 @@ try
                     end
                     Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
                     Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                    tTargetOnset = Screen('Flip', windowPtr, tFixOnset + ISI(iTrial,2) - slack);
+                    Screen('Flip', windowPtr, tISIonset(1) + ISI(iTrial,1) + timeStamps(iLeg).maxSaccadeTime - slack);
                 end
                 
                 if placeHolderFlag
                     Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
                 end
                 Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                tTargetOnset = Screen('Flip', windowPtr, tFixOnset + ISI(iTrial,2) + overlap - slack);
+                tISIonset(2) = Screen('Flip', windowPtr, tISIonset(1) + ISI(iTrial,1) + timeStamps(iLeg).maxSaccadeTime + overlap - slack);
                 
                 %Fixation
                 if overlap
@@ -156,14 +157,14 @@ try
                 end
                 Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
                 Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
-                tFixOnset = Screen('Flip', windowPtr, tTargetOnset +ISI(iTrial,1));
+                Screen('Flip', windowPtr, tISIonset(2) + ISI(iTrial,2) + timeStamps(iLeg).maxSaccadeTime - slack);
                 end
                 
                 if placeHolderFlag
                     Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
                 end
                 Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
-                tFixOnset = Screen('Flip', windowPtr, tTargetOnset + ISI(iTrial,1) + overlap - slack);
+                tISIonset(1) = Screen('Flip', windowPtr, tISIonset(2) + ISI(iTrial,2) + timeStamps(iLeg).maxSaccadeTime + overlap - slack);
                 
                 %Check for keypresses
                 [~,~,keyCode] = KbCheck;
@@ -173,8 +174,8 @@ try
                 
                 %Store data
                 data(iLeg).targetSide(iBlock,iTrial) = targetSide(iTrial);
-                timeStamps(iBlock,iTrial).fix = tFixOnset;
-                timeStamps(iBlock,iTrial).target = tTargetOnset;
+                timeStamps(iBlock,iTrial).fix = tISIonset(1);
+                timeStamps(iBlock,iTrial).target = tISIonset(2);
                 
                if ismember(iTrial, breakTrials) % if it's time for a break
                     DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2); % draw pause text
@@ -186,7 +187,7 @@ try
                         Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
                     end
                     Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
-                    tFixOnset = Screen('Flip', windowPtr);
+                    tISIonset(1) = Screen('Flip', windowPtr);
                 end
                 
             end %trial loop
@@ -200,7 +201,7 @@ try
             end
             
             DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
-            Screen('Flip', windowPtr, tFixOnset + timeStamps(iLeg).transDur - slack);
+            Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack);
             
             %save back-up of data so far
             filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
