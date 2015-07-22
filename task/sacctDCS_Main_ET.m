@@ -58,12 +58,14 @@ try
         timeStamps(i).leg  = xp.legNames{i};
     end
     
-    
     %%%EyeLink%%%
     %Specify coordinates to draw to EyeLink PC screen
     stimCoords(1,:) = [centerX-targetEcc centerY];
     stimCoords(2,:) = [centerX, centerY];
     stimCoords(3,:) = [centerX+targetEcc centerY];
+    
+    %Setup the eye tracker
+    [ELdefaults, ELconfig] = sacctDCS_ELconfig(stimCoords);
     
     %% Experiment loop
     
@@ -96,8 +98,8 @@ try
             timeStamps(iLeg).fixDur(iBlock,:) = ISI(:,1);
             timeStamps(iLeg).targetDur(iBlock,:) = ISI(:,2);
             
-            %Setup the eye tracker
-            [ELdefaults, EDFname] = sacctDCS_ELconfig(windowPtr, xp, iLeg, iBlock, stimCoords);
+            %Start EyeLink calibration and recording
+            EDFname = sacctDCS_ELrecord(windowPtr, xp, iLeg, iBlock);
             
             %Run timer
             countDownTimer(windowPtr,'center','center',5);
@@ -170,20 +172,12 @@ try
              
                 %save back-up of data so far
                 filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.legNames{iLeg} '_' ...
-                    datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
+                    datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
                 save(filename,'data', 'xp', 'timeStamps')
                 
                 % save ET-file
-                fullEDFname = sprintf([xp.dataFolder '%s_%s_%s_%s_block%i_%s.edf'], xp.codename, xp.subject, xp.tDCS, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
-                Eyelink('CloseFile');
-                Eyelink('WaitForModeReady', 500); % helps to avoid errors in retrieving files
-                try
-                    status = Eyelink('ReceiveFile', EDFname, fullEDFname); %this collects the file from the eyelink
-                    disp(status);
-                    disp(['File ' fullEDFname ' saved to disk']);
-                catch
-                    warning(['File ' fullEDFname ' not saved to disk']);
-                end
+                sacctDCS_ELsave(xp,EDFname,iBlock,iLeg)
+                
                 KbStrokeWait;
                  
         end % block loop
@@ -198,23 +192,7 @@ try
     sca; %Screen('CloseAll'), to regain control of monitor
     ShowCursor; % show mouse again
     Priority(0); % restore priority
-    
-    Eyelink('command', 'clear_screen 0'); % clear tracker display
-    
-    % Reset parameters that were changed to their initial value (see sacctDCS_ELconfig)
-    
-    Eyelink('command', ['elcl_select_configuration = ' ELdefaults.config]);
-    Eyelink('command', ['sample_rate = ' ELdefaults.sRate]);
-    Eyelink('command', ['enable_automatic_calibration = ' ELdefaults.autoCalib]);
-    Eyelink('command', ['calibration_type = ' ELdefaults.calibType]);
-    Eyelink('command', ['active_eye = ' ELdefaults.eye]);
-    Eyelink('command', ['recording_parse_type = ' ELdefaults.parseType]);
-    Eyelink('command', ['select_parser_configuration = ' ELdefaults.parseConfig]);
-    Eyelink('command', ['heuristic_filter = ' ELdefaults.filter]);
-    Eyelink('command', ['use_ellipse_fitter = ' ELdefaults.pupilTrack]);
-    Eyelink('command', ['pupil_size_diameter = ' ELdefaults.pupilType]);
-    Eyelink('command', ['file_sample_data = ' ELdefaults.fileSampleData]);
-    Eyelink('command', ['file_event_filter = ' ELdefaults.fileEventFilter]);
+    sacctDCS_ELwrapup(ELdefaults) %restore eyetracker defaults
     
 catch err
     
@@ -225,22 +203,14 @@ catch err
         save(filename,'data', 'xp', 'timeStamps')
         
         % save ET-file
-        fullEDFname = sprintf([xp.backupFolder '%s_%s_%s_block%i_%s.edf'], xp.codename, xp.subject, data(iLeg).leg, iBlock, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
-        Eyelink('CloseFile');
-        Eyelink('command', 'clear_screen 0'); % clear tracker display
-        Eyelink('WaitForModeReady', 500); % helps to avoid errors in retrieving files
-        try
-            status = Eyelink('ReceiveFile', EDFname, fullEDFname); %this collects the file from the eyelink
-            disp(status);
-            disp(['File ' fullEDFname ' saved to disk']);
-        catch
-            warning(['File ' fullEDFname ' not saved to disk']);
-        end
+        sacctDCS_ELsave(xp,EDFname,iBlock,iLeg)
+        
     end
     
     sca;
     ShowCursor;
     Priority(0);
+    sacctDCS_ELwrapup(ELdefaults) %restore eyetracker defaults
     rethrow(err); % issue the caught error
 end
 

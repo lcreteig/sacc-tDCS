@@ -1,16 +1,8 @@
-function [ELdefaults, EDFname] = sacctDCS_ELconfig(windowPtr, xp, leg, block, stimCoords)
+function [ELdefaults, ELconfig] = sacctDCS_ELconfig(stimCoords)
 
-el = EyelinkInitDefaults(windowPtr); % set standard parameters
+ELconfig = EyelinkInitDefaults; % set standard parameters
 
-%modify some to match present experiment
-el.msgfontcolour    = BlackIndex(xp.screenNum);
-el.imgtitlecolour   = BlackIndex(xp.screenNum);
-el.calibrationtargetcolour = WhiteIndex(xp.screenNum);
-el.backgroundcolour = round(GrayIndex(xp.screenNum));
-el.calibrationtargetsize = 2;
-el.calibrationtargetwidth = 0.5;
-
-EyelinkUpdateDefaults(el);
+% Initialize connection with Eyelink
 if ~EyelinkInit(0)
     error('Eyelink initialization aborted.\n');
 end
@@ -52,45 +44,9 @@ Eyelink('command', 'file_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAG
 %"link_event_data" sets data in events sent through the link
 %"link_event_filter" specifies which types of samples will be available online through the link
 
-%"link_sample_data" specifies which types of samples will be available online through the link
-%"link_event_data" sets data in events sent through the link
-%"link_event_filter" specifies which types of samples will be available online through the link
-
 % Draw shapes to host pc at saccade target locations, for online viewing of gaze cursor
 Eyelink('command', 'set_idle_mode'); % must be offline to draw to EyeLink screen
 Eyelink('command', 'clear_screen 7'); % clear tracker display, fill with color
 Eyelink('command', 'draw_cross %d %d 0', stimCoords(1,1), stimCoords(1,2)); %draw left target location
 Eyelink('command', 'draw_cross %d %d 0', stimCoords(2,1), stimCoords(2,2)); %draw center target location
 Eyelink('command', 'draw_cross %d %d 0', stimCoords(3,1), stimCoords(3,2)); %draw right target location
-
-% Open EDF file for recording data from Eyelink
-% Filename can be 8 characters (letters or numbers) max!
-EDFname = sprintf('%sL%iB%i.edf', xp.subject, leg, block);
-stat = Eyelink('Openfile', EDFname);
-if stat~=0
-    error('Cannot create EDF file');
-end
-Eyelink('command', ['add_file_preamble_text ''' xp.codename '_'  xp.subject '_' num2str(leg) '_' num2str(block) '''']); %write experiment details to start of file
-
-% Calibrate the eye tracker
-EyelinkDoTrackerSetup(el);
-
-% Send screen info
-Eyelink('message', 'DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, xp.screenRes(1)-1, xp.screenRes(2)-1);
-Eyelink('message', sprintf('degrees per pixel %f',  2 * tan(1/2 * pi/180) * xp.screenDist * (xp.screenRes(1) / xp.screenDim(1))));
-
-% Send screen info
-Eyelink('message', 'DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, xp.screenRes(1)-1, xp.screenRes(2)-1);
-Eyelink('message', sprintf('degrees per pixel %f',  2 * tan(1/2 * pi/180) * xp.screenDist * (xp.screenRes(1) / xp.screenDim(1))));
-
-% Start recording eye position 
-if Eyelink('IsConnected')~=1 % Make sure we're still connected.
-    error('Eyelink connection lost')
-end;
-Eyelink('command', 'set_idle_mode'); %short pause so that the tracker can finish the mode transition; might crash otherwise
-WaitSecs(0.05);
-Eyelink('StartRecording');
-WaitSecs(0.1); % record a few samples before start displaying, otherwise a few msec of data might be lost
-Eyelink('message', 'start recording Eyelink'); % mark start of recording in data file
-
-end
