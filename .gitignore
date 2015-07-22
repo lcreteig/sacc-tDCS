@@ -1,0 +1,25 @@
+# Matlab files
+*.asv
+*.m~
+
+# Windows / OSX files
+*.DS_store
+Thumbs.db
+*.smbdelete*
+._*
+*.dll
+*.exe
+
+# Documents
+*.xlsx
+*.docx
+*.pdf
+
+# Binary data
+*.edf
+*.nii
+
+# Folders
+doc/*
+IRB/*
+figures/*
