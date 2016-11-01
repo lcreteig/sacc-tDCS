@@ -1,12 +1,5 @@
 %% Parameters
-
-summary_func = @nanmedian; % calculate mean or median of saccade measures
-
 microSaccCrit = 1.5; % saccades with smaller amplitude are considered microsaccades and not extracted for analysis
-crit.saccStart = 1.8; % exclude saccades whose start point is more than this degrees away from fixation
-crit.saccEnd = 8; % exclude saccades whose end point is more than this degrees away from the target
-crit.saccLatencyFast = 50; % exclude saccades with latency faster than 50 ms
-crit.saccLatencySlow = 400; % exclude saccades with latency slower than 50 ms
 
 %% I/O
 
@@ -32,18 +25,25 @@ tDCScodes = {'C', 'I'; 'H', 'A'}; % in subject 1-10, setting 'C' on the device w
 % In subject 11-15, 'A' was mapped to cathodal; for anhodal or 'H' the wires were reversed 
 legs = {'pre', 'tDCS', 'post'};
 
-fid = fopen(fullfile(dataDir, ['saccLatency' '_' func2str(summary_func) '.txt']),'w'); % open text file for writing
-printHeaders = true; % headers still need to be printed
+fid = fopen(fullfile(dataDir, ['saccLatency' '.csv']),'w'); % open text file for writing
+% print column headers
+fprintf(fid, '%s,', 'subject');
+fprintf(fid, '%s,', 'stimulation');
+fprintf(fid, '%s,', 'leg');
+fprintf(fid, '%s,', 'block');
+fprintf(fid, '%s,', 'trial');
+fprintf(fid, '%s,', 'type');
+fprintf(fid, '%s,', 'direction');
+fprintf(fid, '%s,', 'deviation.start');
+fprintf(fid, '%s,', 'deviation.end');
+fprintf(fid, '%s,', 'amplitude');
+fprintf(fid, '%s,', 'latency');
+fprintf(fid,'\n'); % go to next line
+
 %% Process files
 
 for iSub = [subjects(1) subjects] % loop over first subject twice, just to print headers to data table
-    
-    if printHeaders
-        fprintf(fid,'subject\t');  % Write out subject column header
-    else
-        fprintf(fid,'%s\t',iSub{:}); % Write row header
-    end
-    
+
     % get correspondance between stimulation type and tDCS setting
     if str2double(iSub{:}(2:end)) <= 10 % for the first 10 subjects
         mapping = 1;
@@ -62,15 +62,6 @@ for iSub = [subjects(1) subjects] % loop over first subject twice, just to print
             
             for iBlock = 1:length(files2load)
                 
-                if printHeaders % if headers are still to be printed
-                    % print headers
-                    fprintf(fid, '%s\t', [stimType{:} '_' iLeg{:} '_' num2str(iBlock) '_' 'lateral' '_' 'left']);
-                    fprintf(fid, '%s\t', [stimType{:} '_' iLeg{:} '_' num2str(iBlock) '_' 'lateral' '_' 'right']);
-                    fprintf(fid, '%s\t', [stimType{:} '_' iLeg{:} '_' num2str(iBlock) '_' 'center' '_' 'left']);
-                    fprintf(fid, '%s\t', [stimType{:} '_' iLeg{:} '_' num2str(iBlock) '_' 'center' '_' 'right']);
-                    continue % skip to next column
-                end
-                
                 fileName = files2load(iBlock).name; %file name of current block
                 EDFfile = fullfile(dataDir, iSub{:}, rawFolder, fileName); % full path to .edf file
                 
@@ -87,26 +78,39 @@ for iSub = [subjects(1) subjects] % loop over first subject twice, just to print
                 
                 saccData = processEDF(ASCfile,MATfile,iLeg{:},iBlock,microSaccCrit);
                 
-                %% Clean data
+                % initialize cells for saccade info
+                saccType = cell(length(saccData.lateral),1);
+                saccDirection = cell(length(saccData.direction),1);
                 
-                saccStartIdx = saccData.startDev < crit.saccStart; % trials with saccade start point smaller than criterion
-                saccEndIdx = saccData.endDev < crit.saccEnd; % trials with saccade end point smaller than criterion
-                saccLatencyIdx = saccData.latency > crit.saccLatencyFast & saccData.latency < crit.saccLatencySlow; % trials with saccade latency neither too fast nor too slow
+                % convert numerical condition code to strings
+                [saccType{saccData.lateral == 1}] = deal('lateral');
+                [saccType{saccData.lateral == 0}] = deal('center');
+                [saccDirection{saccData.direction == -1}] = deal('left');
+                [saccDirection{saccData.direction == 1}] = deal('right');
                 
-                corrSaccs = saccStartIdx & saccEndIdx & saccLatencyIdx; % combine all to get indices of trials for analysis
-                fprintf('%i saccades of %i (%i %%) included for analysis in file %s\n', sum(corrSaccs), length(corrSaccs), round(sum(corrSaccs)/length(corrSaccs)*100), fileName);
-                                
                 %% Print data to table
-                
-                fprintf(fid,'%g\t', summary_func(saccData.latency(corrSaccs & saccData.lateral == 1 & saccData.direction == -1))); % saccades to a LATERAL target, LEFT of current fixation position
-                fprintf(fid,'%g\t', summary_func(saccData.latency(corrSaccs & saccData.lateral == 1 & saccData.direction == 1)));  % saccades to a LATERAL target, RIGHT of current fixation position
-                fprintf(fid,'%g\t', summary_func(saccData.latency(corrSaccs & saccData.lateral == 0 & saccData.direction == -1))); % saccades to a CENTRAL target, LEFT of current fixation position
-                fprintf(fid,'%g\t', summary_func(saccData.latency(corrSaccs & saccData.lateral == 0 & saccData.direction == 1))); % saccades to a CENTRAL target, RIGHT of current fixation position
-                
+
+                for iTrial = 1:length(saccData.trialNum)
+
+                    fprintf(fid,'%s,%s,%s,%i,%i,%s,%s,%g,%g,%g,%g\n', ...
+                        iSub{:}, ... % print subject ID
+                        stimType{:}, ... % print stimulation type
+                        iLeg{:}, ... % print pre/during/post tDCS
+                        iBlock, ... % print block number
+                        saccData.trialNum(iTrial), ... % print current trial number
+                        saccType{iTrial}, ... % print whether saccade was to side or center
+                        saccDirection{iTrial}, ... % print whether saccade direction was right or left
+                        saccData.startDev(iTrial), ... % print deviation of saccade start point to fixation
+                        saccData.endDev(iTrial), ... % print deviation from saccade end point to target location
+                        saccData.amplitude(iTrial), ... % print saccade amplitude (length of straight line between start and end point)
+                        saccData.latency(iTrial) ... % print saccade latency (time from target onset to start of saccade)
+                    );
+
+                end
+   
             end
         end
     end
-    printHeaders = false; % stop printing headers after first outer loop
-    fprintf(fid,'\n'); % go to next line (subject)
+ 
 end
 fclose(fid);
