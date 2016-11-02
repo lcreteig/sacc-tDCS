@@ -1,0 +1,125 @@
+---
+title: "Transcranial direct current stimulation of the right frontal eye field in a prosaccade task"
+author: Leon Reteig
+output:
+  html_notebook:
+    toc: yes
+    toc-depth: 2
+---
+
+```{r include=FALSE}
+# Don't show warnings and messages in HTML output
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+R notebook for statistical analysis of the `sacc-tDCS` dataset. Previous processing:
+
+* Raw data were parsed into events (saccades, fixations, etc.) by the EyeLink data were collected on.
+* Events were extracted and saccade measures were computed with a MATLAB script.
+
+# Load data
+
+```{r Load some libraries}
+# Load some libraries
+library("tidyr") # tidying data frames
+library("dplyr") # wrangling data frame data
+library("ggplot2") # plotting
+library("ez") # ANOVA
+```
+
+The .csv file was created in MATLAB.
+```{r, echo=TRUE}
+# Load the data frame
+dataFile <- file.path("data", "sacc-tDCS_data.csv")
+groupData <- read.csv(dataFile, header = TRUE, na.strings = "NaN")
+
+```
+
+```{r}
+# Format data frame
+groupData <- select(groupData, -X) # drop final empty column named "X"
+groupData$leg <- factor(groupData$leg, levels = c("pre", "tDCS", "post")) # reorder levels chronologically instead of alphabetically
+```
+
+```{r}
+head(groupData)
+```
+
+* __subject__: subject IDj
+* __stimulation__: Whether data are from the anodal or cathodal session
+* __leg__: Whether data are before (`pre`), during (`tDCS`), or after (`post`) tDCS
+* __block__: After each block participant had a brief break and tracker was recalibrated
+* __trial__: trial number within a block
+* __type__:
+    * `lateral` - fixation in center of display, saccade made towards the periphery
+    * `center` - fixation in periphery, saccade made back towards the center of the display
+* __direction__: `left` for saccades towards the left of current fixation position; `right` for saccades to the right
+* __deviation.start__ : distance (in visual angle) from saccade start point to fixation
+* __deviation.end__: distance (in visual angle) from saccade end point to target location
+* __amplitude__: distance (in visual angle) between saccade start and end point
+* __latency__: time (in ms) from target onset to start of saccade
+
+# Basic inspection
+
+##  Reaction time distributions
+
+### Histograms for each subject 
+
+```{r fig.width=9.6}
+histType <- ggplot(groupData, aes(latency, fill = type)) +
+  facet_wrap(~subject, nrow = 3, scales ="free_y") +
+  geom_histogram(binwidth = 5, color = "grey50", size = .2) +
+  xlim(-50,300)
+histType
+```
+
+Stray observations:
+
+* Center saccades are much faster than lateral, though not to the same degree in all subjects
+* Some have a fat short latency tail - too fast saccades that are virtually all towards the center: S05, S10, S11
+* Some appear bimodal, but when split for type this is generally because center saccades are faster: S05, S06, S11
+* Some are super sharp (S8); others really broad (S01)
+* S01 has a very typical looking distribution, but slow
+
+### Stimulation effects across subjects
+
+```{r fig.width=9.6}
+dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) +
+  facet_grid(type ~ direction) +
+  geom_density() +
+  xlim(0, 250) +
+  scale_color_brewer(palette = "Set1")
+dens
+```
+
+### Anodal vs. cathodal in each subject
+```{r fig.width= 9.6}
+denstDCS <- ggplot(groupData[groupData$leg == 'tDCS' & groupData$type == "lateral", ], aes(latency, color = stimulation)) +
+  facet_wrap(~subject, nrow = 3, scales ="free_y") +
+  geom_density() +
+  xlim(0, 250) +
+  scale_color_brewer(palette = "Set1") +
+  ggtitle('Lateral saccades, tDCS block')
+denstDCS
+```
+
+### Anodal session in each subject
+
+```{r fig.width=9.6}
+densLegAnodal <- ggplot(groupData[groupData$stimulation == 'anodal' & groupData$type == "lateral", ], aes(latency, color = leg)) +
+  facet_wrap(~subject, nrow = 3, scales ="free_y") +
+  geom_density() +
+  xlim(0, 250) +
+  ggtitle('Lateral saccades, anodal')
+densLegAnodal
+```
+
+### Cathodal session in each subject
+```{r, fig.width=9.6}
+densLegCathodal <- ggplot(groupData[groupData$stimulation == 'cathodal' & groupData$type == "lateral", ], aes(latency, color = leg)) +
+  facet_wrap(~subject, nrow = 3, scales ="free_y") +
+  geom_density() +
+  xlim(0, 250) +
+  ggtitle('Lateral saccades, cathodal')
+densLegCathodal
+```
