@@ -25,6 +25,7 @@ library("tidyr") # tidying data frames
 library("dplyr") # wrangling data frame data
 library("ggplot2") # plotting
 library("ez") # ANOVA
+library("knitr") # R markdown output (html, pdf, etc.)
 ```
 
 The .csv file was created in MATLAB.
@@ -42,7 +43,7 @@ groupData$leg <- factor(groupData$leg, levels = c("pre", "tDCS", "post")) # reor
 ```
 
 ```{r}
-head(groupData)
+kable(head(groupData))
 ```
 
 * __subject__: subject IDj
@@ -73,7 +74,7 @@ histType <- ggplot(groupData, aes(latency, fill = type)) +
 histType
 ```
 
-Stray observations:
+__Stray observations:__
 
 * Center saccades are much faster than lateral, though not to the same degree in all subjects
 * Some have a fat short latency tail - too fast saccades that are virtually all towards the center: S05, S10, S11
@@ -123,3 +124,81 @@ densLegCathodal <- ggplot(groupData[groupData$stimulation == 'cathodal' & groupD
   ggtitle('Lateral saccades, cathodal')
 densLegCathodal
 ```
+
+# Outliers
+
+## Mark outliers
+
+```{r, include=FALSE}
+tooFast= 50;
+tooSlow = 400; 
+badFix = 1.8;
+badSacc = 8;
+```
+
+Criteria for outliers:
+
+* Discard fast saccades, with a latency of `r tooFast` ms or less
+* Discard slow saccades, saccades with a latency of `r tooSlow` ms or more
+* Discard inaccurate fixations, with saccade starting point more than `r badFix` degrees or more away from fixation
+* Discard faulty saccades, with saccade end point more than `r badSacc` degree or more away from the target
+
+In [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045), this was:
+
+* Fast saccades: 50 ms
+* Slow saccades: 400 ms
+* Bad fixations: 1.8 degrees
+* Faulty saccades: opposite hemifield of target (here, that would be 8 degrees as targets were that eccentric)
+
+```{r}
+# Mark outliers
+groupData <- mutate(groupData, outlier = FALSE, # fill vector with FALSE for all trials
+                    outlier = ifelse(latency < tooFast, "fast", outlier), # mark too fast trials as "fast"
+                    outlier = ifelse(latency > tooSlow, "slow", outlier), # mark too slow trials as "slow"
+                    outlier = ifelse(deviation.start > badFix, "fixation", outlier), # mark bad fixations as "fixation"
+                    outlier = ifelse(deviation.end > badSacc, "saccade", outlier)) # mark inaccurate saccades as "saccade"
+
+groupDataClean <- filter(groupData, outlier == FALSE) # make new data frame without outlier trials
+```
+
+## Plot outliers per subject
+
+```{r, fig.width=9.6}
+outlierPlot <- ggplot(groupData[groupData$outlier != FALSE, ], aes(interaction(stimulation,leg,block,trial), latency, color = outlier, shape = type)) +
+  facet_wrap(~subject, nrow = 4, scales = "free_y") +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = tooFast, linetype = "dashed") +
+  geom_hline(yintercept = tooSlow, linetype = "dashed") +
+  xlab('Trial') +
+  theme(axis.text.x=element_blank(), # remove x-axis (just trial count)
+  axis.ticks.x=element_blank())
+outlierPlot
+```
+
+```{r results='asis'}
+outlierCount <- groupData %>%
+  group_by(subject) %>%
+  summarize(outlier_count = sum(outlier != FALSE, na.rm = TRUE))
+kable(outlierCount, caption = "Number of outlier trials per subject")
+```
+
+__Stray observations:__
+
+Differences between subjects:
+
+* Some subjects have barely any outliers (S02, S07)
+* Most subjects have quite a few outliers, especially S05,S06, S10 and S1. The mean is `r mean(outlierCount$outlier_count)` out of `r sum(groupData$subject == "S01")` trials in total
+* Only S01 has a sizable amount of slow saccades
+* S14 has a lot of negative latencies (and also long positive latencies)
+* Those subjects with many fast saccades also tend to have many bad fixations (S06, S10, but see S08)
+
+General patterns:
+
+* Occurence of outliers seems stable throughout the session: there aren't more/less in the beginning / end
+* There are very few inaccurate saccades (makes sense, because task is easy and criterion is not strict)
+* Most outliers are too fast saccades and bad fixations
+* Slow saccades are lateral, fast saccades are to the center, because only the latter are predictable
+* Bad fixations appear to be mostly center saccades (but this varies a lot). Perhaps the eyes already drift back towards the center, before executing the saccade?
+* Or is the source of bad fixations simply poor quality of the eye tracker data? e.g. people are actually fixating, but due to drift it appears they are not.
+
