@@ -3,8 +3,8 @@ title: "Transcranial direct current stimulation of the right frontal eye field i
 author: Leon Reteig
 output:
   html_notebook:
-    toc: yes
-    toc-depth: 2
+    toc: true
+    toc_depth: 2
 ---
 
 ```{r include=FALSE}
@@ -29,20 +29,20 @@ library("knitr") # R markdown output (html, pdf, etc.)
 ```
 
 The .csv file was created in MATLAB.
-```{r, echo=TRUE}
+```{r Load the data frame, echo=TRUE}
 # Load the data frame
 dataFile <- file.path("data", "sacc-tDCS_data.csv")
 groupData <- read.csv(dataFile, header = TRUE, na.strings = "NaN")
 
 ```
 
-```{r}
+```{r Format data frame}
 # Format data frame
 groupData <- select(groupData, -X) # drop final empty column named "X"
 groupData$leg <- factor(groupData$leg, levels = c("pre", "tDCS", "post")) # reorder levels chronologically instead of alphabetically
 ```
 
-```{r}
+```{r Show data frame}
 kable(head(groupData))
 ```
 
@@ -66,7 +66,7 @@ kable(head(groupData))
 
 ### Histograms for each subject 
 
-```{r fig.width=9.6}
+```{r Histogram per subject, fig.width=9.6}
 histType <- ggplot(groupData, aes(latency, fill = type)) +
   facet_wrap(~subject, nrow = 3, scales ="free_y") +
   geom_histogram(binwidth = 5, color = "grey50", size = .2) +
@@ -84,7 +84,7 @@ __Stray observations:__
 
 ### Stimulation effects across subjects
 
-```{r fig.width=9.6}
+```{r Density: stimulation across subjects, fig.width=9.6}
 dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) +
   facet_grid(type ~ direction) +
   geom_density() +
@@ -94,7 +94,7 @@ dens
 ```
 
 ### Anodal vs. cathodal in each subject
-```{r fig.width= 9.6}
+```{r Density: anodal vs. cathodal per subject, fig.width=9.6}
 denstDCS <- ggplot(groupData[groupData$leg == 'tDCS' & groupData$type == "lateral", ], aes(latency, color = stimulation)) +
   facet_wrap(~subject, nrow = 3, scales ="free_y") +
   geom_density() +
@@ -106,7 +106,7 @@ denstDCS
 
 ### Anodal session in each subject
 
-```{r fig.width=9.6}
+```{r Density: anodal per leg and subject, fig.width=9.6}
 densLegAnodal <- ggplot(groupData[groupData$stimulation == 'anodal' & groupData$type == "lateral", ], aes(latency, color = leg)) +
   facet_wrap(~subject, nrow = 3, scales ="free_y") +
   geom_density() +
@@ -116,7 +116,7 @@ densLegAnodal
 ```
 
 ### Cathodal session in each subject
-```{r, fig.width=9.6}
+```{r Density: cathodal per leg and subject, fig.width=9.6}
 densLegCathodal <- ggplot(groupData[groupData$stimulation == 'cathodal' & groupData$type == "lateral", ], aes(latency, color = leg)) +
   facet_wrap(~subject, nrow = 3, scales ="free_y") +
   geom_density() +
@@ -129,7 +129,7 @@ densLegCathodal
 
 ## Mark outliers
 
-```{r, include=FALSE}
+```{r Outlier criteria, include=FALSE}
 tooFast= 50;
 tooSlow = 400; 
 badFix = 1.8;
@@ -150,7 +150,7 @@ In [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045), this was:
 * Bad fixations: 1.8 degrees
 * Faulty saccades: opposite hemifield of target (here, that would be 8 degrees as targets were that eccentric)
 
-```{r}
+```{r Mark trials as outliers}
 # Mark outliers
 groupData <- mutate(groupData, outlier = FALSE, # fill vector with FALSE for all trials
                     outlier = ifelse(latency < tooFast, "fast", outlier), # mark too fast trials as "fast"
@@ -163,7 +163,7 @@ groupDataClean <- filter(groupData, outlier == FALSE) # make new data frame with
 
 ## Plot outliers per subject
 
-```{r, fig.width=9.6}
+```{r Plot outliers per subject, fig.width=9.6}
 outlierPlot <- ggplot(groupData[groupData$outlier != FALSE, ], aes(interaction(stimulation,leg,block,trial), latency, color = outlier, shape = type)) +
   facet_wrap(~subject, nrow = 4, scales = "free_y") +
   geom_point() +
@@ -176,7 +176,7 @@ outlierPlot <- ggplot(groupData[groupData$outlier != FALSE, ], aes(interaction(s
 outlierPlot
 ```
 
-```{r results='asis'}
+```{r Table of outlier counts, results='asis'}
 outlierCount <- groupData %>%
   group_by(subject) %>%
   summarize(outlier_count = sum(outlier != FALSE, na.rm = TRUE))
@@ -202,3 +202,145 @@ General patterns:
 * Bad fixations appear to be mostly center saccades (but this varies a lot). Perhaps the eyes already drift back towards the center, before executing the saccade?
 * Or is the source of bad fixations simply poor quality of the eye tracker data? e.g. people are actually fixating, but due to drift it appears they are not.
 
+# Summary analysis
+
+Here we simply extract median RTs for each condition and use a repeated measures ANOVA for statistical analysis, following [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+## Data per block
+
+```{r Compute median in each condition}
+# Compute median in each condition
+latencyMedian <- groupDataClean %>%
+  group_by(subject,stimulation,leg,block,type,direction) %>%
+  summarise(latency = median(latency, na.rm = TRUE))
+```
+
+### Full factorial plot
+
+```{r Full factorial plot, fig.width=9.6}
+# Plot out all the data
+fullPlot <- ggplot(latencyMedian, aes(interaction(block,leg), latency, color = stimulation, shape = stimulation)) +
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1)
+fullPlot
+```
+
+## 15-minute intervals (collapse 3 blocks)
+
+This shows a lot of variability, so it might be best to average over each 3 consecutive blocks so the data come in 15-minute intervals.
+
+```{r Compute median, collapsed across blocks}
+# Compute median per leg
+latencyMedianLeg <- groupDataClean %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  summarise(baseline = median(latency[leg == "pre"], na.rm = TRUE), # take average of 3 blocks, make new column
+            tDCS = median(latency[leg == "tDCS"], na.rm = TRUE),
+            post.1 = median(latency[leg == "post" & block <= 3], na.rm = TRUE),
+            post.2 = median(latency[leg == "post" & block >= 4], na.rm = TRUE)) %>%
+ gather(leg,latency,baseline,tDCS,post.1,post.2) %>% # gather new columns to use as factor
+ mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+### Line plot per leg
+
+```{r Line plot per leg}
+kanaiPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
+kanaiPlot
+```
+
+## Difference from baseline
+
+There's a difference between stimulation sessions in the baseline already: anodal is always faster than cathodal.
+
+### Individual subjects
+
+Make the same line plot for individual subjects to show differences between the sessions.
+
+```{r Line plot for each subject, fig.width=9.6}
+kanaiSubsPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation, shape = type)) +         
+  facet_wrap(~subject, nrow = 5) +
+  stat_summary(fun.y = mean, geom = "point", size = 2) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation))
+kanaiSubsPlot
+```
+
+### Compute magnitude of baseline difference
+
+Calculate baseline difference between anodal and cathodal sessions per subject.
+
+```{r results = 'asis'}
+baselineDiff <- latencyMedianLeg %>% 
+  filter(leg == "baseline") %>% # keep only baseline data
+  spread(stimulation, latency) %>% # make separate columns for anodal and cathodal
+  mutate(latency.diff = anodal - cathodal) %>% # subtract the difference
+  group_by(subject) %>% 
+  summarise(latency.diff = mean(latency.diff))# keep the average difference per subject
+
+kable(baselineDiff, caption = 'Difference between baseline saccade latencies in anodal and cathodal session')
+```
+
+There are a few subjects with substantial latency differences between sessions; the three largest of which are all slower in the anodal session (positive values). The mean difference is `r mean(baselineDiff$latency.diff)` ms.
+
+## Subtract baseline
+
+The baseline difference is not informative and could obscure real changes from baseline within subjects. Therefore, subtract the baseline from each subsequent measurement.
+
+```{r Subtract baseline}
+latencyMedianBaseline <- latencyMedianLeg %>%
+  group_by(subject,stimulation,direction,type) %>% # for each condition, subtract baseline scores and make new columns
+  summarise(tDCS = latency[leg == "tDCS"] - latency[leg == "baseline"], 
+           post.1 = latency[leg == "post.1"] - latency[leg == "baseline"],
+           post.2 = latency[leg == "post.2"] - latency[leg == "baseline"]) %>%
+  gather(leg, latency, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+### Line plots per leg from baseline
+
+```{r Line plot from baseline}
+kanaiPlotBase <- ggplot(latencyMedianBaseline, aes(leg, latency, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3) +
+  coord_cartesian(ylim = c(-15,15))
+kanaiPlotBase
+```
+
+For the left (contralateral) saccades, both stimulation effects are in the right direction (anodal: faster ; cathodal: no effect or slower). But they are tiny: 5 ms or less.
+
+### Individual subjects, anodal session
+
+```{r Line plot per subject - anodal}
+kanaiPlotBaseSubsAnodal <- ggplot(latencyMedianBaseline[latencyMedianBaseline$stimulation == "anodal", ], aes(leg, latency)) +
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_line(aes(group=subject,color=subject)) +
+  stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point") +
+  ggtitle("Anodal difference from baseline")
+kanaiPlotBaseSubsAnodal
+```
+
+The left-center effect is mostly caused by one subject. The left-lateral effect is quite erratic: only ~10 subjects are below the line, and none show an effect larger than 10 ms.
+
+### Individual subjects, cathodal session
+
+```{r Line plot per subject - cathodal}
+kanaiPlotBaseSubsCathodal <- ggplot(latencyMedianBaseline[latencyMedianBaseline$stimulation == "cathodal", ], aes(leg, latency)) +
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_line(aes(group=subject,color=subject)) +
+  stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point") + 
+  ggtitle("Cathodal difference from baseline")
+kanaiPlotBaseSubsCathodal
+```
+
+All of this is split pretty much 50-50, hence the average difference hovering around 0.
