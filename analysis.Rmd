@@ -26,6 +26,7 @@ library("dplyr") # wrangling data frame data
 library("ggplot2") # plotting
 library("ez") # ANOVA
 library("knitr") # R markdown output (html, pdf, etc.)
+library("BayesFactor")
 ```
 
 The .csv file was created in MATLAB.
@@ -344,3 +345,111 @@ kanaiPlotBaseSubsCathodal
 ```
 
 All of this is split pretty much 50-50, hence the average difference hovering around 0.
+
+# Statistics
+
+## Omnibus anova - saccade latency
+
+__Data__: Outliers removed, collapesed into 15-minute intervals. 
+
+__Dependent measure__: saccadic latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (baseline, tDCS, post.1, post.2)
+* TYPE (lateral vs. center)
+* DIRECTION (left vs. right)
+
+```{r Omnibus ANOVA, results='asis'}
+modelOmni <- ezANOVA(data = data.frame(latencyMedianLeg), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
+                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, type, direction), type = 3)
+kable(modelOmni$ANOVA)
+```
+
+### Main effect: type
+
+```{r Main effect of type}
+latencyMedianLeg %>%
+  group_by(subject,type) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(type, latency)) +
+  stat_summary(fun.data = mean_cl_normal, size = 1) +
+  geom_jitter(width = 0.25)
+```
+
+This simply reflects that center saccades are faster than lateral saccades, because the location of the target is known.
+
+### Interaction: leg by type
+
+```{r Interaction leg by type}
+latencyMedianLeg %>%
+  group_by(subject,leg,type) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(leg, latency, shape = type)) +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line", aes(group = type, linetype = type))
+```
+
+The effect of TYPE becomes larger over time: center saccades get faster, lateral saccades become slower.
+
+### Interaction: leg by type by direction
+
+```{r Interaction leg by type by direction}
+latencyMedianLeg %>%
+  group_by(subject,leg,type,direction) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(leg, latency, shape = type)) +
+  facet_wrap(~direction) +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line", aes(group = type, linetype = type))
+```
+
+This interaction of LEG and TYPE appears to occur to a lesser extent for left saccades. The "tDCS" block is the deviant here, but there is no interaction with stimulation.
+
+## ANOVA matching Kanai et al. (2012) - saccade latency
+
+Differing from the previous omnibus analysis, [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) analysed shifts from baseline and only had lateral saccades.
+
+__Data__: 
+* Outliers removed
+* Collapsed into 15-minute intervals
+* Subtract the baseline from each subsequent block
+* Discard center, keep only lateral saccades
+
+__Dependent measure__: saccadic latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+```{r Kanai ANOVA, results='asis'}
+
+latencyMedianBaselineLateral <- filter(latencyMedianBaseline, type == "lateral") # keep only lateral saccades
+
+modelKanai <- ezANOVA(data = data.frame(latencyMedianBaselineLateral),
+                        dv = .(latency), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
+
+# OR, without the EZ package:
+# modelKanai=aov(latency~stimulation*leg*direction + Error(subject/(stimulation*leg*direction)),data=latencyMedianBaselineLateral)
+# summary(modelKanai)
+
+kable(modelKanai$ANOVA)
+```
+
+### Main effect of direction
+
+```{r Main effect of direction}
+latencyMedianBaselineLateral %>%
+  group_by(subject,direction) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(direction, latency)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  stat_summary(fun.data = mean_cl_normal, size = 1) +
+  geom_jitter(width = 0.25)
+```
+
+Right saccades become slower with respect to the baseline; left saccades do not. However, the effect is tiny (1-2 ms) and there is no interaction with STIMULATION.
+
