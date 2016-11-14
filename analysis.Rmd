@@ -189,7 +189,7 @@ __Stray observations:__
 Differences between subjects:
 
 * Some subjects have barely any outliers (S02, S07)
-* Most subjects have quite a few outliers, especially S05,S06, S10 and S1. The mean is `r mean(outlierCount$outlier_count)` out of `r sum(groupData$subject == "S01")` trials in total
+* Most subjects have quite a few outliers, especially S05,S06, S10 and S1. The mean is `r round(mean(outlierCount$outlier_count), digits = 0)` out of `r sum(groupData$subject == "S01")` trials in total
 * Only S01 has a sizable amount of slow saccades
 * S14 has a lot of negative latencies (and also long positive latencies)
 * Those subjects with many fast saccades also tend to have many bad fixations (S06, S10, but see S08)
@@ -227,9 +227,11 @@ fullPlot <- ggplot(latencyMedian, aes(interaction(block,leg), latency, color = s
 fullPlot
 ```
 
-## 15-minute intervals (collapse 3 blocks)
+There is a pretty sizable difference between the anodal & cathodal sessions in the baseline already: cathodal is always faster than anodal.
 
-This shows a lot of variability, so it might be best to average over each 3 consecutive blocks so the data come in 15-minute intervals.
+The above plot also shows a lot of variability, so it might be best to average over each 3 consecutive blocks so the data come in 15-minute intervals.
+
+## 15-minute intervals (collapse 3 blocks)
 
 ```{r Compute median, collapsed across blocks}
 # Compute median per leg
@@ -243,24 +245,9 @@ latencyMedianLeg <- groupDataClean %>%
  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
-### Line plot per leg
+### Line plot per leg, individual subjects
 
-```{r Line plot per leg}
-kanaiPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation, shape = stimulation)) +         
-  facet_grid(type ~ direction) +
-  stat_summary(fun.y = mean, geom = "point", size = 3) +
-  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
-kanaiPlot
-```
-
-## Difference from baseline
-
-There's a difference between stimulation sessions in the baseline already: anodal is always faster than cathodal.
-
-### Individual subjects
-
-Make the same line plot for individual subjects to show differences between the sessions.
+Now make the same plot, but for the data collapsed over 3 blocks. Also draw the plot for each individual subject, so we can see which subjects drive the baseline difference, and in which direction the stimulation effect goes for each subject (if there is any).
 
 ```{r Line plot for each subject, fig.width=9.6}
 kanaiSubsPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation, shape = type)) +         
@@ -270,9 +257,11 @@ kanaiSubsPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation,
 kanaiSubsPlot
 ```
 
+There are a couple of subjects that show large differences in the baseline already, especially S01.
+
 ### Compute magnitude of baseline difference
 
-Calculate baseline difference between anodal and cathodal sessions per subject.
+Let's look at the size of the baseline difference per subject. 
 
 ```{r results = 'asis'}
 baselineDiff <- latencyMedianLeg %>% 
@@ -285,14 +274,44 @@ baselineDiff <- latencyMedianLeg %>%
 kable(baselineDiff, caption = 'Difference between baseline saccade latencies in anodal and cathodal session')
 ```
 
-There are a few subjects with substantial latency differences between sessions; the three largest of which are all slower in the anodal session (positive values). The mean difference is `r mean(baselineDiff$latency.diff)` ms.
+There are a few subjects with substantial latency differences between sessions; the three largest of which are all slower in the anodal session (positive values). The mean difference is `r round(mean(baselineDiff$latency.diff), digits = 1)` ms.
+
+### Exclude S01
+
+It seems reasonable to exclude subject 1 from further analysis, because of three things:
+
+* S01 shows the largest baseline difference between the anodal and cathodal sessions.
+* Overall, S01 is much slower than all other subjects, by several tens of milliseconds.
+* The first session for S01 was aborted because S01 was not feeling well. It was repeated at a later date, so S01 came to the lab 3 times in total instead of two.
+
+However, S01 also seems to show the largest effect of stimulation, for both anodal and cathodal stimulation. It is even in the expected direction: faster saccades than baseline in the anodal session, slower in cathodal.
+
+```{r Exclude S01}
+latencyMedianLegExcl <- filter(latencyMedianLeg, subject != "S01") # discard rows from S01
+latencyMedianLegExcl$subject <- factor(latencyMedianLegExcl$subject) #remake factor as it now has one level less
+```
+
+### Line plot per leg over all subjects
+
+Now that we've excluded subject(s) and collapsed data over blocks, let's look at the group average plot for the first time.
+
+```{r Line plot per leg}
+kanaiPlot <- ggplot(latencyMedianLegExcl, aes(leg, latency, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
+kanaiPlot
+```
+
+Even without S01, there is still a small baseline difference of `r round(mean(baselineDiff$latency.diff[baselineDiff$subject != "S01"]), digits = 1)` ms. There also seems to be a tiny effect in the center-left saccade condition that's in the expected direction for both stimulation sessions, but it's about the size of the baseline difference.
 
 ## Subtract baseline
 
 The baseline difference is not informative and could obscure real changes from baseline within subjects. Therefore, subtract the baseline from each subsequent measurement.
 
 ```{r Subtract baseline}
-latencyMedianBaseline <- latencyMedianLeg %>%
+latencyMedianBaseline <- latencyMedianLegExcl %>%
   group_by(subject,stimulation,direction,type) %>% # for each condition, subtract baseline scores and make new columns
   summarise(tDCS = latency[leg == "tDCS"] - latency[leg == "baseline"], 
            post.1 = latency[leg == "post.1"] - latency[leg == "baseline"],
@@ -314,7 +333,7 @@ kanaiPlotBase <- ggplot(latencyMedianBaseline, aes(leg, latency, color = stimula
 kanaiPlotBase
 ```
 
-For the left (contralateral) saccades, both stimulation effects are in the right direction (anodal: faster ; cathodal: no effect or slower). But they are tiny: 5 ms or less.
+All changes from baseline are really tiny: 5 ms or less.
 
 ### Individual subjects, anodal session
 
@@ -329,7 +348,7 @@ kanaiPlotBaseSubsAnodal <- ggplot(latencyMedianBaseline[latencyMedianBaseline$st
 kanaiPlotBaseSubsAnodal
 ```
 
-The left-center effect is mostly caused by one subject. The left-lateral effect is quite erratic: only ~10 subjects are below the line, and none show an effect larger than 10 ms.
+For the center saccades, most subjects follow the expected direction and are below the line. The left-lateral effect that is of primary interest is erratic though: only ~10 subjects are below the line, and none show an online-effect larger than 12 ms.
 
 ### Individual subjects, cathodal session
 
@@ -362,7 +381,7 @@ __Factors__:
 * DIRECTION (left vs. right)
 
 ```{r Omnibus ANOVA, results='asis'}
-modelOmni <- ezANOVA(data = data.frame(latencyMedianLeg), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
+modelOmni <- ezANOVA(data = data.frame(latencyMedianLegExcl), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
                         dv = .(latency), wid = .(subject), within = .(stimulation, leg, type, direction), type = 3)
 kable(modelOmni$ANOVA)
 ```
@@ -370,7 +389,7 @@ kable(modelOmni$ANOVA)
 ### Main effect: type
 
 ```{r Main effect of type}
-latencyMedianLeg %>%
+latencyMedianLegExcl %>%
   group_by(subject,type) %>%
   summarise(latency = mean(latency)) %>%
   ggplot(aes(type, latency)) +
@@ -383,7 +402,7 @@ This simply reflects that center saccades are faster than lateral saccades, beca
 ### Interaction: leg by type
 
 ```{r Interaction leg by type}
-latencyMedianLeg %>%
+latencyMedianLegExcl %>%
   group_by(subject,leg,type) %>%
   summarise(latency = mean(latency)) %>%
   ggplot(aes(leg, latency, shape = type)) +
@@ -396,7 +415,7 @@ The effect of TYPE becomes larger over time: center saccades get faster, lateral
 ### Interaction: leg by type by direction
 
 ```{r Interaction leg by type by direction}
-latencyMedianLeg %>%
+latencyMedianLegExcl %>%
   group_by(subject,leg,type,direction) %>%
   summarise(latency = mean(latency)) %>%
   ggplot(aes(leg, latency, shape = type)) +
@@ -412,6 +431,7 @@ This interaction of LEG and TYPE appears to occur to a lesser extent for left sa
 Differing from the previous omnibus analysis, [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) analysed shifts from baseline and only had lateral saccades.
 
 __Data__: 
+
 * Outliers removed
 * Collapsed into 15-minute intervals
 * Subtract the baseline from each subsequent block
@@ -468,14 +488,14 @@ First we compare all models to the most simple (null) model, which is the interc
 kable(select(extractBF(bfKanaiNull), bf)) # show only the Bayes factors in a table
 ```
 
-The winning model is the one with both main effects, with a Bayes factor of `r extractBF(bfKanaiNull[1], onlybf = TRUE)`. We can compute the evidence for a particular effect by comparing this winning model with the best-fitting model that does _not_ contain the effect. We can compute the evidence for _absence_ of a particular effect by comparing the winning model with the best-fitting model that _does_ contain the effect.
+The winning model is the one with all main effects, with a Bayes factor of `r round(extractBF(bfKanaiNull[1], onlybf = TRUE), digits = 1)`. We can compute the evidence for a particular effect by comparing this winning model with the best-fitting model that does _not_ contain the effect. We can compute the evidence for _absence_ of a particular effect by comparing the winning model with the best-fitting model that _does_ contain the effect.
 
-* STIMULATION. This effect can be quantified by comparing the Bayes factors of the first and the 10th model : `r extractBF(bfKanaiNull[1] / bfKanaiNull[10], onlybf = TRUE)`. This constitues __strong evidence for the presence of a stimulation effect__.
-* DIRECTION. This effect can be quantified by comparing the first and the 2nd model : `r extractBF(bfKanaiNull[1] / bfKanaiNull[2], onlybf = TRUE)`. This constitues __anecdotal evidence for the presence of a direction effect__.
+* STIMULATION. This effect can be quantified by comparing the Bayes factors of the first and the 3rd model : `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[3], onlybf = TRUE), digits = 1)`. This constitues __moderate evidence for the presence of a stimulation effect__.
+* DIRECTION. This effect can be quantified by comparing the first and the 2nd model : `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[2], onlybf = TRUE), digits = 1)`. This constitues __anecdotal evidence for the presence of a direction effect__.
 
-* Interaction of STIMULATION and DIRECTION. This term is not in the winning model, and first shows up in the fourth model. The Bayes factor for the comparison of both models is `r extractBF(bfKanaiNull[1] / bfKanaiNull[4], onlybf = TRUE)`. This constitues __moderate evidence for the absence of an interaction between stimulation and direction__.
-* Interaction of STIMULATION, and LEG. Bayes factor: `r extractBF(bfKanaiNull[1] / bfKanaiNull[8], onlybf = TRUE)`. This constitutes __strong evidence for the absence of an interaction between stimulation and leg__.
-* Three-way interaction. Bayes factor: `r extractBF(bfKanaiNull[1] / bfKanaiNull[11], onlybf = TRUE)`. This constitutes __strong evidence for the absence of an interaction between stimulation, leg and direction__.
+* Interaction of STIMULATION and DIRECTION. This term is not in the winning model, and first shows up in the fourth model. The Bayes factor for the comparison of both models is `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[4], onlybf = TRUE), digits = 1)`. This constitues __moderate evidence for the absence of an interaction between stimulation and direction__.
+* Interaction of STIMULATION, and LEG. Bayes factor: `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[8], onlybf = TRUE), digits = 1)`. This constitutes __moderate evidence for the absence of an interaction between stimulation and leg__.
+* Three-way interaction. Bayes factor: `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[18], onlybf = TRUE), digits = 1)`. This constitutes __strong evidence for the absence of an interaction between stimulation, leg and direction__.
 
 ### Test against the full model
 
@@ -486,9 +506,9 @@ bfKanaiFull = anovaBF(latency~stimulation*leg*direction+subject, data = data.fra
 bfKanaiFull
 ```
 
-Removing the DIRECTION effect from the model yields a lower Bayes Factor, so including this effect improved the model. This thus constitues (a little bit of) evidence for the alternative: ` 1 \ ` `r extractBF(bfKanaiFull[6], onlybf = TRUE)` ` = ` `r extractBF(1/bfKanaiFull[6], onlybf = TRUE)`. The evidence for a stimulation effect is again pretty large: `r extractBF(1/bfKanaiFull[7], onlybf = TRUE)`.
+Removing the DIRECTION effect from the model yields a lower Bayes Factor, so including this effect improved the model. This thus constitues (some) evidence for the alternative: ` 1 \ ` `r round(extractBF(bfKanaiFull[6], onlybf = TRUE), digits = 3)` ` = ` `r round(extractBF(1/bfKanaiFull[6], onlybf = TRUE), digits = 1)`. The evidence for a stimulation effect is also about the same: `r round(extractBF(1/bfKanaiFull[7], onlybf = TRUE), digits = 1)`.
 
-On the contrary, removing the interactions actually improves the model, so there is evidence for the absence of interaction effects.
+On the contrary, removing the interactions actually improves the model, so there is moderate evidence for the absence of interaction effects.
 
-All in all, for most effects, the result is qualitatively similar to the approach of testing against the null-model. Only the evidence for absence of the interactions is much smaller here.
+All in all, for most effects, the result is qualitatively similar to the approach of testing against the null-model. Only the evidence for absence of the three-way interaction is much, much smaller here.
 
