@@ -473,7 +473,65 @@ latencyMedianBaselineLateral %>%
 
 Right saccades become slower with respect to the baseline; left saccades do not. However, the effect is tiny (1-2 ms) and there is no interaction with STIMULATION.
 
-## Bayesian linear mixed effects - saccade latency
+## ANOVA without subtracting baseline, for lateral saccades - saccade latency
+
+Kanai et al. analyzed the baseline-subtracted data; now repeat the same ANOVA with the baseline block still present.
+
+__Data__: 
+
+* Outliers removed
+* Collapsed into 15-minute intervals
+* Discard center, keep only lateral saccades
+
+__Dependent measure__: saccadic latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+```{r, Lateral saccade ANOVA, results='asis'}
+
+# keep only lateral saccades
+latencyMedianLateral <- latencyMedianLegExcl %>%
+  filter(type == "lateral") %>%
+  select(-type)
+
+modelLateral <- ezANOVA(data = data.frame(latencyMedianLateral),
+                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelLateral$ANOVA)
+
+```
+
+### Leg by direction interaction
+
+```{r Interaction leg by direction}
+latencyMedianLateral %>%
+  group_by(subject,leg,direction) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(leg, latency, shape = direction)) +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line", aes(group = direction, linetype = direction))
+```
+
+Pretty erratic pattern, and no interaction with STIMULATION either.
+
+## ANOVA without subtracting baseline, for center saccades - saccade latency
+
+Same as previous, but now for center saccades.
+
+```{r, Center saccade ANOVA, results='asis'}
+latencyMedianCenter <- latencyMedianLegExcl %>%
+  filter(type == "center") %>%
+  select(-type)
+
+modelCenter <- ezANOVA(data = data.frame(latencyMedianCenter),
+                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelCenter$ANOVA)
+```
+
+## Bayesian linear mixed effects matching Kanai - saccade latency
 
 ### Test against the null model
 
@@ -512,3 +570,36 @@ On the contrary, removing the interactions actually improves the model, so there
 
 All in all, for most effects, the result is qualitatively similar to the approach of testing against the null-model. Only the evidence for absence of the three-way interaction is much, much smaller here.
 
+## Bayesian linear mixed effects with baseline - saccade latency
+
+Repeat the analysis when the baseline is not subtracted, and also for center saccades.
+
+### Lateral saccades
+
+```{r Compute Bayes Factors lateral with-baseline model}
+
+# keep only lateral saccades
+latencyMedianLateral <- latencyMedianLegExcl %>%
+  filter(type == "lateral") %>%
+  select(-type)
+  
+bfLateral = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfLateral
+```
+
+When including the baseline, the evidence for null effects are stronger all around.
+
+### Center saccades
+
+```{r Compute Bayes Factors center with-baseline model}
+
+# keep only center saccades
+latencyMedianCenter <- latencyMedianLegExcl %>%
+  filter(type == "center") %>%
+  select(-type)
+  
+bfCenter = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfCenter
+```
+
+Now the model improves all the time, no matter which effect is omitted.
