@@ -367,6 +367,44 @@ All of this is split pretty much 50-50, hence the average difference hovering ar
 
 # Statistics
 
+## T-tests for baseline differences
+
+First, test for baseline differences for each combination of DIRECTION (left, right) and TYPE (center, lateral).
+
+```{r T-tests for baseline differences}
+
+# keep only the baseline for left-lateral-saccades
+latencyMedianPreLeftLateral <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "lateral", direction == "left") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+# keep only the baseline for right-lateral-saccades
+latencyMedianPreRightLateral <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "lateral", direction == "right") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+# keep only the baseline for right-center-saccades
+latencyMedianPreRightCenter <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "center", direction == "right") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+# keep only the baseline for left-center-saccades
+latencyMedianPreLeftCenter <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "center", direction == "left") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+t.test(latencyMedianPreLeftLateral$anodal,latencyMedianPreLeftLateral$cathodal, paired = TRUE )
+t.test(latencyMedianPreRightLateral$anodal,latencyMedianPreRightLateral$cathodal, paired = TRUE )
+t.test(latencyMedianPreLeftCenter$anodal,latencyMedianPreLeftCenter$cathodal, paired = TRUE )
+t.test(latencyMedianPreRightCenter$anodal,latencyMedianPreRightCenter$cathodal, paired = TRUE )
+```
+
+None of the baseline differences are significant, so there is reason to leave the baseline data in the rest of the analyses.
+
 ## Omnibus anova - saccade latency
 
 __Data__: Outliers removed, collapesed into 15-minute intervals. 
