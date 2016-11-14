@@ -453,3 +453,42 @@ latencyMedianBaselineLateral %>%
 
 Right saccades become slower with respect to the baseline; left saccades do not. However, the effect is tiny (1-2 ms) and there is no interaction with STIMULATION.
 
+## Bayesian linear mixed effects - saccade latency
+
+### Test against the null model
+
+```{r Compute Bayes Factors cf. null model}
+bfKanaiNull = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianBaselineLateral), whichModels="withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfKanaiNull = sort(bfKanaiNull, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+First we compare all models to the most simple (null) model, which is the intercept only + random effect model: `latency ~ subject`. This does not test for effects of SUBJECT but models it as a nuisance factor (`whichRandom = "subject"`). In addition, to decrease the model space, we do not consider models that have an interaction without the corresponding main effects (`whichModels = "withmain"`).
+
+```{r Extract Bayes Factors withMain, results='asis'}
+kable(select(extractBF(bfKanaiNull), bf)) # show only the Bayes factors in a table
+```
+
+The winning model is the one with both main effects, with a Bayes factor of `r extractBF(bfKanaiNull[1], onlybf = TRUE)`. We can compute the evidence for a particular effect by comparing this winning model with the best-fitting model that does _not_ contain the effect. We can compute the evidence for _absence_ of a particular effect by comparing the winning model with the best-fitting model that _does_ contain the effect.
+
+* STIMULATION. This effect can be quantified by comparing the Bayes factors of the first and the 10th model : `r extractBF(bfKanaiNull[1] / bfKanaiNull[10], onlybf = TRUE)`. This constitues __strong evidence for the presence of a stimulation effect__.
+* DIRECTION. This effect can be quantified by comparing the first and the 2nd model : `r extractBF(bfKanaiNull[1] / bfKanaiNull[2], onlybf = TRUE)`. This constitues __anecdotal evidence for the presence of a direction effect__.
+
+* Interaction of STIMULATION and DIRECTION. This term is not in the winning model, and first shows up in the fourth model. The Bayes factor for the comparison of both models is `r extractBF(bfKanaiNull[1] / bfKanaiNull[4], onlybf = TRUE)`. This constitues __moderate evidence for the absence of an interaction between stimulation and direction__.
+* Interaction of STIMULATION, and LEG. Bayes factor: `r extractBF(bfKanaiNull[1] / bfKanaiNull[8], onlybf = TRUE)`. This constitutes __strong evidence for the absence of an interaction between stimulation and leg__.
+* Three-way interaction. Bayes factor: `r extractBF(bfKanaiNull[1] / bfKanaiNull[11], onlybf = TRUE)`. This constitutes __strong evidence for the absence of an interaction between stimulation, leg and direction__.
+
+### Test against the full model
+
+Another option for quantifying evidence for a particular effect is to compare the full model to a model where that effect is omitted (`whichModels = top")`. The full model is `stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject`.
+
+```{r Compute Bayes Factors cf. full model}
+bfKanaiFull = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianBaselineLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfKanaiFull
+```
+
+Removing the DIRECTION effect from the model yields a lower Bayes Factor, so including this effect improved the model. This thus constitues (a little bit of) evidence for the alternative: ` 1 \ ` `r extractBF(bfKanaiFull[6], onlybf = TRUE)` ` = ` `r extractBF(1/bfKanaiFull[6], onlybf = TRUE)`. The evidence for a stimulation effect is again pretty large: `r extractBF(1/bfKanaiFull[7], onlybf = TRUE)`.
+
+On the contrary, removing the interactions actually improves the model, so there is evidence for the absence of interaction effects.
+
+All in all, for most effects, the result is qualitatively similar to the approach of testing against the null-model. Only the evidence for absence of the interactions is much smaller here.
+
