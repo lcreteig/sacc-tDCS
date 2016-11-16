@@ -17,9 +17,7 @@ R notebook for statistical analysis of the `sacc-tDCS` dataset. Previous process
 * Raw data were parsed into events (saccades, fixations, etc.) by the EyeLink data were collected on.
 * Events were extracted and saccade measures were computed with a MATLAB script.
 
-# Load data
-
-```{r Load some libraries}
+```{r Load some libraries, message=FALSE, warning=FALSE}
 # Load some libraries
 library("tidyr") # tidying data frames
 library("dplyr") # wrangling data frame data
@@ -29,7 +27,132 @@ library("knitr") # R markdown output (html, pdf, etc.)
 library("BayesFactor")
 ```
 
-The .csv file was created in MATLAB.
+# Questionnaires
+
+## PANAS
+
+### Load data
+
+In each session of the experiment, participants completed the [Positive and Negative Affect Scale (PANAS)](http://booksite.elsevier.com/9780123745170/Chapter%203/Chapter_3_Worksheet_3.1.pdf) twice:
+
+1. __Pre-measurement__: Before starting setup of the tDCS and eye tracker
+2. __Post-measurement__: After the electrodes were removed following task completion
+
+As most participants were native Dutch speakers, we also used a [Dutch language version](http://www.ekgp.ugent.be/pages/nl/vragenlijsten/PANAS.pdf) of the PANAS, as reported by [Engelen et al. (2006)](http://link.springer.com/article/10.1007/BF03087979).
+
+```{r Load PANAS data}
+# Load the data frame
+dataFile <- file.path("data", "PANAS.csv")
+panasData <- read.csv(dataFile, header = TRUE, sep = ";")
+
+panasData$time <- factor(panasData$time, levels = c("pre","post")) # reorder levels chronologically instead of alphabetically
+head(panasData) # show data frame
+```
+
+__Factors__:
+
+* _subject_: subject ID (`S01`, `S02`, etc)
+* _session_: Whether data are from the `first` or `second` session
+* _stimulation_: Whether data are from the `anodal` or `cathodal` session
+* _time_: Whether data are from the `pre` or `post` measurement
+
+__DATA__:
+
+The PANAS contains 20 items, split equally into positive and negative affect. Each item is rated on a Likert scale:
+
+1. very slightly or not at all
+2. a little
+3. moderately
+4. quite a bit
+5. extremely
+
+To obtain a positive affect score, we sum items: 1 (interested), 3 (excited), 5 (strong), 9 (enthusiastic), 10 (proud), 12 (alert), 14 (inspired), 16 (determined), 17 (attentive) and 19 (active).
+
+To obtain a negative affect score, we sum items: 2 (distressed), 4 (upset), 6 (guilty), 7 (scared), 8 (hostile), 11 (irritable), 13 (ashamed), 15 (nervous), 18 (jittery) and 20 (afraid).
+
+### Post-pre differences per item
+
+```{r Subtract pre from post for each item}
+panasPrePost <- panasData %>%
+  group_by(subject,session,stimulation) %>% # for each subject, session, stimulation combination
+  select(-time) %>% # don't do subtraction for this column
+  summarise_each(funs(diff(.))) # subtract pre and post
+```
+
+Let's plot the post-pre differences for each item, split for stimulation session.
+
+```{r Plot post-pre differences per item}
+panasPrePost %>%
+  gather(item, score, pos.1.interested:neg.20.afraid) %>% # gather all PANAS columns so it can be used as a factor
+  ggplot(aes(item, score)) +
+      stat_summary(fun.y = mean, geom = "point", position = position_dodge(width = 0.6), aes(color = stimulation)) +
+      geom_hline(yintercept = 0, linetype = "dashed") +
+      coord_cartesian(ylim = c(-1,1)) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+Most scores become negative, meaning the `post` score was smaller than `pre`. So they generally feel "less" of everything. This seems particularly the case for positive affect, although participants do feel slightly more _proud_, _determined_, and _strong_.
+
+They become particularly less _jittery_, _nervous_, _irritable_, and also less _attentive_, _active_, and _excited_.
+
+The biggest differences between the sessions are in the positive items, except for _irritable_.
+
+For some positive items, anodal stimulation results in a more positive score, while cathodal reesults in a more negative score: _alert_, _inspired_, _determined_, and _strong_.
+
+### Composite positive/negative scores
+
+```{r Sum the positive and negative items}
+panasComposite <- panasData %>% 
+  mutate(positive = rowSums(select(., contains("pos")))) %>% # sum all the positive scores together
+  mutate(negative = rowSums(select(., contains("neg")))) %>% # sum all the negative scores together
+  select(subject:time, positive, negative) %>% # drop the original PANAS columns
+  gather(affect, score, positive, negative) # gather affect so it can be used as a factor
+```
+
+```{r Plot the composite scores}
+ggplot(panasComposite, aes(time,score, color = stimulation)) +
+facet_wrap(~affect) +
+  geom_point(position = position_jitter(width = 0.5)) +
+  stat_summary(fun.data = mean_cl_normal, position = position_dodge(width = 1))
+```
+
+The negative scores are much lower than the positive overall.
+
+The pre to post differences are larger for positive scores, particularly for the cathodal session.
+
+#### Statistics: positive scores
+
+Repeated measures ANOVA with factors STIMULATION (anodal vs. cathodal) and TIME (pre vs. post)
+
+```{r RM ANOVA for Positive scores}
+panasCompositePositive <- filter(panasComposite, affect == "positive") # new data frame with only positive scores
+
+modelPositive <- ezANOVA(data = data.frame(panasCompositePositive), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
+                        dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
+kable(modelPositive)
+```
+
+Subjects' mood becomes less positive after stimulation, particularly in the cathodal session
+
+#### Statistics: negative scores
+
+Repeated measures ANOVA with factors STIMULATION (anodal vs. cathodal) and TIME (pre vs. post)
+
+```{r RM ANOVA for negative scores}
+panasCompositeNegative <- filter(panasComposite, affect == "negative") # new data frame with only negative scores
+
+modelNegative <- ezANOVA(data = data.frame(panasCompositeNegative), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
+                        dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
+kable(modelNegative)
+
+```
+
+Subjects' mood also become less negative after stimulation...
+
+# Load eye data
+
+The .csv file with the eye tracking data was created in MATLAB.
+
 ```{r Load the data frame, echo=TRUE}
 # Load the data frame
 dataFile <- file.path("data", "sacc-tDCS_data.csv")
@@ -40,7 +163,7 @@ groupData <- read.csv(dataFile, header = TRUE, na.strings = "NaN")
 ```{r Format data frame}
 # Format data frame
 groupData <- select(groupData, -X) # drop final empty column named "X"
-groupData$leg <- factor(groupData$leg, levels = c("pre", "tDCS", "post")) # reorder levels chronologically instead of alphabetically
+groupData$leg <- factor(groupData$leg, levels = c("pre", "tDCS", "post"))
 ```
 
 ```{r Show data frame}
