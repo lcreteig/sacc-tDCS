@@ -149,6 +149,147 @@ kable(modelNegative)
 
 Subjects' mood also become less negative after stimulation...
 
+## tDCS sensations
+
+After each session, subjects also completed a questionnaire probing tDCS sensations.
+
+### Load data
+
+```{r Load tDCS sensations data}
+# Load the data frame
+dataFile <- file.path("data", "tdcs_sensations.csv")
+sensData <- read.csv(dataFile, header = TRUE, sep = ";", na.strings = "")
+
+head(sensData) # show data frame
+```
+
+They were asked to which degree the following sensations were present during stimulation: _tingling_, _itching sensation_, _burning sensation_, _pain_, _headache_, _fatigue_, _dizziness_ and _nausea_. Each was rated on a scale from 0-4:
+
+0. none
+1. a little
+2. moderate
+3. strong
+4. very strong
+
+They also rated their confidence _that the sensations were caused by the stimulation_ on a scale from 0-4 (columns starting with `conf.`):
+
+0. n/a (meaning they rated the sensation a 0 on the previous scale)
+1. unlikely
+2. possibly
+3. likely
+4. very likely
+
+Finally, they filled in whether they felt one electrode more than the other (`felt.more`); (and if so, which and for which sensations).
+
+__Factors__:
+
+* _subject_: subject ID (`S01`, `S02`, etc)
+* _session_: Whether data are from the `first` or `second` session
+* _stimulation_: Whether data are from the `anodal` or `cathodal` session
+
+### Plot sensation distribution
+
+```{r tDCS sensation distributions}
+sensData %>%
+  select(everything(), -contains("conf"), -felt.more) %>% # drop the confidence columns
+  gather(sensation, rating, itching:nausea) %>% # gather sensations so they can be used as a factor
+  ggplot(aes(rating, fill = stimulation)) +
+    facet_wrap(~sensation) +
+    geom_histogram(position = "dodge", binwidth = 0.5) +
+    xlim(0.5,4.5) +
+    ggtitle("Sensations over 15 anodal sessions, 15 cathodal sessions")
+```
+
+_Nausea_ was never experienced; _dizziness_ and _pain_ are also rare, and mild.
+
+_Burning_, _itching_ and _tingling_ are most frequently experienced and to a higher degree.
+
+### Plot confidence distributions
+
+```{r tDCS confidence distributions}
+sensData %>%
+  select(contains("conf"), subject, session, stimulation) %>% # drop the rating columns
+  gather(sensation, rating, conf.itching:conf.nausea) %>%
+  ggplot(aes(rating, fill = stimulation)) +
+    facet_wrap(~sensation) +
+    geom_histogram(position = "dodge", binwidth = 0.5) +
+    xlim(0.5,4.5) +
+    ggtitle("Confidence over 15 anodal sessions, 15 cathodal sessions")
+```
+
+For "local" sensations like _burning_, _tingling_ and _dizziness_, subjects have high confidence that these are due to tDCS. For more diffuse sensations, like _fatigue_ and _headache_, ratings are very low, so their occurence might just be due to performing the task for an extended period of time.
+
+### Sensation difference between anode and cathode
+
+```{r Sensations for anode and cathode}
+sensData %>%
+  select(felt.more, subject, session, stimulation) %>% # keep only the relevant column
+  mutate(felt.more = factor(felt.more, levels = c("anode", "equal", "cathode"))) %>% # keep colors consistent
+  ggplot(aes(stimulation, fill = felt.more)) +
+    geom_bar() +
+  scale_y_continuous(breaks = 1:15)
+```
+
+There's a pretty even split between which electrode people feel the most, so there don't appear to be worrisome biases. 
+
+During anodal stimulation, the anode is felt more than the cathode; during cathodal stimulation the cathode is felt more than the anode. In other words, the electrode over the FEF is always felt more than the forehead electrode.
+
+About a third of people did not indicate they felt one more than the other; this is slightly more in the cathodal session.
+
+### Statistics
+
+We will test for every sensation separately whether there was a difference between the anodal and cathodal sessions. Mann-Whitney-U tests are most appropriate here, as the data are ordinal (Likert) and do not look normally distributed.
+
+#### Itching
+
+```{r T-test for itching}
+wilcox.test(sensData$itching[sensData$stimulation == "anodal"], sensData$itching[sensData$stimulation == "cathodal"])
+```
+
+#### Tingling
+
+```{r T-test for tingling}
+wilcox.test(sensData$tingling[sensData$stimulation == "anodal"], sensData$tingling[sensData$stimulation == "cathodal"])
+```
+
+#### Burning
+
+```{r T-test for burning}
+wilcox.test(sensData$burning[sensData$stimulation == "anodal"], sensData$burning[sensData$stimulation == "cathodal"])
+```
+
+#### Pain
+
+```{r T-test for pain}
+wilcox.test(sensData$pain[sensData$stimulation == "anodal"], sensData$pain[sensData$stimulation == "cathodal"])
+```
+
+#### Headache
+
+```{r T-test for headache}
+wilcox.test(sensData$headache[sensData$stimulation == "anodal"], sensData$headache[sensData$stimulation == "cathodal"])
+```
+
+#### Fatigue
+
+```{r T-test for fatigue}
+wilcox.test(sensData$fatigue[sensData$stimulation == "anodal"], sensData$fatigue[sensData$stimulation == "cathodal"])
+```
+
+#### Dizziness
+
+```{r Test for dizziness}
+wilcox.test(sensData$dizziness[sensData$stimulation == "anodal"], sensData$dizziness[sensData$stimulation == "cathodal"])
+```
+
+#### Nausea
+
+```{r Test for nausea}
+wilcox.test(sensData$nausea[sensData$stimulation == "anodal"], sensData$nausea[sensData$stimulation == "cathodal"])
+```
+
+Nausea was rated 0 by everyone for both anodal and cathodal.
+
 # Load eye data
 
 The .csv file with the eye tracking data was created in MATLAB.
