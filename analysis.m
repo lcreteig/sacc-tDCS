@@ -25,7 +25,7 @@ tDCScodes = {'C', 'I'; 'H', 'A'}; % in subject 1-10, setting 'C' on the device w
 % In subject 11-15, 'A' was mapped to cathodal; for anhodal or 'H' the wires were reversed 
 legs = {'pre', 'tDCS', 'post'};
 
-fid = fopen(fullfile(dataDir, ['saccLatency' '.csv']),'w'); % open text file for writing
+fid = fopen(fullfile(dataDir, ['sacc-tDCS_data' '.csv']),'w'); % open text file for writing
 % print column headers
 fprintf(fid, '%s,', 'subject');
 fprintf(fid, '%s,', 'stimulation');
@@ -42,7 +42,7 @@ fprintf(fid,'\n'); % go to next line
 
 %% Process files
 
-for iSub = [subjects(1) subjects] % loop over first subject twice, just to print headers to data table
+for iSub = subjects % loop over first subject
 
     % get correspondance between stimulation type and tDCS setting
     if str2double(iSub{:}(2:end)) <= 10 % for the first 10 subjects
