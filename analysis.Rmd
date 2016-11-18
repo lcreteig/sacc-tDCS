@@ -17,14 +17,15 @@ R notebook for statistical analysis of the `sacc-tDCS` dataset. Previous process
 * Raw data were parsed into events (saccades, fixations, etc.) by the EyeLink data were collected on.
 * Events were extracted and saccade measures were computed with a MATLAB script.
 
-```{r Load some libraries, message=FALSE, warning=FALSE}
+```{r Load some libraries}
 # Load some libraries
-library("tidyr") # tidying data frames
 library("dplyr") # wrangling data frame data
+library("tidyr") # tidying data frames
 library("ggplot2") # plotting
 library("ez") # ANOVA
 library("knitr") # R markdown output (html, pdf, etc.)
-library("BayesFactor")
+library("BayesFactor") # Bayesian statistics
+library("retimes") # Ex-Gaussian reaction time distributions
 ```
 
 # Questionnaires
@@ -628,6 +629,252 @@ kanaiPlotBaseSubsCathodal
 ```
 
 All of this is split pretty much 50-50, hence the average difference hovering around 0.
+
+# Reaction time distributions
+
+## Split data in equal blocks
+
+We want the same number of trials to go into each distribution, so we'll split the 30-minute long `post` leg into two. Then we have 4 15-minute long data segments: `pre`, `tDCS`, `post.1` and `post.2`.
+
+```{r Create 4 legs}
+# Group single-trial data in 4 legs instead of 3
+groupDataBlocked <- groupData %>%
+  mutate(leg = as.character(leg)) %>% #un-factor the leg column so we can change it
+  mutate(leg=replace(leg, leg == "post", "post.1"), # split the "post" level into two
+         leg=replace(leg, block > 3, "post.2")) %>%
+  mutate(leg = factor(leg, levels = c("pre","tDCS","post.1","post.2"))) #re-factor
+```
+
+## Fit the model
+
+Next we fit an ex-gaussian distribution using the `retimes` package. One model is fit for each combination of:
+
+* SUBJECT (S01, S02, etc.)
+* STIMULATION (anodal, cathodal)
+* LEG (pre, tDCS, post.1, post.2)
+* TYPE (center, lateral)
+* DIRECTION (left, right)
+
+The ex-gaussian distribution is the convolution of a normal and an exponential distribution. It can be characterized with 3 parameters:
+
+* $\mu$ (_mu_): the mean of the normal distribution
+* $\sigma$ (_sigma_): the variance of the normal distribution
+* $\tau$ (_tau_): the rate parameter of the exponential distribution
+
+We'll do minimal pre-processing: keep all subjects, only discard negative RTs
+
+```{r Fit ex-gaussian}
+groupDataFit <- groupDataBlocked %>%
+  filter(latency > 0) %>% # throw out missing and negative RTs
+  group_by(subject,stimulation,leg,type,direction) %>% # for every condition
+  summarise(result = list(data.frame(t(attr(timefit(latency),"par"))))) %>% # [see below]
+  ungroup() %>% # remove grouping information (otherwise unnest will not work)
+  unnest() # unpack the list column, so each parameter gets its own column
+  
+# 1. fit the ex-gaussian to the latency data with the timefit() function
+# 2. extract the fitted parameters from the resulting object with "attr()"
+# 3. transpose ("t()") so every parameter is in a different column
+# 4. convert to a data frame with one column per parameter
+# 5. pack in a list so we have something of size 1 we can assign to the dataframe
+# "result" is now a list-column, where each element is a dataframe with estimates of the 3 parameters
+
+# Alternatively, create a function to fit the data, and then call it through dplyr::do
+#myFunc <- function(x){
+#  data.frame(t(attr(timefit(x),"par")))
+#}
+#groupDataFit <- groupDataBlocked %>%
+#  group_by(subject,stimulation,leg,type,direction) %>% # for every condition
+#  do((myFunc(.$latency)))
+```
+
+## Inspect fitted parameters
+
+```{r Inspect fitted mu parameter, fig.width = 9.6}
+ggplot(groupDataFit, aes(interaction(leg,stimulation), mu, color = subject)) +
+  facet_grid(type~direction) + 
+  stat_summary(fun.y = mean, fun.ymin = function(x) mean(x) - 2*sd(x), fun.ymax = function(x) mean(x) + 2*sd(x), aes(group = 1)) + # plot mean and 2*SD to watch for outliers; we need group = 1 because the x-axis is a combination of factors
+  geom_jitter(width = 0.6) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+For center saccades some estimates of $\mu$ are simply too fast (e.g. S09); they reflect premature eye movements. The distribution is also not a good fit in these cases.
+
+For center saccades, it looks reasonable. S01 is more than 2 SD away from the mean, but the fit is excellent.
+
+```{r Inspect fitted sigma parameter, fig.width = 9.6}
+ggplot(groupDataFit, aes(interaction(leg,stimulation), sigma, color = subject)) +
+  facet_grid(type~direction) +
+  stat_summary(fun.y = mean, fun.ymin = function(x) mean(x) - 2*sd(x), fun.ymax = function(x) mean(x) + 2*sd(x), aes(group = 1)) +
+  geom_jitter(width = 0.6) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+Center saccades appear to have larger $\sigma$ than lateral. But if you inspect the distributions, the peak is actually much sharper, which should indicate lower variance. The problem is that the shape of many distributions does not conform well: many saccades are early and have little variance, but then there's also a bump in the right-tail which causes the sigma-parameter to increase.
+
+Values for the lateral distribution seem reasonable. 2 estimates of $\sigma$ are too close to zero, others are too high, but the spread is not unreasonable. Inspecting these distributions also reveals presence of a "shoulder" right of the peak, which can either spread the distribution out or narrow it too much.
+
+```{r Inspect fitted tau parameter, fig.width = 9.6}
+ggplot(groupDataFit, aes(interaction(leg,stimulation), tau, color = subject)) +
+  facet_grid(type~direction) +
+  stat_summary(fun.y = mean, fun.ymin = function(x) mean(x) - 2*sd(x), fun.ymax = function(x) mean(x) + 2*sd(x), aes(group = 1)) +
+  geom_jitter(width = 0.6) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+Particularly for center saccades, $\tau$ is many times estimated at 0. This means that the distribution is actually just a normal distribution. For center saccades that makes sense, as $\tau$ is responsible for the longer right tail that characterizes the ex-gaussian distribution. When saccades are all super fast, this tail is not present.
+
+## Mu
+
+### Plot
+
+```{r mu plot}
+muLinePlot <- ggplot(groupDataFit, aes(leg, mu, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
+muLinePlot
+```
+
+### Statistics
+
+#### Lateral
+
+```{r}
+muLateral <- groupDataFit %>%
+  filter(type == "lateral") %>%
+  select(-type)
+```
+
+```{r mu lateral anova, results = 'asis'}
+modelMuLateral <- ezANOVA(data = data.frame(muLateral), dv = .(mu), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelMuLateral$ANOVA)
+```
+
+```{r mu lateral Bayes}
+bfMuLateral = anovaBF(mu~stimulation*leg*direction+subject, data = data.frame(muLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfMuLateral
+```
+
+#### Center
+
+```{r}
+muCenter <- groupDataFit %>%
+  filter(type == "center") %>%
+  select(-type)
+```
+
+```{r mu center anova, results = 'asis'}
+modelMuCenter <- ezANOVA(data = data.frame(muCenter), dv = .(mu), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelMuCenter$ANOVA)
+```
+
+```{r mu center Bayes}
+bfMuCenter = anovaBF(mu~stimulation*leg*direction+subject, data = data.frame(muCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfMuCenter
+```
+
+## Sigma
+
+### Plot
+
+```{r sigma plot}
+sigmaLinePlot <- ggplot(groupDataFit, aes(leg, sigma, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
+sigmaLinePlot
+```
+
+### Statistics
+
+#### Lateral
+
+```{r}
+sigmaLateral <- groupDataFit %>%
+  filter(type == "lateral") %>%
+  select(-type)
+```
+
+```{r sigma lateral anova, results = 'asis'}
+modelSigmaLateral <- ezANOVA(data = data.frame(sigmaLateral), dv = .(sigma), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelSigmaLateral$ANOVA)
+```
+
+```{r sigma lateral Bayes}
+bfSigmaLateral = anovaBF(sigma~stimulation*leg*direction+subject, data = data.frame(sigmaLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfSigmaLateral
+```
+
+#### Center
+
+```{r}
+sigmaCenter <- groupDataFit %>%
+  filter(type == "center") %>%
+  select(-type)
+```
+
+```{r sigma center anova, results = 'asis'}
+modelSigmaCenter <- ezANOVA(data = data.frame(sigmaCenter), dv = .(sigma), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelSigmaCenter$ANOVA)
+```
+
+```{r sigma center Bayes}
+bfSigmaCenter = anovaBF(sigma~stimulation*leg*direction+subject, data = data.frame(sigmaCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfSigmaCenter
+```
+
+## Tau
+
+### Plot
+
+```{r tau plot}
+tauLinePlot <- ggplot(groupDataFit, aes(leg, tau, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
+tauLinePlot
+```
+
+### Statistics
+
+#### Lateral
+
+```{r}
+tauLateral <- groupDataFit %>%
+  filter(type == "lateral") %>%
+  select(-type)
+```
+
+```{r tau lateral anova, results = 'asis'}
+modelTauLateral <- ezANOVA(data = data.frame(tauLateral), dv = .(tau), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelTauLateral$ANOVA)
+```
+
+```{r tau lateral Bayes}
+bfTauLateral = anovaBF(tau~stimulation*leg*direction+subject, data = data.frame(tauLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfTauLateral
+```
+
+#### Center
+
+```{r}
+tauCenter <- groupDataFit %>%
+  filter(type == "center") %>%
+  select(-type)
+```
+
+```{r tau center anova, results = 'asis'}
+modelTauCenter <- ezANOVA(data = data.frame(tauCenter), dv = .(tau), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelTauCenter$ANOVA)
+```
+
+```{r tau center Bayes}
+bfTauCenter = anovaBF(tau~stimulation*leg*direction+subject, data = data.frame(tauCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfTauCenter
+```
 
 # Statistics
 
