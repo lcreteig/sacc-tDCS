@@ -4,7 +4,7 @@ author: Leon Reteig
 output:
   html_notebook:
     toc: true
-    toc_depth: 2
+    toc_float: true
 ---
 
 ```{r include=FALSE}
@@ -468,7 +468,7 @@ General patterns:
 * Bad fixations appear to be mostly center saccades (but this varies a lot). Perhaps the eyes already drift back towards the center, before executing the saccade?
 * Or is the source of bad fixations simply poor quality of the eye tracker data? e.g. people are actually fixating, but due to drift it appears they are not.
 
-# Summary analysis
+# Median reaction time
 
 Here we simply extract median RTs for each condition and use a repeated measures ANOVA for statistical analysis, following [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
 
@@ -629,6 +629,283 @@ kanaiPlotBaseSubsCathodal
 ```
 
 All of this is split pretty much 50-50, hence the average difference hovering around 0.
+
+## Statistics
+
+### T-tests for baseline differences
+
+First, test for baseline differences for each combination of DIRECTION (left, right) and TYPE (center, lateral).
+
+```{r T-tests for baseline differences}
+
+# keep only the baseline for left-lateral-saccades
+latencyMedianPreLeftLateral <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "lateral", direction == "left") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+# keep only the baseline for right-lateral-saccades
+latencyMedianPreRightLateral <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "lateral", direction == "right") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+# keep only the baseline for right-center-saccades
+latencyMedianPreRightCenter <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "center", direction == "right") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+# keep only the baseline for left-center-saccades
+latencyMedianPreLeftCenter <- latencyMedianLegExcl %>%
+  filter(leg == "baseline", type == "center", direction == "left") %>%
+  select(-leg,-type,-direction) %>%
+  spread(stimulation, latency)
+
+t.test(latencyMedianPreLeftLateral$anodal,latencyMedianPreLeftLateral$cathodal, paired = TRUE )
+t.test(latencyMedianPreRightLateral$anodal,latencyMedianPreRightLateral$cathodal, paired = TRUE )
+t.test(latencyMedianPreLeftCenter$anodal,latencyMedianPreLeftCenter$cathodal, paired = TRUE )
+t.test(latencyMedianPreRightCenter$anodal,latencyMedianPreRightCenter$cathodal, paired = TRUE )
+```
+
+None of the baseline differences are significant, so there is reason to leave the baseline data in the rest of the analyses.
+
+### Omnibus anova - saccade latency
+
+__Data__: Outliers removed, collapesed into 15-minute intervals. 
+
+__Dependent measure__: saccadic latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (baseline, tDCS, post.1, post.2)
+* TYPE (lateral vs. center)
+* DIRECTION (left vs. right)
+
+```{r Omnibus ANOVA, results='asis'}
+modelOmni <- ezANOVA(data = data.frame(latencyMedianLegExcl), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
+                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, type, direction), type = 3)
+kable(modelOmni$ANOVA)
+```
+
+#### Main effect: type
+
+```{r Main effect of type}
+latencyMedianLegExcl %>%
+  group_by(subject,type) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(type, latency)) +
+  stat_summary(fun.data = mean_cl_normal, size = 1) +
+  geom_jitter(width = 0.25)
+```
+
+This simply reflects that center saccades are faster than lateral saccades, because the location of the target is known.
+
+#### Interaction: leg by type
+
+```{r Interaction leg by type}
+latencyMedianLegExcl %>%
+  group_by(subject,leg,type) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(leg, latency, shape = type)) +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line", aes(group = type, linetype = type))
+```
+
+The effect of TYPE becomes larger over time: center saccades get faster, lateral saccades become slower.
+
+#### Interaction: leg by type by direction
+
+```{r Interaction leg by type by direction}
+latencyMedianLegExcl %>%
+  group_by(subject,leg,type,direction) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(leg, latency, shape = type)) +
+  facet_wrap(~direction) +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line", aes(group = type, linetype = type))
+```
+
+This interaction of LEG and TYPE appears to occur to a lesser extent for left saccades. The "tDCS" block is the deviant here, but there is no interaction with stimulation.
+
+### ANOVA matching Kanai et al. (2012) - saccade latency
+
+Differing from the previous omnibus analysis, [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) analysed shifts from baseline and only had lateral saccades.
+
+__Data__: 
+
+* Outliers removed
+* Collapsed into 15-minute intervals
+* Subtract the baseline from each subsequent block
+* Discard center, keep only lateral saccades
+
+__Dependent measure__: saccadic latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+```{r Kanai ANOVA, results='asis'}
+
+latencyMedianBaselineLateral <- filter(latencyMedianBaseline, type == "lateral") # keep only lateral saccades
+
+modelKanai <- ezANOVA(data = data.frame(latencyMedianBaselineLateral),
+                        dv = .(latency), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
+
+# OR, without the EZ package:
+# modelKanai=aov(latency~stimulation*leg*direction + Error(subject/(stimulation*leg*direction)),data=latencyMedianBaselineLateral)
+# summary(modelKanai)
+
+kable(modelKanai$ANOVA)
+```
+
+#### Main effect of direction
+
+```{r Main effect of direction}
+latencyMedianBaselineLateral %>%
+  group_by(subject,direction) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(direction, latency)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  stat_summary(fun.data = mean_cl_normal, size = 1) +
+  geom_jitter(width = 0.25)
+```
+
+Right saccades become slower with respect to the baseline; left saccades do not. However, the effect is tiny (1-2 ms) and there is no interaction with STIMULATION.
+
+### ANOVA without subtracting baseline, for lateral saccades - saccade latency
+
+Kanai et al. analyzed the baseline-subtracted data; now repeat the same ANOVA with the baseline block still present.
+
+__Data__: 
+
+* Outliers removed
+* Collapsed into 15-minute intervals
+* Discard center, keep only lateral saccades
+
+__Dependent measure__: saccadic latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+```{r, Lateral saccade ANOVA, results='asis'}
+
+# keep only lateral saccades
+latencyMedianLateral <- latencyMedianLegExcl %>%
+  filter(type == "lateral") %>%
+  select(-type)
+
+modelLateral <- ezANOVA(data = data.frame(latencyMedianLateral),
+                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelLateral$ANOVA)
+
+```
+
+### Leg by direction interaction
+
+```{r Interaction leg by direction}
+latencyMedianLateral %>%
+  group_by(subject,leg,direction) %>%
+  summarise(latency = mean(latency)) %>%
+  ggplot(aes(leg, latency, shape = direction)) +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line", aes(group = direction, linetype = direction))
+```
+
+Pretty erratic pattern, and no interaction with STIMULATION either.
+
+### ANOVA without subtracting baseline, for center saccades - saccade latency
+
+Same as previous, but now for center saccades.
+
+```{r, Center saccade ANOVA, results='asis'}
+latencyMedianCenter <- latencyMedianLegExcl %>%
+  filter(type == "center") %>%
+  select(-type)
+
+modelCenter <- ezANOVA(data = data.frame(latencyMedianCenter),
+                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+kable(modelCenter$ANOVA)
+```
+
+### Bayesian linear mixed effects matching Kanai - saccade latency
+
+#### Test against the null model
+
+```{r Compute Bayes Factors cf. null model}
+bfKanaiNull = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianBaselineLateral), whichModels="withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfKanaiNull = sort(bfKanaiNull, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+First we compare all models to the most simple (null) model, which is the intercept only + random effect model: `latency ~ subject`. This does not test for effects of SUBJECT but models it as a nuisance factor (`whichRandom = "subject"`). In addition, to decrease the model space, we do not consider models that have an interaction without the corresponding main effects (`whichModels = "withmain"`).
+
+```{r Extract Bayes Factors withMain, results='asis'}
+kable(select(extractBF(bfKanaiNull), bf)) # show only the Bayes factors in a table
+```
+
+The winning model is the one with all main effects, with a Bayes factor of `r round(extractBF(bfKanaiNull[1], onlybf = TRUE), digits = 1)`. We can compute the evidence for a particular effect by comparing this winning model with the best-fitting model that does _not_ contain the effect. We can compute the evidence for _absence_ of a particular effect by comparing the winning model with the best-fitting model that _does_ contain the effect.
+
+* STIMULATION. This effect can be quantified by comparing the Bayes factors of the first and the 3rd model : `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[3], onlybf = TRUE), digits = 1)`. This constitues __moderate evidence for the presence of a stimulation effect__.
+* DIRECTION. This effect can be quantified by comparing the first and the 2nd model : `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[2], onlybf = TRUE), digits = 1)`. This constitues __anecdotal evidence for the presence of a direction effect__.
+
+* Interaction of STIMULATION and DIRECTION. This term is not in the winning model, and first shows up in the fourth model. The Bayes factor for the comparison of both models is `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[4], onlybf = TRUE), digits = 1)`. This constitues __moderate evidence for the absence of an interaction between stimulation and direction__.
+* Interaction of STIMULATION, and LEG. Bayes factor: `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[8], onlybf = TRUE), digits = 1)`. This constitutes __moderate evidence for the absence of an interaction between stimulation and leg__.
+* Three-way interaction. Bayes factor: `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[18], onlybf = TRUE), digits = 1)`. This constitutes __strong evidence for the absence of an interaction between stimulation, leg and direction__.
+
+#### Test against the full model
+
+Another option for quantifying evidence for a particular effect is to compare the full model to a model where that effect is omitted (`whichModels = top")`. The full model is `stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject`.
+
+```{r Compute Bayes Factors cf. full model}
+bfKanaiFull = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianBaselineLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfKanaiFull
+```
+
+Removing the DIRECTION effect from the model yields a lower Bayes Factor, so including this effect improved the model. This thus constitues (some) evidence for the alternative: ` 1 \ ` `r round(extractBF(bfKanaiFull[6], onlybf = TRUE), digits = 3)` ` = ` `r round(extractBF(1/bfKanaiFull[6], onlybf = TRUE), digits = 1)`. The evidence for a stimulation effect is also about the same: `r round(extractBF(1/bfKanaiFull[7], onlybf = TRUE), digits = 1)`.
+
+On the contrary, removing the interactions actually improves the model, so there is moderate evidence for the absence of interaction effects.
+
+All in all, for most effects, the result is qualitatively similar to the approach of testing against the null-model. Only the evidence for absence of the three-way interaction is much, much smaller here.
+
+### Bayesian linear mixed effects with baseline - saccade latency
+
+Repeat the analysis when the baseline is not subtracted, and also for center saccades.
+
+#### Lateral saccades
+
+```{r Compute Bayes Factors lateral with-baseline model}
+
+# keep only lateral saccades
+latencyMedianLateral <- latencyMedianLegExcl %>%
+  filter(type == "lateral") %>%
+  select(-type)
+  
+bfLateral = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfLateral
+```
+
+When including the baseline, the evidence for null effects are stronger all around.
+
+#### Center saccades
+
+```{r Compute Bayes Factors center with-baseline model}
+
+# keep only center saccades
+latencyMedianCenter <- latencyMedianLegExcl %>%
+  filter(type == "center") %>%
+  select(-type)
+  
+bfCenter = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfCenter
+```
+
+Now the model improves all the time, no matter which effect is omitted.
 
 # Reaction time distributions
 
@@ -875,280 +1152,3 @@ kable(modelTauCenter$ANOVA)
 bfTauCenter = anovaBF(tau~stimulation*leg*direction+subject, data = data.frame(tauCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
 bfTauCenter
 ```
-
-# Statistics
-
-## T-tests for baseline differences
-
-First, test for baseline differences for each combination of DIRECTION (left, right) and TYPE (center, lateral).
-
-```{r T-tests for baseline differences}
-
-# keep only the baseline for left-lateral-saccades
-latencyMedianPreLeftLateral <- latencyMedianLegExcl %>%
-  filter(leg == "baseline", type == "lateral", direction == "left") %>%
-  select(-leg,-type,-direction) %>%
-  spread(stimulation, latency)
-
-# keep only the baseline for right-lateral-saccades
-latencyMedianPreRightLateral <- latencyMedianLegExcl %>%
-  filter(leg == "baseline", type == "lateral", direction == "right") %>%
-  select(-leg,-type,-direction) %>%
-  spread(stimulation, latency)
-
-# keep only the baseline for right-center-saccades
-latencyMedianPreRightCenter <- latencyMedianLegExcl %>%
-  filter(leg == "baseline", type == "center", direction == "right") %>%
-  select(-leg,-type,-direction) %>%
-  spread(stimulation, latency)
-
-# keep only the baseline for left-center-saccades
-latencyMedianPreLeftCenter <- latencyMedianLegExcl %>%
-  filter(leg == "baseline", type == "center", direction == "left") %>%
-  select(-leg,-type,-direction) %>%
-  spread(stimulation, latency)
-
-t.test(latencyMedianPreLeftLateral$anodal,latencyMedianPreLeftLateral$cathodal, paired = TRUE )
-t.test(latencyMedianPreRightLateral$anodal,latencyMedianPreRightLateral$cathodal, paired = TRUE )
-t.test(latencyMedianPreLeftCenter$anodal,latencyMedianPreLeftCenter$cathodal, paired = TRUE )
-t.test(latencyMedianPreRightCenter$anodal,latencyMedianPreRightCenter$cathodal, paired = TRUE )
-```
-
-None of the baseline differences are significant, so there is reason to leave the baseline data in the rest of the analyses.
-
-## Omnibus anova - saccade latency
-
-__Data__: Outliers removed, collapesed into 15-minute intervals. 
-
-__Dependent measure__: saccadic latency
-
-__Factors__:
-
-* STIMULATION (anodal vs. cathodal)
-* LEG (baseline, tDCS, post.1, post.2)
-* TYPE (lateral vs. center)
-* DIRECTION (left vs. right)
-
-```{r Omnibus ANOVA, results='asis'}
-modelOmni <- ezANOVA(data = data.frame(latencyMedianLegExcl), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
-                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, type, direction), type = 3)
-kable(modelOmni$ANOVA)
-```
-
-### Main effect: type
-
-```{r Main effect of type}
-latencyMedianLegExcl %>%
-  group_by(subject,type) %>%
-  summarise(latency = mean(latency)) %>%
-  ggplot(aes(type, latency)) +
-  stat_summary(fun.data = mean_cl_normal, size = 1) +
-  geom_jitter(width = 0.25)
-```
-
-This simply reflects that center saccades are faster than lateral saccades, because the location of the target is known.
-
-### Interaction: leg by type
-
-```{r Interaction leg by type}
-latencyMedianLegExcl %>%
-  group_by(subject,leg,type) %>%
-  summarise(latency = mean(latency)) %>%
-  ggplot(aes(leg, latency, shape = type)) +
-  stat_summary(fun.y = mean, geom = "point") +
-  stat_summary(fun.y = mean, geom = "line", aes(group = type, linetype = type))
-```
-
-The effect of TYPE becomes larger over time: center saccades get faster, lateral saccades become slower.
-
-### Interaction: leg by type by direction
-
-```{r Interaction leg by type by direction}
-latencyMedianLegExcl %>%
-  group_by(subject,leg,type,direction) %>%
-  summarise(latency = mean(latency)) %>%
-  ggplot(aes(leg, latency, shape = type)) +
-  facet_wrap(~direction) +
-  stat_summary(fun.y = mean, geom = "point") +
-  stat_summary(fun.y = mean, geom = "line", aes(group = type, linetype = type))
-```
-
-This interaction of LEG and TYPE appears to occur to a lesser extent for left saccades. The "tDCS" block is the deviant here, but there is no interaction with stimulation.
-
-## ANOVA matching Kanai et al. (2012) - saccade latency
-
-Differing from the previous omnibus analysis, [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) analysed shifts from baseline and only had lateral saccades.
-
-__Data__: 
-
-* Outliers removed
-* Collapsed into 15-minute intervals
-* Subtract the baseline from each subsequent block
-* Discard center, keep only lateral saccades
-
-__Dependent measure__: saccadic latency
-
-__Factors__:
-
-* STIMULATION (anodal vs. cathodal)
-* LEG (tDCS, post.1, post.2)
-* DIRECTION (left vs. right)
-
-```{r Kanai ANOVA, results='asis'}
-
-latencyMedianBaselineLateral <- filter(latencyMedianBaseline, type == "lateral") # keep only lateral saccades
-
-modelKanai <- ezANOVA(data = data.frame(latencyMedianBaselineLateral),
-                        dv = .(latency), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
-
-# OR, without the EZ package:
-# modelKanai=aov(latency~stimulation*leg*direction + Error(subject/(stimulation*leg*direction)),data=latencyMedianBaselineLateral)
-# summary(modelKanai)
-
-kable(modelKanai$ANOVA)
-```
-
-### Main effect of direction
-
-```{r Main effect of direction}
-latencyMedianBaselineLateral %>%
-  group_by(subject,direction) %>%
-  summarise(latency = mean(latency)) %>%
-  ggplot(aes(direction, latency)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  stat_summary(fun.data = mean_cl_normal, size = 1) +
-  geom_jitter(width = 0.25)
-```
-
-Right saccades become slower with respect to the baseline; left saccades do not. However, the effect is tiny (1-2 ms) and there is no interaction with STIMULATION.
-
-## ANOVA without subtracting baseline, for lateral saccades - saccade latency
-
-Kanai et al. analyzed the baseline-subtracted data; now repeat the same ANOVA with the baseline block still present.
-
-__Data__: 
-
-* Outliers removed
-* Collapsed into 15-minute intervals
-* Discard center, keep only lateral saccades
-
-__Dependent measure__: saccadic latency
-
-__Factors__:
-
-* STIMULATION (anodal vs. cathodal)
-* LEG (tDCS, post.1, post.2)
-* DIRECTION (left vs. right)
-
-```{r, Lateral saccade ANOVA, results='asis'}
-
-# keep only lateral saccades
-latencyMedianLateral <- latencyMedianLegExcl %>%
-  filter(type == "lateral") %>%
-  select(-type)
-
-modelLateral <- ezANOVA(data = data.frame(latencyMedianLateral),
-                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
-kable(modelLateral$ANOVA)
-
-```
-
-### Leg by direction interaction
-
-```{r Interaction leg by direction}
-latencyMedianLateral %>%
-  group_by(subject,leg,direction) %>%
-  summarise(latency = mean(latency)) %>%
-  ggplot(aes(leg, latency, shape = direction)) +
-  stat_summary(fun.y = mean, geom = "point") +
-  stat_summary(fun.y = mean, geom = "line", aes(group = direction, linetype = direction))
-```
-
-Pretty erratic pattern, and no interaction with STIMULATION either.
-
-## ANOVA without subtracting baseline, for center saccades - saccade latency
-
-Same as previous, but now for center saccades.
-
-```{r, Center saccade ANOVA, results='asis'}
-latencyMedianCenter <- latencyMedianLegExcl %>%
-  filter(type == "center") %>%
-  select(-type)
-
-modelCenter <- ezANOVA(data = data.frame(latencyMedianCenter),
-                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
-kable(modelCenter$ANOVA)
-```
-
-## Bayesian linear mixed effects matching Kanai - saccade latency
-
-### Test against the null model
-
-```{r Compute Bayes Factors cf. null model}
-bfKanaiNull = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianBaselineLateral), whichModels="withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
-bfKanaiNull = sort(bfKanaiNull, decreasing = TRUE) # sort such that winning model is at the top
-```
-
-First we compare all models to the most simple (null) model, which is the intercept only + random effect model: `latency ~ subject`. This does not test for effects of SUBJECT but models it as a nuisance factor (`whichRandom = "subject"`). In addition, to decrease the model space, we do not consider models that have an interaction without the corresponding main effects (`whichModels = "withmain"`).
-
-```{r Extract Bayes Factors withMain, results='asis'}
-kable(select(extractBF(bfKanaiNull), bf)) # show only the Bayes factors in a table
-```
-
-The winning model is the one with all main effects, with a Bayes factor of `r round(extractBF(bfKanaiNull[1], onlybf = TRUE), digits = 1)`. We can compute the evidence for a particular effect by comparing this winning model with the best-fitting model that does _not_ contain the effect. We can compute the evidence for _absence_ of a particular effect by comparing the winning model with the best-fitting model that _does_ contain the effect.
-
-* STIMULATION. This effect can be quantified by comparing the Bayes factors of the first and the 3rd model : `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[3], onlybf = TRUE), digits = 1)`. This constitues __moderate evidence for the presence of a stimulation effect__.
-* DIRECTION. This effect can be quantified by comparing the first and the 2nd model : `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[2], onlybf = TRUE), digits = 1)`. This constitues __anecdotal evidence for the presence of a direction effect__.
-
-* Interaction of STIMULATION and DIRECTION. This term is not in the winning model, and first shows up in the fourth model. The Bayes factor for the comparison of both models is `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[4], onlybf = TRUE), digits = 1)`. This constitues __moderate evidence for the absence of an interaction between stimulation and direction__.
-* Interaction of STIMULATION, and LEG. Bayes factor: `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[8], onlybf = TRUE), digits = 1)`. This constitutes __moderate evidence for the absence of an interaction between stimulation and leg__.
-* Three-way interaction. Bayes factor: `r round(extractBF(bfKanaiNull[1] / bfKanaiNull[18], onlybf = TRUE), digits = 1)`. This constitutes __strong evidence for the absence of an interaction between stimulation, leg and direction__.
-
-### Test against the full model
-
-Another option for quantifying evidence for a particular effect is to compare the full model to a model where that effect is omitted (`whichModels = top")`. The full model is `stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject`.
-
-```{r Compute Bayes Factors cf. full model}
-bfKanaiFull = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianBaselineLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
-bfKanaiFull
-```
-
-Removing the DIRECTION effect from the model yields a lower Bayes Factor, so including this effect improved the model. This thus constitues (some) evidence for the alternative: ` 1 \ ` `r round(extractBF(bfKanaiFull[6], onlybf = TRUE), digits = 3)` ` = ` `r round(extractBF(1/bfKanaiFull[6], onlybf = TRUE), digits = 1)`. The evidence for a stimulation effect is also about the same: `r round(extractBF(1/bfKanaiFull[7], onlybf = TRUE), digits = 1)`.
-
-On the contrary, removing the interactions actually improves the model, so there is moderate evidence for the absence of interaction effects.
-
-All in all, for most effects, the result is qualitatively similar to the approach of testing against the null-model. Only the evidence for absence of the three-way interaction is much, much smaller here.
-
-## Bayesian linear mixed effects with baseline - saccade latency
-
-Repeat the analysis when the baseline is not subtracted, and also for center saccades.
-
-### Lateral saccades
-
-```{r Compute Bayes Factors lateral with-baseline model}
-
-# keep only lateral saccades
-latencyMedianLateral <- latencyMedianLegExcl %>%
-  filter(type == "lateral") %>%
-  select(-type)
-  
-bfLateral = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianLateral), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
-bfLateral
-```
-
-When including the baseline, the evidence for null effects are stronger all around.
-
-### Center saccades
-
-```{r Compute Bayes Factors center with-baseline model}
-
-# keep only center saccades
-latencyMedianCenter <- latencyMedianLegExcl %>%
-  filter(type == "center") %>%
-  select(-type)
-  
-bfCenter = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
-bfCenter
-```
-
-Now the model improves all the time, no matter which effect is omitted.
