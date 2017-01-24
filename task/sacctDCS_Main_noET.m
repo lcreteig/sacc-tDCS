@@ -174,8 +174,8 @@ try
                 
                 %Store data
                 data(iLeg).targetSide(iBlock,iTrial) = targetSide(iTrial);
-                timeStamps(iBlock,iTrial).fix = tISIonset(1);
-                timeStamps(iBlock,iTrial).target = tISIonset(2);
+                timeStamps(iLeg).fix(iBlock,iTrial) = tISIonset(1);
+                timeStamps(iLeg).target(iBlock,iTrial) = tISIonset(2);
                 
                 if ismember(iTrial, breakTrials) % if it's time for a break
                     DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2); % draw pause text
