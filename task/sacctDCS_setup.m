@@ -18,7 +18,7 @@ startAtLeg = str2double(answer{7});
 startAtBlock = str2double(answer{8});
 
 placeHolderFlag = false;
-overlap = 0;
+overlap = 0; 
 expISI = 1;
 
 if str2double(answer{6})

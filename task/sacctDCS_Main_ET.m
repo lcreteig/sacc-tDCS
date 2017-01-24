@@ -64,8 +64,9 @@ try
         timeStamps(i).leg  = xp.legNames{i};
         timeStamps(i).saccTarget = zeros(xp.nBlocks(i),xp.nTrials);
         timeStamps(i).saccFix = zeros(xp.nBlocks(i),xp.nTrials);
+        
     end
-    
+   
     breakTrials = zeros(1,xp.breaksPerBlock);
     
     for i = 1:xp.breaksPerBlock
@@ -124,7 +125,7 @@ try
             
             %Fixation
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
-            tFixOnset = Screen('Flip', windowPtr);
+            tISIonset(1) = Screen('Flip', windowPtr);
             Eyelink('Message', sprintf('leg %i block %i started at %f', iLeg, iBlock, tISIonset(1)));
             
             for iTrial = 1:xp.nTrials
@@ -160,7 +161,6 @@ try
                 end
                 timeStamps(iLeg).saccTarget(iBlock,iTrial) = tISIonset(2);
                 
-                
                 %Fixation
                 Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
                 tISIonset(1) = Screen('Flip', windowPtr, tISIonset(2) + ISI(iTrial,2) - slack);
@@ -190,16 +190,14 @@ try
                 end
                 timeStamps(iLeg).saccFix(iBlock,iTrial) = tISIonset(1);
                 
-                
                 %Check for keypresses
                 [~,~,keyCode] = KbCheck;
                 if keyCode(KbName(xp.abortKey)) % abort the experiment
                     error('Manual quit')
                 end
                 
-                %Store data
                 data(iLeg).targetSide(iBlock,iTrial) = targetSide(iTrial);
-                 
+                
                 Eyelink('Message', sprintf('trial %i stopped at %f', iTrial, GetSecs));
                 WaitSecs(0.001); % wait a bit, as the eyelink is not always able to write many messages in a short interval
                 Eyelink('Message', sprintf('trial %i parameter fixation-target interval : %f', iTrial, ISI(iTrial,1)));
@@ -231,16 +229,17 @@ try
             elseif iBlock == xp.nBlocks(iLeg) && iLeg < xp.nLegs
                 breakText = textLeg;
             else
-                breakText = textEnd;
+               breakText = textEnd;
             end
-            DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
-            % select data from saccades to lateral targets only for feedback
-            latFBdata = data(iLeg).saccLatency(iBlock,:,1);
-            accFBdata = data(iLeg).saccAccuracy(iBlock,:,1);
-            FB = sprintf(textFB, mean(latFBdata(~isnan(latFBdata))), mean(accFBdata(~isnan(accFBdata))./(xp.screenRes(1)/xp.screenDim(1))*10) ); %format feedback text
-            DrawFormattedText(windowPtr, FB, 'center', centerY*0.6, blackInt,[],[],[],2); % draw feedback text
-            Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack);
-            Eyelink('Message', sprintf('leg %i block %i stopped at %f', iLeg, iBlock, GetSecs));
+            
+             DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
+             % select data from saccades to lateral targets only for feedback
+             latFBdata = data(iLeg).saccLatency(iBlock,:,1); 
+             accFBdata = data(iLeg).saccAccuracy(iBlock,:,1);
+             FB = sprintf(textFB, mean(latFBdata(~isnan(latFBdata))), mean(accFBdata(~isnan(accFBdata))./(xp.screenRes(1)/xp.screenDim(1))*10) ); %format feedback text
+             DrawFormattedText(windowPtr, FB, 'center', centerY*0.6, blackInt,[],[],[],2); % draw feedback text
+             Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack);
+             Eyelink('Message', sprintf('leg %i block %i stopped at %f', iLeg, iBlock, GetSecs));
              
                 %save back-up of data so far
                 filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.legNames{iLeg} '_' ...

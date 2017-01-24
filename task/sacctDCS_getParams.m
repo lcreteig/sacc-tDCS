@@ -4,15 +4,11 @@ function [xp] = sacctDCS_getParams(subjectID,tDCScode,environment,task,screenDis
 
 % leonreteig@gmail.com
 
-%ADD elconfig
-%ADD eyetracking
-%ADD gaze contingent
-
 %% I/O
 
 switch environment
     
-      case 'L1.09'
+    case 'L1.09'
         xp.dataFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'data', filesep);
         xp.backupFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'data', 'backup', filesep);
         xp.taskFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'task', filesep);
@@ -49,14 +45,14 @@ xp.date = datestr(now); %current date and time
 
 switch task
     
-    case 'practice'
+    case 'practice' 
         xp.nLegs = 1;
         xp.legNames = {'practice'};
         xp.nBlocks = 1;
         xp.nTrials = 120;
         xp.breaksPerBlock = 5;
         
-    case 'main'
+    case 'main' 
         xp.nLegs = 3;
         xp.legNames = {'pre'; 'tDCS'; 'post'};
         xp.nBlocks = [3 3 6]; % blocks per leg
@@ -68,7 +64,7 @@ end
 
 switch environment
     
-       case 'L1.09'
+    case 'L1.09'
          xp.screenNum = 2;
          xp.screenDim = [51 28.5]; % screen dimensions [width height] in cm.
          xp.screenRes = [1920 1080]; % screen dimensions [width height] in pixels.
@@ -108,7 +104,7 @@ xp.TextStyle = 0; %0 = normal, 1 = bold, 2 = italic.
 xp.targetEcc = 8; % displacement along horizontal meridian
 xp.targetSize = 0.5;
 xp.targetColor = 0; % single contrast value (0-255)
-xp.driftColor = [255 0 0]; % dot color during pause
+xp.driftColor = [255 0 0];
 
 %%%PLACEHOLDERS%%%
 xp.placeSize = xp.targetSize*1.25;

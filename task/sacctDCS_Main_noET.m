@@ -27,7 +27,7 @@ try
     whiteInt = WhiteIndex(xp.screenNum);
     blackInt = BlackIndex(xp.screenNum);
     grayInt = round(GrayIndex(xp.screenNum));
-    [windowPtr, windowRect]=Screen('OpenWindow',xp.screenNum,grayInt); % open a window, color it grey
+    [windowPtr, windowRect]=Screen('OpenWindow',xp.screenNum, grayInt); % open a window, color it grey
     [centerX, centerY] = RectCenter(windowRect); % get center of window
     Screen('BlendFunction', windowPtr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); % set alpha blending to enable smooth, anti-aliased dots
     
@@ -118,7 +118,7 @@ try
             ISI = round(ISI / ifi) * ifi;
             timeStamps(iLeg).fixDur(iBlock,:) = ISI(:,1);
             timeStamps(iLeg).targetDur(iBlock,:) = ISI(:,2);
-            
+
             %Draw start screen
             DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2);
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
@@ -143,7 +143,7 @@ try
                     Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
                     Screen('Flip', windowPtr, tISIonset(1) + ISI(iTrial,1) + timeStamps(iLeg).maxSaccadeTime - slack);
                 end
-                
+               
                 if placeHolderFlag
                     Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
                 end
@@ -152,12 +152,12 @@ try
                 
                 %Fixation
                 if overlap
-                if placeHolderFlag
-                    Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
-                end
-                Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
-                Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
-                Screen('Flip', windowPtr, tISIonset(2) + ISI(iTrial,2) + timeStamps(iLeg).maxSaccadeTime - slack);
+                    if placeHolderFlag
+                        Screen('FrameRect', windowPtr, xp.placeColor, placeHolder);
+                    end
+                    Screen('DrawDots', windowPtr, [centerX+targetSide(iTrial)*targetEcc centerY], targetSize, xp.targetColor,[],2); % draw a lateral dot
+                    Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2);
+                    Screen('Flip', windowPtr, tISIonset(2) + ISI(iTrial,2) + timeStamps(iLeg).maxSaccadeTime - slack);
                 end
                 
                 if placeHolderFlag
@@ -177,7 +177,7 @@ try
                 timeStamps(iBlock,iTrial).fix = tISIonset(1);
                 timeStamps(iBlock,iTrial).target = tISIonset(2);
                 
-               if ismember(iTrial, breakTrials) % if it's time for a break
+                if ismember(iTrial, breakTrials) % if it's time for a break
                     DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2); % draw pause text
                     Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
                     Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
@@ -197,14 +197,14 @@ try
             elseif iBlock == xp.nBlocks(iLeg) && iLeg < xp.nLegs
                 breakText = textLeg;
             else
-                breakText = textEnd;
+               breakText = textEnd;
             end
             
             DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
             Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack);
             
             %save back-up of data so far
-            filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.task '_' ...
+            filename = [xp.backupFolder xp.codename '_' xp.subject '_' xp.tDCS '_' xp.legNames{iLeg} '_' ...
                 datestr(now, 'yyyy-mm-dd_HH-MM-SS') '_leg_' int2str(iLeg) '_block_' int2str(iBlock) '_trial_' int2str(iTrial) '.mat'];
             save(filename,'data', 'xp', 'timeStamps')
             
