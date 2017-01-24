@@ -8,6 +8,12 @@ function [xp] = sacctDCS_getParams(subjectID,tDCScode,environment,task,screenDis
 
 switch environment
     
+    case 'L1.14'
+        xp.dataFolder = fullfile('D:', 'LeonReteig', 'data', filesep);
+        xp.backupFolder = fullfile('D:', 'LeonReteig', 'data', 'backup', filesep);
+        xp.taskFolder = fullfile('D:', 'LeonReteig', 'task', filesep);
+        addpath(genpath(xp.taskFolder));
+    
     case 'L1.09'
         xp.dataFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'data', filesep);
         xp.backupFolder = fullfile('D:', 'USERS', 'Leon', 'sacc-tDCS', 'data', 'backup', filesep);
@@ -63,6 +69,12 @@ end
 %% Screen
 
 switch environment
+    
+    case 'L1.14'
+        xp.screenNum = 0;
+        xp.screenDim = [53.3 30]; % screen dimensions [width height] in cm.
+        xp.screenRes = [1920 1080]; % screen dimensions [width height] in pixels.
+        xp.screenRefresh = 120;
     
     case 'L1.09'
          xp.screenNum = 2;
