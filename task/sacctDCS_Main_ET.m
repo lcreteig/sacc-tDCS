@@ -252,7 +252,7 @@ try
                 KbStrokeWait;
                  
         end % block loop
-   
+    startAtBlock = 1; % even if the current leg was started at a differen block, for the next leg, should always start at block 1 again
     end % leg loop
 
     
