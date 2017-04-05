@@ -86,7 +86,9 @@ try
     
     DrawFormattedText(windowPtr, textStart, 'center', 'center', blackInt); % draw start text
     Screen('Flip', windowPtr); % flip to screen
+    fprintf('Waiting for subject to respond to: "%s"\n', textStart) % print what subject sees to command window
     KbStrokeWait; % wait for a key press
+    fprintf('Subject indicated he/she''s ready to start\n');
     
     for iLeg = startAtLeg:xp.nLegs
         for iBlock = startAtBlock:xp.nBlocks(iLeg)
@@ -122,8 +124,10 @@ try
             %Draw start screen
             DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2);
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
-            Screen('Flip', windowPtr); 
+            Screen('Flip', windowPtr)
+            fprintf('Subject is taking a short break\n');
             KbStrokeWait;
+            fprintf('Subject started leg %i block %i\n', iLeg, iBlock);
             
             %Fixation
             if placeHolderFlag
@@ -131,6 +135,7 @@ try
             end
             Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.targetColor,[],2); % draw the middle dot
             tISIonset(1) = Screen('Flip', windowPtr);
+            
             
             for iTrial = 1:xp.nTrials
                 
@@ -181,7 +186,9 @@ try
                     DrawFormattedText(windowPtr, textBreak, 'center', centerY*0.8, blackInt,[],[],[],2); % draw pause text
                     Screen('DrawDots', windowPtr, [centerX centerY], targetSize, xp.driftColor,[],2);
                     Screen('Flip', windowPtr, tISIonset(1) + timeStamps(iLeg).transDur - slack); % flip one second after final fixation
+                    fprintf('Subject is taking a short break\n');
                     KbStrokeWait;
+                    fprintf('Subject resumed leg %i block %i\n', iLeg, iBlock);
                     
                     if placeHolderFlag
                         Screen('FrameRect', windowPtr, xp.placeColor, placeHolder); % draw the place holders
@@ -194,10 +201,13 @@ try
             
             if iBlock < xp.nBlocks(iLeg)
                 breakText = textBlock;
+                fprintf('Block %i of leg %i finished. Subject can take a longer break now.\n', iBlock, iLeg);
             elseif iBlock == xp.nBlocks(iLeg) && iLeg < xp.nLegs
                 breakText = textLeg;
+                fprintf('Leg %i finished. Please go in to the subject room!\n', iLeg);
             else
                breakText = textEnd;
+               fprintf('Experiment completed.\n');
             end
             
             DrawFormattedText(windowPtr, breakText, 'center', centerY*0.8, blackInt); % draw pause text
@@ -209,6 +219,7 @@ try
             save(filename,'data', 'xp', 'timeStamps')
             
             KbStrokeWait;
+            fprintf('Subject indicated he/she''s ready to start\n');
             
         end % block loop
     startAtBlock = 1; % even if the current leg was started at a differen block, for the next leg, should always start at block 1 again    

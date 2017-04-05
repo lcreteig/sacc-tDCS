@@ -4,7 +4,7 @@ prompt={'Subject ID:', 'tDCS code:', 'Task?(1=practice, 2=main)', 'Screen distan
     'Environment (1=L1.14, 2=L1.09, 3=L1.01, 4=mac, 5=pc)', 'Eyetracker? (1=yes, 0=no)', 'Start at leg:', 'Start at block:'};
 name='sacctDCS';
 numlines=1;
-defaultanswer={'sID','A','1','86','1','1','1','1'};
+defaultanswer={'sID','A','1','84','1','1','1','1'};
 answer=inputdlg(prompt,name,numlines,defaultanswer);
 
 
