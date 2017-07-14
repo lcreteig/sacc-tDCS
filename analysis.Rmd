@@ -541,7 +541,7 @@ kable(baselineDiff, caption = 'Difference between baseline saccade latencies in 
 
 There are a few subjects with substantial latency differences between sessions; the three largest of which are all slower in the anodal session (positive values). The mean difference is `r round(mean(baselineDiff$latency.diff), digits = 1)` ms.
 
-### Exclude S01
+### Exclude S01 and S16
 
 It seems reasonable to exclude subject 1 from further analysis, because of three things:
 
@@ -551,8 +551,11 @@ It seems reasonable to exclude subject 1 from further analysis, because of three
 
 However, S01 also seems to show the largest effect of stimulation, for both anodal and cathodal stimulation. It is even in the expected direction: faster saccades than baseline in the anodal session, slower in cathodal.
 
-```{r Exclude S01}
+S16's data quality was poor in the first session and also shows a large baseline difference
+
+```{r Exclude S01 and S16}
 latencyMedianLegExcl <- filter(latencyMedianLeg, subject != "S01") # discard rows from S01
+latencyMedianLegExcl <- filter(latencyMedianLeg, subject != "S16") # discard rows from S16
 latencyMedianLegExcl$subject <- factor(latencyMedianLegExcl$subject) #remake factor as it now has one level less
 ```
 
