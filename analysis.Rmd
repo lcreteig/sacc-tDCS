@@ -779,6 +779,24 @@ latencyMedianBaselineLateral %>%
 
 Right saccades become slower with respect to the baseline; left saccades do not. However, the effect is tiny (1-2 ms) and there is no interaction with STIMULATION.
 
+### ANOVA matching Kanai et al. (2012) - center saccades
+
+Repeat the same ANOVA, but now for center saccades (which Kanai did not have).
+
+```{r Kanai ANOVA center, results='asis'}
+
+latencyMedianBaselineCenter <- filter(latencyMedianBaseline, type == "center") # keep only lateral saccades
+
+modelKanaiCenter <- ezANOVA(data = data.frame(latencyMedianBaselineCenter),
+                        dv = .(latency), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
+
+# OR, without the EZ package:
+# modelKanai=aov(latency~stimulation*leg*direction + Error(subject/(stimulation*leg*direction)),data=latencyMedianBaselineLateral)
+# summary(modelKanai)
+
+kable(modelKanaiCenter$ANOVA)
+```
+
 ### ANOVA without subtracting baseline, for lateral saccades - saccade latency
 
 Kanai et al. analyzed the baseline-subtracted data; now repeat the same ANOVA with the baseline block still present.
@@ -797,7 +815,7 @@ __Factors__:
 * LEG (tDCS, post.1, post.2)
 * DIRECTION (left vs. right)
 
-```{r, Lateral saccade ANOVA, results='asis'}
+```{r Lateral saccade ANOVA, results='asis'}
 
 # keep only lateral saccades
 latencyMedianLateral <- latencyMedianLegExcl %>%
@@ -827,13 +845,14 @@ Pretty erratic pattern, and no interaction with STIMULATION either.
 
 Same as previous, but now for center saccades.
 
-```{r, Center saccade ANOVA, results='asis'}
+```{r Center saccade ANOVA, results='asis'}
 latencyMedianCenter <- latencyMedianLegExcl %>%
   filter(type == "center") %>%
   select(-type)
 
 modelCenter <- ezANOVA(data = data.frame(latencyMedianCenter),
-                        dv = .(latency), wid = .(subject), within = .(stimulation, leg, direction), type = 3)
+                        dv = .(latency), wid = .(subject), within = .(
+                          stimulation, leg, direction), type = 3)
 kable(modelCenter$ANOVA)
 ```
 
@@ -875,6 +894,13 @@ Removing the DIRECTION effect from the model yields a lower Bayes Factor, so inc
 On the contrary, removing the interactions actually improves the model, so there is moderate evidence for the absence of interaction effects.
 
 All in all, for most effects, the result is qualitatively similar to the approach of testing against the null-model. Only the evidence for absence of the three-way interaction is much, much smaller here.
+
+### Bayesian linear mixed effects matching Kanai - center saccades
+
+```{r Bayes Factor Kanai center}
+bfKanaiCenter = anovaBF(latency~stimulation*leg*direction+subject, data = data.frame(latencyMedianBaselineCenter), whichModels="top", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfKanaiCenter
+```
 
 ### Bayesian linear mixed effects with baseline - saccade latency
 
