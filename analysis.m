@@ -21,8 +21,9 @@ subFolders = dir(fullfile(dataDir, 'S*'));
 rawFolder = 'raw'; % sub-directory containing raw Eyelink Data Files (.edf) and .mat files for each subject
 subjects = {subFolders.name};
 stimulation = {'anodal', 'cathodal'}; % type of stimulation over the FEF
-tDCScodes = {'C', 'I'; 'H', 'A'}; % in subject 1-10, setting 'C' on the device was mapped to anodal; for cathodal or 'I' the wires were reversed 
-% In subject 11-15, 'A' was mapped to cathodal; for anhodal or 'H' the wires were reversed 
+tDCScodes = {'C', 'I'; 'H', 'A'; 'B', 'K'}; % in subject 1-10, setting 'C' on the device was mapped to anodal; for cathodal or 'I' the wires were reversed 
+% In subject 11-15, 'A' was mapped to cathodal; for anodal or 'H' the wires were reversed
+% In subject 16 and onwards, 'B' was mapped to anodal; for cathodal or 'K' the wires were reversed 
 legs = {'pre', 'tDCS', 'post'};
 
 fid = fopen(fullfile(dataDir, ['sacc-tDCS_data' '.csv']),'w'); % open text file for writing
@@ -49,6 +50,8 @@ for iSub = subjects % loop over first subject
         mapping = 1;
     elseif str2double(iSub{:}(2:end)) > 10 && str2double(iSub{:}(2:end)) <= 15 % for subjects 11-15
         mapping = 2;
+    elseif str2double(iSub{:}(2:end)) > 15 % for subject 16 and later
+        mapping = 3;
     end
     
     for iStim = tDCScodes(mapping,:)
