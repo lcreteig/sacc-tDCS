@@ -1,0 +1,232 @@
+---
+title: Transcranial direct current stimulation of the right frontal eye field in a
+  prosaccade task
+author: "Leon Reteig"
+subtitle: Saccade latency quantile analysis
+output:
+  html_notebook:
+    toc: yes
+    #toc_float: yes
+---
+
+```{r Ignore warnings and messages, include=FALSE}
+# Don't show warnings and messages in HTML output
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+# Setup
+
+R notebook for analysis of saccade latency quantiles in the `sacc-tDCS` dataset.
+
+```{r Load some libraries}
+# Load some libraries
+library("tidyverse") # ggplot2, tibble, tidyr, readr, purrr, and dplyr
+library("rogme") # robust graphical methods (quantile estimation, shift function)
+library("knitr") # R markdown output (html, pdf, etc.)
+```
+
+```{r Load the data frame}
+# Load the data frame
+dataFile <- file.path("data", "sacc-tDCS_data.csv")
+groupData <- read_csv(dataFile, na = "NaN")
+groupData <- select(groupData, -X12) # drop final empty column named "X12"
+```
+
+```{r Make separate leg out of final 3 post blokcs}
+# Load the data frame
+groupData <- mutate(groupData, leg=replace(leg, leg == "post", "post.1"), # split the "post" level into two
+                  leg=replace(leg, block > 3, "post.2"))
+```
+
+```{r Show data frame}
+print(groupData)
+```
+
+* __subject__: subject ID
+* __stimulation__: Whether data are from the anodal or cathodal session
+* __leg__: Whether data are before (`pre`), during (`tDCS`), or after (`post.1`, `post.2`) tDCS
+* __block__: After each block participant had a brief break and tracker was recalibrated
+* __trial__: trial number within a block
+* __type__:
+    * `lateral` - fixation in center of display, saccade made towards the periphery
+    * `center` - fixation in periphery, saccade made back towards the center of the display
+* __direction__: `left` for saccades towards the left of current fixation position; `right` for saccades to the right
+* __deviation.start__ : distance (in visual angle) from saccade start point to fixation
+* __deviation.end__: distance (in visual angle) from saccade end point to target location
+* __amplitude__: distance (in visual angle) between saccade start and end point
+* __latency__: time (in ms) from target onset to start of saccade
+
+# Shift function analysis
+
+This analysis is based on Rand Wilcox's shift function (for dependent groups), as published in [Wilcox, R. R., & Erceg-Hurn, D. M. (2012). Comparing two dependent groups via quantiles. Journal of Applied Statistics, 39(12), 2655-2664](http://dx.doi.org/10.1080/02664763.2012.724665). It uses the implementation in the [`rogme` package](https://github.com/GRousselet/rogme). See the [accompanying paper and code](https://figshare.com/articles/Modern_graphical_methods_to_compare_two_groups_of_observations/4055970) for much more info.
+
+## Estimate quantiles and compute shift function
+
+Briefly, the code below performs the following steps:
+
+* Compute the deciles (10% quantiles) for each individual subject's distribution of saccade latencies, for each condition, using the  [Harrell-Davis quantile estimator](https://garstats.wordpress.com/2016/06/09/the-harrell-davis-quantile-estimator/). This procedure uses a weighted average of order statistics (based on the data points) to estimate each quantile, so it tends to be more precise than simple methods, and it is said to perform well in a wide variety of cases.
+* Take two of these distributions (in this case, the _anodal_ and _cathodal_ sessions) and subtract the deciles to look at the difference. A plot of the decile differences vs. the deciles in one condition is called a [shift function](https://garstats.wordpress.com/2016/07/12/shift-function/).
+* Compute 95% confidence intervals with a percentile bootstrap of the decile differences. If the confidence interval of a particular decile difference does not include zero, the difference is significant. The confidence intervals are **not** corrected for multiple comparisons, but the p-values are (using Hochberg's method).
+
+```{r Quantiles and shift function}
+qData <- groupData %>%
+  filter(!is.na(latency)) %>% # discard missing saccades
+  group_by(subject,leg,type,direction) %>% # for each condition
+  nest(stimulation,latency) %>% # make a list_column "data" out of the stimulation and latency columns. Now, each group has its own data frame consisting of the stimulation and latency columns for that group
+  mutate(shift = purrr::map(data, ~ shiftdhd_pbci(., formula = latency ~ stimulation, nboot = 2000))) # for each group, estimate quantiles and compute shift function, and store as a list column in "shift"
+
+qData <- unnest(qData,shift) # unpack the list column to get the model results for each group in the original data frame
+
+# Alternatively, instead of "nest ...", "mutate ..." and "unnest ...", you can call shiftdhd through dplyr::do (but this is basically depreated in favor of purrr:map)
+# do(shiftdhd(.[,c("stimulation","latency")], formula = latency ~ stimulation, nboot = 100)) # estimate quantiles and compute shift function
+```
+
+This takes quite a while to compute with a large number of bootstrap samples, so write the data file to disk:
+
+```{r Write quantile data}
+
+write_csv(qData, file.path("data", "sacc-tDCS_quantiles.csv"))
+
+```
+
+## Plot shift functions for each subject
+
+```{r Shift tDCS, lateral, left}
+shiftTdcsLateralLeft <- ggplot(filter(qData, leg == "tDCS", type  == "lateral", direction == "left"), aes(anodal, difference)) +
+  facet_wrap(~subject, nrow = 3, scales = "free") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=ci_lower, ymax=ci_upper)) +
+  xlab("anodal deciles") +
+  ylab("anodal - cathodal deciles") +
+  ggtitle("Left lateral saccades during tDCS")
+  
+shiftTdcsLateralLeft
+```
+
+## Count how many subjects show significant effects 
+
+```{r Count significance of deciles}
+qSig <- qData %>%
+  group_by(leg,type,direction,q) %>%
+  summarise(sig.pos = sum(p_value < p_crit & difference > 0), # RT anodal > cathodal
+            sig.neg = sum(p_value < p_crit & difference < 0)) %>% # RT cathodal > anodal
+  gather(effect.dir, significance, sig.neg, sig.pos)
+  #mutate(effect.dir = rev(effect.dir))
+```
+
+## Average shift function over subjects
+
+```{r Average anodal deciles}
+qStatsAve <- qData %>% 
+  group_by(leg,type,direction,q) %>% 
+  mutate(anodal = mean(anodal)) %>% # mean of "anodal" quantiles OVER subjects
+  group_by(subject,leg,type,direction,q,anodal) %>%
+  summarise(difference = mean(difference)) %>% # mean of difference between anodal and cathodal quantiles PER subject
+  group_by(leg,type,direction) %>% 
+  mutate(anodal_median = median(anodal)) # median for plotting
+```
+
+### Before stimulation
+
+```{r Average shift function baseline}
+shiftBaseline <- ggplot(filter(qStatsAve, leg == "pre"), aes(anodal, difference)) +
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(aes(xintercept = anodal_median), linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar") +
+  xlab("anodal deciles") +
+  ylab("anodal - cathodal deciles") +
+  ggtitle("Saccades during baseline (15 min)")
+
+shiftBaseline
+```
+
+```{r Significance per subject baseline}
+ggplot(filter(qSig, leg == "pre"), aes(q, significance, fill = effect.dir)) +
+  facet_grid(type ~ direction) +
+  geom_col(position = "dodge") +
+  scale_x_continuous(breaks = seq(0.1,0.9,0.1)) +
+  ylab("Number of subjects with significant difference") +
+  ggtitle("Baseline")
+```
+
+If the difference (anodal - cathodal) is positive (`sig.pos`), the cathodal RT was faster.
+If the difference (anodal - cathodal) is negative (`sig.neg`), the anodal RT was faster.
+
+### During stimulation
+
+```{r Average shift function tDCS}
+shiftTDCS <- ggplot(filter(qStatsAve, leg == "tDCS"), aes(anodal, difference)) +
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(aes(xintercept = anodal_median), linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar") +
+  xlab("anodal deciles") +
+  ylab("anodal - cathodal deciles") +
+  ggtitle("Saccades during tDCS (15 min)")
+
+shiftTDCS
+```
+
+```{r Significance per subject tDCS}
+ggplot(filter(qSig, leg == "tDCS"), aes(q, significance, fill = effect.dir)) +
+  facet_grid(type ~ direction) +
+  geom_col(position = "dodge") +
+  scale_x_continuous(breaks = seq(0.1,0.9,0.1)) +
+  ylab("Number of subjects with significant difference") +
+  ggtitle("tDCS")
+```
+
+### Post stimulation
+
+```{r Average shift function post}
+shiftAfter <- ggplot(filter(qStatsAve, leg == "post.1"), aes(anodal, difference)) +
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(aes(xintercept = anodal_median), linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar") +
+  xlab("anodal deciles") +
+  ylab("anodal - cathodal deciles") +
+  ggtitle("Saccades after tDCS (15 min)")
+
+shiftAfter
+```
+
+```{r Significance per subject post}
+ggplot(filter(qSig, leg == "post.1"), aes(q, significance, fill = effect.dir)) +
+  facet_grid(type ~ direction) +
+  geom_col(position = "dodge") +
+  scale_x_continuous(breaks = seq(0.1,0.9,0.1)) +
+  ylab("Number of subjects with significant difference") +
+  ggtitle("post")
+```
+
+```{r Attempt at fancy shift function}
+
+fancyShift <- ggplot(filter(qStatsFancy,leg=="pre"), aes(anodal, difference)) +
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_vline(aes(xintercept = anodal_median), linetype = "dashed", alpha = 0.5) +
+  # Intervals
+  stat_summary(fun.data = mean_cl_normal, geom = "linerange") +
+  stat_summary(fun.data = mean_cl_normal, geom = "linerange", aes(colour = factor(sign), alpha  = factor(deco))) +
+  scale_color_manual(values = c("#DD1C1A", "#06AED5"), guide = FALSE) +
+  scale_alpha_discrete(range = c(0.4, 1), guide = FALSE) +
+  # Line
+  stat_summary(fun.y = mean, geom = "line", colour = "grey50", alpha = 0.5) +
+  # Points
+  stat_summary(fun.y = mean, geom = "point", colour = "black", fill = "white", shape = 21) +
+  stat_summary(fun.y = mean, geom = "point", aes(fill = factor(sign), alpha = factor(deco)), colour = "black", shape = 21) +
+  scale_fill_manual(values = c("#DD1C1A", "#06AED5"), guide = FALSE) +
+  xlab("anodal deciles") +
+  ylab("anodal - cathodal deciles")
+fancyShift
+```
