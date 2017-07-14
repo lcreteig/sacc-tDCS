@@ -68,7 +68,7 @@ Briefly, the code below performs the following steps:
 * Take two of these distributions (in this case, the _anodal_ and _cathodal_ sessions) and subtract the deciles to look at the difference. A plot of the decile differences vs. the deciles in one condition is called a [shift function](https://garstats.wordpress.com/2016/07/12/shift-function/).
 * Compute 95% confidence intervals with a percentile bootstrap of the decile differences. If the confidence interval of a particular decile difference does not include zero, the difference is significant. The confidence intervals are **not** corrected for multiple comparisons, but the p-values are (using Hochberg's method).
 
-```{r Quantiles and shift function}
+```{r Quantiles and shift function, eval=FALSE}
 qData <- groupData %>%
   filter(!is.na(latency)) %>% # discard missing saccades
   group_by(subject,leg,type,direction) %>% # for each condition
@@ -81,11 +81,17 @@ qData <- unnest(qData,shift) # unpack the list column to get the model results f
 # do(shiftdhd(.[,c("stimulation","latency")], formula = latency ~ stimulation, nboot = 100)) # estimate quantiles and compute shift function
 ```
 
-This takes quite a while to compute with a large number of bootstrap samples, so write the data file to disk:
+This takes quite a while to compute with a large number of bootstrap samples, so write the data file to disk. The current and next code chunk are not evaluated by default! (`eval = false`)
 
-```{r Write quantile data}
+```{r Write quantile data, eval=FALSE}
 
 write_csv(qData, file.path("data", "sacc-tDCS_quantiles.csv"))
+
+```
+
+```{r Load quantile data}
+
+qData <- read_csv(file.path("data", "sacc-tDCS_quantiles.csv"))
 
 ```
 
@@ -207,26 +213,4 @@ ggplot(filter(qSig, leg == "post.1"), aes(q, significance, fill = effect.dir)) +
   scale_x_continuous(breaks = seq(0.1,0.9,0.1)) +
   ylab("Number of subjects with significant difference") +
   ggtitle("post")
-```
-
-```{r Attempt at fancy shift function}
-
-fancyShift <- ggplot(filter(qStatsFancy,leg=="pre"), aes(anodal, difference)) +
-  facet_grid(type ~ direction) +
-  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
-  geom_vline(aes(xintercept = anodal_median), linetype = "dashed", alpha = 0.5) +
-  # Intervals
-  stat_summary(fun.data = mean_cl_normal, geom = "linerange") +
-  stat_summary(fun.data = mean_cl_normal, geom = "linerange", aes(colour = factor(sign), alpha  = factor(deco))) +
-  scale_color_manual(values = c("#DD1C1A", "#06AED5"), guide = FALSE) +
-  scale_alpha_discrete(range = c(0.4, 1), guide = FALSE) +
-  # Line
-  stat_summary(fun.y = mean, geom = "line", colour = "grey50", alpha = 0.5) +
-  # Points
-  stat_summary(fun.y = mean, geom = "point", colour = "black", fill = "white", shape = 21) +
-  stat_summary(fun.y = mean, geom = "point", aes(fill = factor(sign), alpha = factor(deco)), colour = "black", shape = 21) +
-  scale_fill_manual(values = c("#DD1C1A", "#06AED5"), guide = FALSE) +
-  xlab("anodal deciles") +
-  ylab("anodal - cathodal deciles")
-fancyShift
 ```

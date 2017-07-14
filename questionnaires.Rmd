@@ -1,0 +1,288 @@
+---
+title: "Transcranial direct current stimulation of the right frontal eye field in a prosaccade task"
+author: Leon Reteig
+subtitle: Questionnaires
+output:
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+```{r include=FALSE}
+# Don't show warnings and messages in HTML output
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+R notebook for analysis of questionnaires in the `sacc-tDCS` dataset. Previous processing:
+
+```{r Load some libraries}
+# Load some libraries
+library("dplyr") # wrangling data frame data
+library("tidyr") # tidying data frames
+library("ggplot2") # plotting
+library("ez") # ANOVA
+library("knitr") # R markdown output (html, pdf, etc.)
+```
+
+# Questionnaires
+
+## PANAS
+
+### Load data
+
+In each session of the experiment, participants completed the [Positive and Negative Affect Scale (PANAS)](http://booksite.elsevier.com/9780123745170/Chapter%203/Chapter_3_Worksheet_3.1.pdf) twice:
+
+1. __Pre-measurement__: Before starting setup of the tDCS and eye tracker
+2. __Post-measurement__: After the electrodes were removed following task completion
+
+As most participants were native Dutch speakers, we also used a [Dutch language version](http://www.ekgp.ugent.be/pages/nl/vragenlijsten/PANAS.pdf) of the PANAS, as reported by [Engelen et al. (2006)](http://link.springer.com/article/10.1007/BF03087979).
+
+```{r Load PANAS data}
+# Load the data frame
+dataFile <- file.path("data", "PANAS.csv")
+panasData <- read.csv(dataFile, header = TRUE, sep = ";")
+
+panasData$time <- factor(panasData$time, levels = c("pre","post")) # reorder levels chronologically instead of alphabetically
+head(panasData) # show data frame
+```
+
+__Factors__:
+
+* _subject_: subject ID (`S01`, `S02`, etc)
+* _session_: Whether data are from the `first` or `second` session
+* _stimulation_: Whether data are from the `anodal` or `cathodal` session
+* _time_: Whether data are from the `pre` or `post` measurement
+
+__DATA__:
+
+The PANAS contains 20 items, split equally into positive and negative affect. Each item is rated on a Likert scale:
+
+1. very slightly or not at all
+2. a little
+3. moderately
+4. quite a bit
+5. extremely
+
+To obtain a positive affect score, we sum items: 1 (interested), 3 (excited), 5 (strong), 9 (enthusiastic), 10 (proud), 12 (alert), 14 (inspired), 16 (determined), 17 (attentive) and 19 (active).
+
+To obtain a negative affect score, we sum items: 2 (distressed), 4 (upset), 6 (guilty), 7 (scared), 8 (hostile), 11 (irritable), 13 (ashamed), 15 (nervous), 18 (jittery) and 20 (afraid).
+
+### Post-pre differences per item
+
+```{r Subtract pre from post for each item}
+panasPrePost <- panasData %>%
+  group_by(subject,session,stimulation) %>% # for each subject, session, stimulation combination
+  select(-time) %>% # don't do subtraction for this column
+  summarise_each(funs(diff(.))) # subtract pre and post
+```
+
+Let's plot the post-pre differences for each item, split for stimulation session.
+
+```{r Plot post-pre differences per item}
+panasPrePost %>%
+  gather(item, score, pos.1.interested:neg.20.afraid) %>% # gather all PANAS columns so it can be used as a factor
+  ggplot(aes(item, score)) +
+      stat_summary(fun.y = mean, geom = "point", position = position_dodge(width = 0.6), aes(color = stimulation)) +
+      geom_hline(yintercept = 0, linetype = "dashed") +
+      coord_cartesian(ylim = c(-1,1)) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+Most scores become negative, meaning the `post` score was smaller than `pre`. So they generally feel "less" of everything. This seems particularly the case for positive affect, although participants do feel slightly more _proud_, _determined_, and _strong_.
+
+They become particularly less _jittery_, _nervous_, _irritable_, and also less _attentive_, _active_, and _excited_.
+
+The biggest differences between the sessions are in the positive items, except for _irritable_.
+
+For some positive items, anodal stimulation results in a more positive score, while cathodal reesults in a more negative score: _alert_, _inspired_, _determined_, and _strong_.
+
+### Composite positive/negative scores
+
+```{r Sum the positive and negative items}
+panasComposite <- panasData %>% 
+  mutate(positive = rowSums(select(., contains("pos")))) %>% # sum all the positive scores together
+  mutate(negative = rowSums(select(., contains("neg")))) %>% # sum all the negative scores together
+  select(subject:time, positive, negative) %>% # drop the original PANAS columns
+  gather(affect, score, positive, negative) # gather affect so it can be used as a factor
+```
+
+```{r Plot the composite scores}
+ggplot(panasComposite, aes(time,score, color = stimulation)) +
+facet_wrap(~affect) +
+  geom_point(position = position_jitter(width = 0.5)) +
+  stat_summary(fun.data = mean_cl_normal, position = position_dodge(width = 1))
+```
+
+The negative scores are much lower than the positive overall.
+
+The pre to post differences are larger for positive scores, particularly for the cathodal session.
+
+#### Statistics: positive scores
+
+Repeated measures ANOVA with factors STIMULATION (anodal vs. cathodal) and TIME (pre vs. post)
+
+```{r RM ANOVA for Positive scores}
+panasCompositePositive <- filter(panasComposite, affect == "positive") # new data frame with only positive scores
+
+modelPositive <- ezANOVA(data = data.frame(panasCompositePositive), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
+                        dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
+kable(modelPositive)
+```
+
+Subjects' mood becomes less positive after stimulation, particularly in the cathodal session
+
+#### Statistics: negative scores
+
+Repeated measures ANOVA with factors STIMULATION (anodal vs. cathodal) and TIME (pre vs. post)
+
+```{r RM ANOVA for negative scores}
+panasCompositeNegative <- filter(panasComposite, affect == "negative") # new data frame with only negative scores
+
+modelNegative <- ezANOVA(data = data.frame(panasCompositeNegative), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
+                        dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
+kable(modelNegative)
+
+```
+
+Subjects' mood also become less negative after stimulation...
+
+## tDCS sensations
+
+After each session, subjects also completed a questionnaire probing tDCS sensations.
+
+### Load data
+
+```{r Load tDCS sensations data}
+# Load the data frame
+dataFile <- file.path("data", "tdcs_sensations.csv")
+sensData <- read.csv(dataFile, header = TRUE, sep = ";", na.strings = "")
+
+head(sensData) # show data frame
+```
+
+They were asked to which degree the following sensations were present during stimulation: _tingling_, _itching sensation_, _burning sensation_, _pain_, _headache_, _fatigue_, _dizziness_ and _nausea_. Each was rated on a scale from 0-4:
+
+0. none
+1. a little
+2. moderate
+3. strong
+4. very strong
+
+They also rated their confidence _that the sensations were caused by the stimulation_ on a scale from 0-4 (columns starting with `conf.`):
+
+0. n/a (meaning they rated the sensation a 0 on the previous scale)
+1. unlikely
+2. possibly
+3. likely
+4. very likely
+
+Finally, they filled in whether they felt one electrode more than the other (`felt.more`); (and if so, which and for which sensations).
+
+__Factors__:
+
+* _subject_: subject ID (`S01`, `S02`, etc)
+* _session_: Whether data are from the `first` or `second` session
+* _stimulation_: Whether data are from the `anodal` or `cathodal` session
+
+### Plot sensation distribution
+
+```{r tDCS sensation distributions}
+sensData %>%
+  select(everything(), -contains("conf"), -felt.more) %>% # drop the confidence columns
+  gather(sensation, rating, itching:nausea) %>% # gather sensations so they can be used as a factor
+  ggplot(aes(rating, fill = stimulation)) +
+    facet_wrap(~sensation) +
+    geom_histogram(position = "dodge", binwidth = 0.5) +
+    xlim(0.5,4.5) +
+    ggtitle("Sensations over 15 anodal sessions, 15 cathodal sessions")
+```
+
+_Nausea_ was never experienced; _dizziness_ and _pain_ are also rare, and mild.
+
+_Burning_, _itching_ and _tingling_ are most frequently experienced and to a higher degree.
+
+### Plot confidence distributions
+
+```{r tDCS confidence distributions}
+sensData %>%
+  select(contains("conf"), subject, session, stimulation) %>% # drop the rating columns
+  gather(sensation, rating, conf.itching:conf.nausea) %>%
+  ggplot(aes(rating, fill = stimulation)) +
+    facet_wrap(~sensation) +
+    geom_histogram(position = "dodge", binwidth = 0.5) +
+    xlim(0.5,4.5) +
+    ggtitle("Confidence over 15 anodal sessions, 15 cathodal sessions")
+```
+
+For "local" sensations like _burning_, _tingling_ and _dizziness_, subjects have high confidence that these are due to tDCS. For more diffuse sensations, like _fatigue_ and _headache_, ratings are very low, so their occurence might just be due to performing the task for an extended period of time.
+
+### Sensation difference between anode and cathode
+
+```{r Sensations for anode and cathode}
+sensData %>%
+  select(felt.more, subject, session, stimulation) %>% # keep only the relevant column
+  mutate(felt.more = factor(felt.more, levels = c("anode", "equal", "cathode"))) %>% # keep colors consistent
+  ggplot(aes(stimulation, fill = felt.more)) +
+    geom_bar() +
+  scale_y_continuous(breaks = 1:15)
+```
+
+There's a pretty even split between which electrode people feel the most, so there don't appear to be worrisome biases. 
+
+During anodal stimulation, the anode is felt more than the cathode; during cathodal stimulation the cathode is felt more than the anode. In other words, the electrode over the FEF is always felt more than the forehead electrode.
+
+About a third of people did not indicate they felt one more than the other; this is slightly more in the cathodal session.
+
+### Statistics
+
+We will test for every sensation separately whether there was a difference between the anodal and cathodal sessions. Mann-Whitney-U tests are most appropriate here, as the data are ordinal (Likert) and do not look normally distributed.
+
+#### Itching
+
+```{r T-test for itching}
+wilcox.test(sensData$itching[sensData$stimulation == "anodal"], sensData$itching[sensData$stimulation == "cathodal"])
+```
+
+#### Tingling
+
+```{r T-test for tingling}
+wilcox.test(sensData$tingling[sensData$stimulation == "anodal"], sensData$tingling[sensData$stimulation == "cathodal"])
+```
+
+#### Burning
+
+```{r T-test for burning}
+wilcox.test(sensData$burning[sensData$stimulation == "anodal"], sensData$burning[sensData$stimulation == "cathodal"])
+```
+
+#### Pain
+
+```{r T-test for pain}
+wilcox.test(sensData$pain[sensData$stimulation == "anodal"], sensData$pain[sensData$stimulation == "cathodal"])
+```
+
+#### Headache
+
+```{r T-test for headache}
+wilcox.test(sensData$headache[sensData$stimulation == "anodal"], sensData$headache[sensData$stimulation == "cathodal"])
+```
+
+#### Fatigue
+
+```{r T-test for fatigue}
+wilcox.test(sensData$fatigue[sensData$stimulation == "anodal"], sensData$fatigue[sensData$stimulation == "cathodal"])
+```
+
+#### Dizziness
+
+```{r Test for dizziness}
+wilcox.test(sensData$dizziness[sensData$stimulation == "anodal"], sensData$dizziness[sensData$stimulation == "cathodal"])
+```
+
+#### Nausea
+
+```{r Test for nausea}
+wilcox.test(sensData$nausea[sensData$stimulation == "anodal"], sensData$nausea[sensData$stimulation == "cathodal"])
+```
+
+Nausea was rated 0 by everyone for both anodal and cathodal.
