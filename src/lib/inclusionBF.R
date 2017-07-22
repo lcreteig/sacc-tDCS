@@ -65,26 +65,42 @@ inclusionBF <- function(BFobj, effect, models = "all") {
     # - contain the term itself, so for example "gender:length"
     # - do not have interactions with the effect of interest, so do not contain terms like "age:gender:length"
     
-    if (!(grepl(":", effect))) { # if effect of interest is a main effect (doest no contain ":")
-      
-      # regular expression for excluding interactions, e.g.
-      patternInt <- paste0(effect, ":", "|", # no age:gender OR (|)
-                           ":", effect) # gender:age
-      
-      withModelIdx <- grepl(effect, rownames(BFs)) & # must have term itself AND
-        !(grepl(patternInt, rownames(BFs))) # and no interactions with the term
-      
-    } else { # if effect of interest is an interaction
-      
-      level <- sum(charToRaw(effect) == charToRaw(':')) # how many factors in interaction (occurences of ":")
-      
-      # regular expression for excluding higher order interactions
-      patternHigh <- paste(rep(":\\S+", level+1), collapse = "") # a ":" followed by whitespace, 1 more than in effect of interest 
-      
-      withModelIdx <-
-        grepl(effect, rownames(BFs)) & # must have term itself AND
-        !(grepl(patternHigh, rownames(BFs))) # no higher-order interactions
-    }
+    # if (!(grepl(":", effect))) { # if effect of interest is a main effect (doest no contain ":")
+    #   
+    #   # regular expression for excluding interactions, e.g.
+    #   patternInt <- paste0(effect, ":", "|", # no age:gender OR (|)
+    #                        ":", effect) # gender:age
+    #   
+    #   withModelIdx <- grepl(effect, rownames(BFs)) & # must have term itself AND
+    #     !(grepl(patternInt, rownames(BFs))) # and no interactions with the term
+    #   
+    # } else { # if effect of interest is an interaction
+    #   
+    #   level <- sum(charToRaw(effect) == charToRaw(':')) # how many factors in interaction (occurences of ":")
+    #   
+    #   # regular expression for excluding higher order interactions
+    #   patternHigh <- paste(rep(":\\S+", level+1), collapse = "") # a ":" followed by whitespace, 1 more than in effect of interest 
+    #   
+    #   withModelIdx <-
+    #     grepl(effect, rownames(BFs)) & # must have term itself AND
+    #     !(grepl(patternHigh, rownames(BFs))) # no higher-order interactions
+    # }
+    
+    # Calculate all possible permutations of higher-order interactions
+    effect_factors <- strsplit(effect,":")[[1]] # names of all main effects
+    effect_factors <- c(effect_factors, "\\S+") # add a "non-whitespace" regexp
+    perms <- matrix(effect_factors[permutations(length(effect_factors))],ncol = length(effect_factors))
+    
+    int_mat <- matrix(paste0(perms,":"),nrow = nrow(perms)) # add a: to each effect
+    # append a "|" to each permutation; take it away for the last permutation
+    int_mat[,ncol(perms)] <- matrix(sub(":","|",int_mat[,ncol(perms)]),nrow = nrow(perms))
+    int_mat[nrow(int_mat),ncol(int_mat)] <- sub("\\|","",int_mat[nrow(int_mat),ncol(int_mat)])
+    # collapse everything into a single string to make one regular expression
+    reg_exp_int <- paste(t(int_mat),collapse = "") # regexp for all possible higher-order interactions
+  
+    # With models:
+    withModelIdx <- grepl(effect, rownames(BFs)) & # must have term itself AND
+      !(grepl(reg_exp_int, rownames(BFs))) # no interactions with the term
     
     # Without-models:
     # The set of without-models is the set of with-models, with the term of interest stripped from each model
@@ -119,4 +135,20 @@ inclusionBF <- function(BFobj, effect, models = "all") {
   }
   
   inclBF
+}
+
+# Function for generating permutations, from
+# https://stackoverflow.com/a/20199902
+permutations <- function(n){
+  if(n==1){
+    return(matrix(1))
+  } else {
+    sp <- permutations(n-1)
+    p <- nrow(sp)
+    A <- matrix(nrow=n*p,ncol=n)
+    for(i in 1:n){
+      A[(i-1)*p+1:p,] <- cbind(i,sp+(sp>=i))
+    }
+    return(A)
+  }
 }
