@@ -40,6 +40,8 @@ fprintf(fid, '%s,', 'deviation.end.x');
 fprintf(fid, '%s,', 'deviation.end.y');
 fprintf(fid, '%s,', 'amplitude');
 fprintf(fid, '%s,', 'latency');
+fprintf(fid, '%s,', 'drift.x');
+fprintf(fid, '%s,', 'drift.y');
 fprintf(fid,'\n'); % go to next line
 
 %% Process files
@@ -96,7 +98,7 @@ for iSub = subjects % loop over first subject
 
                 for iTrial = 1:length(saccData.trialNum)
 
-                    fprintf(fid,'%s,%s,%s,%i,%i,%s,%s,%g,%g,%g,%g,%g\n', ...
+                    fprintf(fid,'%s,%s,%s,%i,%i,%s,%s,%g,%g,%g,%g,%g,%g,%g\n', ...
                         iSub{:}, ... % print subject ID
                         stimType{:}, ... % print stimulation type
                         iLeg{:}, ... % print pre/during/post tDCS
@@ -104,11 +106,13 @@ for iSub = subjects % loop over first subject
                         saccData.trialNum(iTrial), ... % print current trial number
                         saccType{iTrial}, ... % print whether saccade was to side or center
                         saccDirection{iTrial}, ... % print whether saccade direction was right or left
-                        saccData.startDev(iTrial), ... % print vector / Euclidian distance between saccade start point and fixation
-                        saccData.endDev.x(iTrial), ... % print deviation in x-direction from saccade end point to target location
-                        saccData.endDev.y(iTrial), ...  % print deviation in y-direction from saccade end point to target location
+                        saccData.startDev(iTrial), ... % print vector / Euclidian distance between 1) saccade start point and 2) fixation stimulus location
+                        saccData.endDev.x(iTrial), ... % print deviation in x-direction from 1) saccade end point to 2) target location
+                        saccData.endDev.y(iTrial), ...  % same for y-direction
                         saccData.amplitude(iTrial), ... % print saccade amplitude (length of straight line between start and end point)
-                        saccData.latency(iTrial) ... % print saccade latency (time from target onset to start of saccade)
+                        saccData.latency(iTrial), ... % print saccade latency (time from target onset to start of saccade)
+                        saccData.drift.x(iTrial), ... % print offset between 1) average x-coordinate of final fixation during break and 2) fixation stimulus location
+                        saccData.drift.y(iTrial) ... % same for y-coordinate
                     );
 
                 end

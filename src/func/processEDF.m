@@ -36,10 +36,14 @@ saccData.startDev = nan(2*xp.nTrials,1);
 saccData.endDev.x = nan(2*xp.nTrials,1);
 saccData.endDev.y = nan(2*xp.nTrials,1);
 saccData.latency = nan(2*xp.nTrials,1);
+saccData.drift.x = nan(2*xp.nTrials,1);
+saccData.drift.y = nan(2*xp.nTrials,1);
+
 
 %Initialize helper variables
 phaseStart = false;
 blinkStart = false;
+breakStart = false;
 rowCounter = 1;
 
 %Stimuli info
@@ -50,6 +54,15 @@ targetEcc = dva2pix(xp.targetEcc,[], xp.screenRes, xp.screenDim, xp.screenDist);
 
 while ~feof(fid) %loop untill we reach the end of the file
     tline = fgetl(fid); % read line, move pointer to next line
+    
+    if regexp(tline, 'leg \d block \d started|resumed') % if current line marks end of a break
+        breakStart = true;
+    end
+    
+    if breakStart & regexp(tline, '^EFIX') % if this is the first "end fixation" event
+       EFIXdata = sscanf(tline, ['%*s %*s' repmat('%f', 1,6)]); %skip the first two strings, then read the next 6 numbers
+       breakStart = false; % reset to be able to write out data for next break
+    end
     
     if regexp(tline, 'trial \d+ phase \d') % if current line marks the onset of a stimulus
         if phaseStart % if we already passed a line like this, apparently there was no saccade for this phase
@@ -82,6 +95,11 @@ while ~feof(fid) %loop untill we reach the end of the file
             % store the amplitude
             saccData.amplitude(rowCounter) = amplDVA;
             
+            % Compute x- and y- offset between average fixation position and
+            % actual stimulus location, to optionally do drift correction later.
+            saccData.drift.x(rowCounter) = pix2dva(EFIXdata(4)-centerDot(1),[],xp.screenRes, xp.screenDim, xp.screenDist);
+            [~,saccData.drift.y(rowCounter)] = pix2dva([],EFIXdata(5)-centerDot(2),xp.screenRes, xp.screenDim, xp.screenDist);
+            
             %Determine the [x y] coordinates where the present saccade should end (i.e., where the dot was presented)
             %and where the present saccade should have started (i.e., where participants should have been fixating)
             diffFromCenter = saccData.direction(rowCounter)*targetEcc; % distance from target to fixation for the current trial
@@ -96,7 +114,7 @@ while ~feof(fid) %loop untill we reach the end of the file
             % Calculate x- and y- coordinates of deviation between saccade end point and stimulus coordinates. 
             % Note that here we don't calculate the vector yet, so we can still correct it / do different kinds of analyses
             saccData.endDev.x(rowCounter) = pix2dva(ESACCdata(6)-endPoint(1),[],xp.screenRes, xp.screenDim, xp.screenDist);
-            saccData.endDev.y(rowCounter) = pix2dva([],ESACCdata(7)-endPoint(2), xp.screenRes, xp.screenDim, xp.screenDist);
+            [~,saccData.endDev.y(rowCounter)] = pix2dva([],ESACCdata(7)-endPoint(2), xp.screenRes, xp.screenDim, xp.screenDist);
             
             saccData.latency(rowCounter) = ESACCdata(1)-stimOnset; %calculate saccade latency: difference between starting times of saccade and stimulus
             
@@ -106,6 +124,6 @@ while ~feof(fid) %loop untill we reach the end of the file
         end
         
     end
-    
+
 end
 fclose(fid); %close the asci file
