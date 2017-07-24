@@ -33,7 +33,8 @@ saccData.direction(1:2:end) = data(strcmpi(leg, xp.legNames)).targetSide(block,:
 saccData.direction(2:2:end) = -1*data(strcmpi(leg, xp.legNames)).targetSide(block,:); % direction for the following saccade (towards center) is always opposite
 saccData.amplitude = nan(2*xp.nTrials,1);
 saccData.startDev = nan(2*xp.nTrials,1);
-saccData.endDev = nan(2*xp.nTrials,1);
+saccData.endDev.x = nan(2*xp.nTrials,1);
+saccData.endDev.y = nan(2*xp.nTrials,1);
 saccData.latency = nan(2*xp.nTrials,1);
 
 %Initialize helper variables
@@ -87,12 +88,15 @@ while ~feof(fid) %loop untill we reach the end of the file
             startPoint = [centerDot(1) - ~saccData.lateral(rowCounter)*diffFromCenter, centerDot(2)];
             endPoint = [centerDot(1) + saccData.lateral(rowCounter)*diffFromCenter, centerDot(2)];
             
-            % Calculate shortest distance between actual saccade start/end
-            % points and target start/end points (i.e. how much participants were off).
+            % Calculate vector / Euclidian distance between actual saccade start point and stimulus coordinates 
+            % (i.e. how much participants were off when fixating).
             saccData.startDev(rowCounter) = pix2dva(sqrt((startPoint(1) - ESACCdata(4))^2 + (startPoint(2) - ESACCdata(5))^2),[], ...
                 xp.screenRes, xp.screenDim, xp.screenDist);
-            saccData.endDev(rowCounter) = pix2dva(sqrt((endPoint(1) - ESACCdata(6))^2 + (endPoint(2) -ESACCdata(7))^2),[], ...
-                xp.screenRes, xp.screenDim, xp.screenDist);
+            
+            % Calculate x- and y- coordinates of deviation between saccade end point and stimulus coordinates. 
+            % Note that here we don't calculate the vector yet, so we can still correct it / do different kinds of analyses
+            saccData.endDev.x(rowCounter) = pix2dva(ESACCdata(6)-endPoint(1),[],xp.screenRes, xp.screenDim, xp.screenDist);
+            saccData.endDev.y(rowCounter) = pix2dva([],ESACCdata(7)-endPoint(2), xp.screenRes, xp.screenDim, xp.screenDist);
             
             saccData.latency(rowCounter) = ESACCdata(1)-stimOnset; %calculate saccade latency: difference between starting times of saccade and stimulus
             
