@@ -47,8 +47,8 @@ function [dvaX,dvaY] = pix2dva(pixX, pixY, screenRes, screenDim, screenDist, scr
 
 %% Parse input
 
-error(nargchk(1,6,nargin))
-error(nargoutchk(0,2,nargout))
+narginchk(1,6)
+nargoutchk(0,2)
 
 if      ( ~exist('screenDim','var') || isempty(screenDim) ) && ...
         ( ~exist('screenRes','var') || isempty(screenRes) ) ...
