@@ -9,8 +9,8 @@ output:
 ---
 
 ```{r include=FALSE}
-# Don't show warnings and messages in HTML output
-knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+library("knitr") # R markdown output (html, pdf, etc.)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
 ```
 
 R notebook for inspection of data and analyses of median saccade latency in the `sacc-tDCS` dataset. Previous processing:
@@ -20,30 +20,24 @@ R notebook for inspection of data and analyses of median saccade latency in the 
 
 ```{r Load some libraries}
 # Load some libraries
-library("dplyr") # wrangling data frame data
-library("tidyr") # tidying data frames
-library("ggplot2") # plotting
+library("tidyverse")
 library("ez") # ANOVA
-library("knitr") # R markdown output (html, pdf, etc.)
 library("BayesFactor") # Bayesian statistics
-library("retimes") # Ex-Gaussian reaction time distributions
 ```
 
 # Load eye data
 
 The .csv file with the eye tracking data was created in MATLAB.
 
-```{r Load the data frame, echo=TRUE}
+```{r Load the data frame}
 # Load the data frame
 dataFile <- file.path("data", "sacc-tDCS_data.csv")
-groupData <- read.csv(dataFile, header = TRUE, na.strings = "NaN")
-
-```
-
-```{r Format data frame}
-# Format data frame
-groupData <- select(groupData, -X) # drop final empty column named "X"
-groupData$leg <- factor(groupData$leg, levels = c("pre", "tDCS", "post"))
+groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", col_types = cols(
+  stimulation = col_factor(c("anodal","cathodal")),
+  leg = col_factor(c("pre","tDCS","post")),
+  type = col_factor(c("lateral","center")),
+  direction = col_factor(c("left","right")) 
+))
 ```
 
 ```{r Show data frame}
@@ -60,9 +54,12 @@ kable(head(groupData))
     * `center` - fixation in periphery, saccade made back towards the center of the display
 * __direction__: `left` for saccades towards the left of current fixation position; `right` for saccades to the right
 * __deviation.start__ : distance (in visual angle) from saccade start point to fixation
-* __deviation.end__: distance (in visual angle) from saccade end point to target location
+* __deviation.end.x__: distance (in visual angle) from x-coordinate of saccade end point to x-coordinate of target location
+* __deviation.end.y__: same for y-coordinate
 * __amplitude__: distance (in visual angle) between saccade start and end point
 * __latency__: time (in ms) from target onset to start of saccade
+* __drift.x__: distance (in visual angle) between x-coordinate of average fixation position during the break to x-coordinate of fixation stimulus. This stimulus was displayed at each break in the task, so this data can be used as an estimate of offsets to do drift correction.
+* __drift.y__: same for y-coordinate
 
 # Basic inspection
 
