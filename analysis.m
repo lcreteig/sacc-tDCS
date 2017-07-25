@@ -41,7 +41,7 @@ fprintf(fid, '%s,', 'deviation.end.y');
 fprintf(fid, '%s,', 'amplitude');
 fprintf(fid, '%s,', 'latency');
 fprintf(fid, '%s,', 'drift.x');
-fprintf(fid, '%s,', 'drift.y');
+fprintf(fid, '%s', 'drift.y');
 fprintf(fid,'\n'); % go to next line
 
 %% Process files
