@@ -310,12 +310,14 @@ There are a few subjects with substantial latency differences between sessions, 
 
 # Median reaction time plots and analyses
 
+## With baseline block
+
 ### Line plot per leg over all subjects
 
-Now that we've excluded subject(s) and collapsed data over blocks, let's look at the group average plot for the first time.
+Let's look at the group average plot for the first time.
 
 ```{r Line plot per leg}
-kanaiPlot <- ggplot(latencyMedianLegExcl, aes(leg, latency, color = stimulation, shape = stimulation)) +         
+kanaiPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation, shape = stimulation)) +         
   facet_grid(type ~ direction) +
   stat_summary(fun.y = mean, geom = "point", size = 3) +
   stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
@@ -323,15 +325,46 @@ kanaiPlot <- ggplot(latencyMedianLegExcl, aes(leg, latency, color = stimulation,
 kanaiPlot
 ```
 
-Even without S01, there is still a small baseline difference of `r round(mean(baselineDiff$latency.diff[baselineDiff$subject != "S01"]), digits = 1)` ms. There also seems to be a tiny effect in the center-left saccade condition that's in the expected direction for both stimulation sessions, but it's about the size of the baseline difference.
+All differences between anodal & cathodal seem to be < 5 ms. Any differences that are there also 1) do not seem to differ much between the time blocks, or 2) be in the opposite direction for anodal and cathodal, with the possible exception of the first post-block in the center-right condition.
 
+### Individual subjects
+
+#### Anodal session
+
+Let's look at the same plot for individual subjects, to see whether there are any consistent patterns or huge outliers there.
+
+```{r Line plot per subject - anodal}
+kanaiPlotSubsAnodal <- ggplot(latencyMedianLeg[latencyMedianLeg$stimulation == "anodal", ], aes(leg, latency)) +
+  facet_grid(type ~ direction) +
+  geom_line(aes(group=subject,color=subject)) +
+  stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point") +
+  ggtitle("Anodal session")
+kanaiPlotSubsAnodal
+```
+
+There do appear to be some "outliers", but they are fairly well balanced (below or above the average), and >80% or so of subjects seem to cluster together. I don't see much evidence for systematic individual differences (e.g. slow subjects get faster; fast subjects get slower.)
+
+#### Cathodal session
+
+```{r Line plot per subject - cathodal}
+kanaiPlotSubsCathodal <- ggplot(latencyMedianLeg[latencyMedianLeg$stimulation == "cathodal", ], aes(leg, latency)) +
+  facet_grid(type ~ direction) +
+  geom_line(aes(group=subject,color=subject)) +
+  stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point") +
+  ggtitle("Cathodal session")
+kanaiPlotSubsCathodal
+```
+
+There seem to be less clear individual outliers, but the spread also seems a bit bigger (e.g. right-lateral)
 
 ## Subtract baseline
 
-The baseline difference is not informative and could obscure real changes from baseline within subjects. Therefore, subtract the baseline from each subsequent measurement.
+Baseline differences (while small here) are not informative and could obscure real changes from baseline within subjects. Also it's hard to see and compare the magnitude of the effects, also for instance because center saccades are much faster than lateral saccades. Therefore, subtract the baseline from each subsequent measurement.
 
 ```{r Subtract baseline}
-latencyMedianBaseline <- latencyMedianLegExcl %>%
+latencyMedianBaseline <- latencyMedianLeg %>%
   group_by(subject,stimulation,direction,type) %>% # for each condition, subtract baseline scores and make new columns
   summarise(tDCS = latency[leg == "tDCS"] - latency[leg == "baseline"], 
            post.1 = latency[leg == "post.1"] - latency[leg == "baseline"],
@@ -353,26 +386,26 @@ kanaiPlotBase <- ggplot(latencyMedianBaseline, aes(leg, latency, color = stimula
 kanaiPlotBase
 ```
 
-All changes from baseline are really tiny: 5 ms or less.
+The biggest difference from baseline seems to be 4 ms max; the largest difference between the stimulation conditions is even tinier.
 
-### Individual subjects, anodal session
+### Individual subjects
 
-```{r Line plot per subject - anodal}
+#### Anodal session
+
+```{r Line plot from baseline per subject - anodal}
 kanaiPlotBaseSubsAnodal <- ggplot(latencyMedianBaseline[latencyMedianBaseline$stimulation == "anodal", ], aes(leg, latency)) +
   facet_grid(type ~ direction) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_line(aes(group=subject,color=subject)) +
   stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
-  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "point") + 
   ggtitle("Anodal difference from baseline")
 kanaiPlotBaseSubsAnodal
 ```
 
-For the center saccades, most subjects follow the expected direction and are below the line. The left-lateral effect that is of primary interest is erratic though: only ~10 subjects are below the line, and none show an online-effect larger than 12 ms.
+#### Cathodal session
 
-### Individual subjects, cathodal session
-
-```{r Line plot per subject - cathodal}
+```{r Line plot from baseline per subject - cathodal}
 kanaiPlotBaseSubsCathodal <- ggplot(latencyMedianBaseline[latencyMedianBaseline$stimulation == "cathodal", ], aes(leg, latency)) +
   facet_grid(type ~ direction) +
   geom_hline(yintercept = 0, linetype = "dashed") +
