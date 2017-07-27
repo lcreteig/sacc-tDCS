@@ -44,8 +44,8 @@ groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", col_types = cols(
 kable(head(groupData))
 ```
 
-* __subject__: subject IDj
-* __stimulation__: Whether data are from the anodal or cathodal session
+* __subject__: subject ID
+* __stimulation__: Whether data are from the `anodal` or `cathodal` session
 * __leg__: Whether data are before (`pre`), during (`tDCS`), or after (`post`) tDCS
 * __block__: After each block participant had a brief break and tracker was recalibrated
 * __trial__: trial number within a block
@@ -61,15 +61,13 @@ kable(head(groupData))
 * __drift.x__: distance (in visual angle) between x-coordinate of average fixation position during the break to x-coordinate of fixation stimulus. This stimulus was displayed at each break in the task, so this data can be used as an estimate of offsets to do drift correction.
 * __drift.y__: same for y-coordinate
 
-# Basic inspection
-
-##  Reaction time distributions
+# Inspect distributions
 
 ### Histograms for each subject 
 
-```{r Histogram per subject, fig.width=9.6}
+```{r Histogram per subject}
 histType <- ggplot(groupData, aes(latency, fill = type)) +
-  facet_wrap(~subject, nrow = 3, scales ="free_y") +
+  facet_wrap(~subject, ncol = 5, scales = "free_y") +
   geom_histogram(binwidth = 5, color = "grey50", size = .2) +
   xlim(-50,300)
 histType
@@ -78,14 +76,14 @@ histType
 __Stray observations:__
 
 * Center saccades are much faster than lateral, though not to the same degree in all subjects
-* Some have a fat short latency tail - too fast saccades that are virtually all towards the center: S05, S10, S11
-* Some appear bimodal, but when split for type this is generally because center saccades are faster: S05, S06, S11
-* Some are super sharp (S8); others really broad (S01)
-* S01 has a very typical looking distribution, but slow
+* Some have a fat short latency tail - too fast saccades that are virtually all towards the center: S10, S11, S22, S28
+* Some appear bimodal (S28), but when split for type this is generally because center saccades are faster: S05, S06, S11
+* Some look almost normally distributed (S10); others are very heavily right-skewed (S32)
+* Some are super sharp (S08); others really broad (S01)
 
 ### Stimulation effects across subjects
 
-```{r Density: stimulation across subjects, fig.width=9.6}
+```{r Density: stimulation across subjects}
 dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) +
   facet_grid(type ~ direction) +
   geom_density() +
@@ -94,47 +92,28 @@ dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) +
 dens
 ```
 
-### Anodal vs. cathodal in each subject
-```{r Density: anodal vs. cathodal per subject, fig.width=9.6}
-denstDCS <- ggplot(groupData[groupData$leg == 'tDCS' & groupData$type == "lateral", ], aes(latency, color = stimulation)) +
-  facet_wrap(~subject, nrow = 3, scales ="free_y") +
+### Session effects in each subject
+```{r Density: anodal vs. cathodal baseline per subject}
+denstDCS <- ggplot(groupData[groupData$leg == 'pre' & groupData$type == "lateral", ], aes(latency, color = stimulation)) +
+  facet_wrap(~subject, ncol = 5, scales ="free_y") +
   geom_density() +
   xlim(0, 250) +
   scale_color_brewer(palette = "Set1") +
-  ggtitle('Lateral saccades, tDCS block')
+  ggtitle('Lateral saccades, baseline block')
 denstDCS
 ```
 
-### Anodal session in each subject
-
-```{r Density: anodal per leg and subject, fig.width=9.6}
-densLegAnodal <- ggplot(groupData[groupData$stimulation == 'anodal' & groupData$type == "lateral", ], aes(latency, color = leg)) +
-  facet_wrap(~subject, nrow = 3, scales ="free_y") +
-  geom_density() +
-  xlim(0, 250) +
-  ggtitle('Lateral saccades, anodal')
-densLegAnodal
-```
-
-### Cathodal session in each subject
-```{r Density: cathodal per leg and subject, fig.width=9.6}
-densLegCathodal <- ggplot(groupData[groupData$stimulation == 'cathodal' & groupData$type == "lateral", ], aes(latency, color = leg)) +
-  facet_wrap(~subject, nrow = 3, scales ="free_y") +
-  geom_density() +
-  xlim(0, 250) +
-  ggtitle('Lateral saccades, cathodal')
-densLegCathodal
-```
+For most subjects, the latency distributions in both sessions are reasonably similar. Note that this is the baseline block, so we also wouldn't expect any differences. In that light, it is a little worrisome that for some subjects the distributions differ markedly (S01, S02, S09, S12, S17, S21, S26, S29, S32).
 
 # Outliers
 
-## Mark outliers
+## Outlier trials
 
 ```{r Outlier criteria}
-tooFast <- 50;
-tooSlow <- 400; 
-badFix <- 1.8;
-badSacc <- 8;
+tooFast <- 50
+tooSlow <- 400
+badFix <- 1.8
+badSacc <- 8
 ```
 
 Criteria for outliers:
@@ -142,7 +121,7 @@ Criteria for outliers:
 * Discard fast saccades, with a latency of `r tooFast` ms or less
 * Discard slow saccades, saccades with a latency of `r tooSlow` ms or more
 * Discard inaccurate fixations, with saccade starting point more than `r badFix` degrees or more away from fixation
-* Discard faulty saccades, with saccade end point more than `r badSacc` degree or more away from the target
+* Discard faulty saccades, with x-coordinate of saccade end point `r badSacc` degree or more away from the target
 
 In [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045), this was:
 
@@ -153,46 +132,64 @@ In [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045), this was:
 
 ```{r Mark trials as outliers}
 # Mark outliers
-groupData <- mutate(groupData, outlier = FALSE, # fill vector with FALSE for all trials
+groupData <- mutate(groupData, outlier = "non.outlier", # fill vector for all trials
                     outlier = ifelse(latency < tooFast, "fast", outlier), # mark too fast trials as "fast"
                     outlier = ifelse(latency > tooSlow, "slow", outlier), # mark too slow trials as "slow"
                     outlier = ifelse(deviation.start > badFix, "fixation", outlier), # mark bad fixations as "fixation"
-                    outlier = ifelse(deviation.end > badSacc, "saccade", outlier)) # mark inaccurate saccades as "saccade"
-
-groupDataClean <- filter(groupData, outlier == FALSE) # make new data frame without outlier trials
+                    outlier = ifelse(deviation.end.x > badSacc, "saccade", outlier), # mark inaccurate saccades as "saccade"
+                    outlier = ifelse(is.na(latency), "none", outlier) # mark absence of saccade as "none"
+                    )
 ```
 
-## Plot outliers per subject
+### Plot latencies of outlier trials per subject
 
-```{r Plot outliers per subject, fig.width=9.6}
-outlierPlot <- ggplot(groupData[groupData$outlier != FALSE, ], aes(interaction(stimulation,leg,block,trial), latency, color = outlier, shape = type)) +
-  facet_wrap(~subject, nrow = 4, scales = "free_y") +
+```{r Plot outlier trials per subject}
+outlierPlotTrials <- ggplot(groupData[!(groupData$outlier %in% c("none", "non.outlier")), ], aes(interaction(stimulation,leg,block,trial), latency, color = outlier, shape = type)) +
+  facet_wrap(~subject, ncol = 5, scales = "free_y") +
   geom_point() +
   geom_hline(yintercept = 0) +
   geom_hline(yintercept = tooFast, linetype = "dashed") +
   geom_hline(yintercept = tooSlow, linetype = "dashed") +
   xlab('Trial') +
-  theme(axis.text.x=element_blank(), # remove x-axis (just trial count)
-  axis.ticks.x=element_blank())
-outlierPlot
+  theme(axis.text.x = element_blank(), # remove x-axis (just trial count)
+  axis.ticks.x = element_blank())
+outlierPlotTrials
 ```
 
-```{r Table of outlier counts, results='asis'}
-outlierCount <- groupData %>%
-  group_by(subject) %>%
-  summarize(outlier_count = sum(outlier != FALSE, na.rm = TRUE))
-kable(outlierCount, caption = "Number of outlier trials per subject")
+### Tally outlier types
+
+```{r Tally outliers}
+outlierTrialCount <- groupData %>%
+  group_by(subject,outlier) %>%
+  summarize(outlier_count = n()) %>%
+  mutate(total = sum(outlier_count[outlier != "non.outlier"]))
+```
+
+```{r Table of outlier counts, results= 'asis'}
+outlierTable <- outlierTrialCount %>%
+  spread(outlier, outlier_count) %>%
+  select(subject, non.outlier, total, none, fast, slow, fixation, saccade)
+kable(outlierTable, caption = "Number of outlier trials per subject")
+```
+
+### Plot outlier counts per subject
+
+```{r Plot outlier counts per subject}
+outlierPlotSubjects <- ggplot(outlierTrialCount[!(outlierTrialCount$outlier %in% "non.outlier"), ], aes(subject, outlier_count, fill = outlier)) +
+  geom_col() +
+  coord_flip()
+outlierPlotSubjects
 ```
 
 __Stray observations:__
 
 Differences between subjects:
 
-* Some subjects have barely any outliers (S02, S07)
-* Most subjects have quite a few outliers, especially S05,S06, S10 and S1. The mean is `r round(mean(outlierCount$outlier_count), digits = 0)` out of `r sum(groupData$subject == "S01")` trials in total
+* Some subjects have extremely clen data with barely any outliers (S02, S07, S18)
+* Most subjects have quite a few outliers, especially S10, S16, S22, S25 and S28
 * Only S01 has a sizable amount of slow saccades
-* S14 has a lot of negative latencies (and also long positive latencies)
-* Those subjects with many fast saccades also tend to have many bad fixations (S06, S10, but see S08)
+* Only S16 has a sizable amount of saccades to the opposite hemifield
+* Those subjects with many fast saccades also tend to have many bad fixations
 
 General patterns:
 
@@ -203,22 +200,49 @@ General patterns:
 * Bad fixations appear to be mostly center saccades (but this varies a lot). Perhaps the eyes already drift back towards the center, before executing the saccade?
 * Or is the source of bad fixations simply poor quality of the eye tracker data? e.g. people are actually fixating, but due to drift it appears they are not.
 
-# Median reaction time
+__Candidates for rejection__
+
+* S28, mostly because their are many missing saccades (`none`), indicating poor data quality (or just not doing the task)
+* S22, mostly because of bad fixations, but also many missing saccades
+* S16, because of missing saccades, bad fixations, and also many fast saccades
+* S10, S24 S25 to a lesser extent
+
+# Inspect medians
 
 Here we simply extract median RTs for each condition and use a repeated measures ANOVA for statistical analysis, following [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+## Outlier subjects per condition
+
+Next to rejecting outlier trials, we could also consider rejecting outlier subjects or certain conditions from the statistical tests. One way to detect outliers (that is itself robust to outliers, unlike the standard deviation) is the MAD-median rule (see [this blogpost](https://eurekastatistics.com/using-the-median-absolute-deviation-to-find-outliers/) and [this preprint](http://dx.doi.org/10.1101/151811)). The MAD is the _median absolute devian from the median_.
+
+```{r Table of outliers per subject-condition combination, results= 'asis'}
+outliersPerCondition <- groupData %>%
+  filter(outlier == "non.outlier") %>% # drop all outlier trials
+  group_by(subject,stimulation,leg,type,direction) %>%
+  summarise(latency = median(latency)) %>% # compute median latency
+  group_by(stimulation,leg,type,direction) %>%
+  mutate(mad.median.rule = (abs(latency - median(latency)) / mad(latency))) %>% # deviation from the median, standardized by the MAD
+  filter(mad.median.rule > 2.24) # MAD-median rule
+kable(outliersPerCondition, caption = "Subject-condition combinations that violate MAD-meadian rule")
+```
+
+These are all the subject-condition combinations for which the MAD-median rule is violated. If we were to reject subjects with one more more violation, we would have to remove `r length(unique(outliersPerCondition$subject))` subjects.
+
+There is some overlap with the analysis of outlier trials. For instance, there is reason to remove S28 in both analyses. But this is not always the case: S26 has very clean trial-data, but is still flagged as an outlier here because their median latencies are quite slow.
 
 ## Data per block
 
 ```{r Compute median in each condition}
 # Compute median in each condition
-latencyMedian <- groupDataClean %>%
+latencyMedian <- groupData %>%
+  filter(outlier == "non.outlier") %>% 
   group_by(subject,stimulation,leg,block,type,direction) %>%
-  summarise(latency = median(latency, na.rm = TRUE))
+  summarise(latency = median(latency))
 ```
 
 ### Full factorial plot
 
-```{r Full factorial plot, fig.width=9.6}
+```{r Full factorial plot}
 # Plot out all the data
 fullPlot <- ggplot(latencyMedian, aes(interaction(block,leg), latency, color = stimulation, shape = stimulation)) +
   facet_grid(type ~ direction) +
@@ -227,7 +251,7 @@ fullPlot <- ggplot(latencyMedian, aes(interaction(block,leg), latency, color = s
 fullPlot
 ```
 
-There is a pretty sizable difference between the anodal & cathodal sessions in the baseline already: cathodal is always faster than anodal.
+For some reason cathodal is always faster than anodal. There is probably a few ms difference between them on average, also in the baseline block. This is clearly just random variation, but it could be a problem, since the effects we expect are not much bigger...
 
 The above plot also shows a lot of variability, so it might be best to average over each 3 consecutive blocks so the data come in 15-minute intervals.
 
@@ -235,12 +259,13 @@ The above plot also shows a lot of variability, so it might be best to average o
 
 ```{r Compute median, collapsed across blocks}
 # Compute median per leg
-latencyMedianLeg <- groupDataClean %>%
+latencyMedianLeg <- groupData %>%
+  filter(outlier == "non.outlier") %>%
   group_by(subject,stimulation,direction,type) %>% 
-  summarise(baseline = median(latency[leg == "pre"], na.rm = TRUE), # take average of 3 blocks, make new column
-            tDCS = median(latency[leg == "tDCS"], na.rm = TRUE),
-            post.1 = median(latency[leg == "post" & block <= 3], na.rm = TRUE),
-            post.2 = median(latency[leg == "post" & block >= 4], na.rm = TRUE)) %>%
+  summarise(baseline = median(latency[leg == "pre"]), # take average of 3 blocks, make new column
+            tDCS = median(latency[leg == "tDCS"]),
+            post.1 = median(latency[leg == "post" & block <= 3]),
+            post.2 = median(latency[leg == "post" & block >= 4])) %>%
  gather(leg,latency,baseline,tDCS,post.1,post.2) %>% # gather new columns to use as factor
  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
@@ -249,15 +274,15 @@ latencyMedianLeg <- groupDataClean %>%
 
 Now make the same plot, but for the data collapsed over 3 blocks. Also draw the plot for each individual subject, so we can see which subjects drive the baseline difference, and in which direction the stimulation effect goes for each subject (if there is any).
 
-```{r Line plot for each subject, fig.width=9.6}
+```{r Line plot for each subject}
 kanaiSubsPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation, shape = type)) +         
-  facet_wrap(~subject, nrow = 5) +
+  facet_wrap(~subject, ncol = 5) +
   stat_summary(fun.y = mean, geom = "point", size = 2) +
   stat_summary(fun.y = mean, geom = "line", aes(group = stimulation))
 kanaiSubsPlot
 ```
 
-There are a couple of subjects that show large differences in the baseline already, especially S01.
+There are a couple of subjects that show large differences in the baseline already, especially S01. The stimulation effects seem to not be very apparent, but they could also drown out at this scale.
 
 ### Compute magnitude of baseline difference
 
@@ -274,25 +299,16 @@ baselineDiff <- latencyMedianLeg %>%
 kable(baselineDiff, caption = 'Difference between baseline saccade latencies in anodal and cathodal session')
 ```
 
-There are a few subjects with substantial latency differences between sessions; the three largest of which are all slower in the anodal session (positive values). The mean difference is `r round(mean(baselineDiff$latency.diff), digits = 1)` ms.
+There are a few subjects with substantial latency differences between sessions, so it's probably a good idea to subtract the baseline for the statistical analyses. The mean difference is `r round(mean(baselineDiff$latency.diff), digits = 1)` ms. So on average, the cathodal session is a little faster, so the counterbalancing is not perfect, but the difference is not very high.
 
-### Exclude S01 and S16
+## Optional preprocessing steps
 
-It seems reasonable to exclude subject 1 from further analysis, because of three things:
+* Exclude subjects?
+* Check / control for session order effects, and that sessions are balanced?
+* Do drift correction before rejecting trials
 
-* S01 shows the largest baseline difference between the anodal and cathodal sessions.
-* Overall, S01 is much slower than all other subjects, by several tens of milliseconds.
-* The first session for S01 was aborted because S01 was not feeling well. It was repeated at a later date, so S01 came to the lab 3 times in total instead of two.
 
-However, S01 also seems to show the largest effect of stimulation, for both anodal and cathodal stimulation. It is even in the expected direction: faster saccades than baseline in the anodal session, slower in cathodal.
-
-S16's data quality was poor in the first session and also shows a large baseline difference
-
-```{r Exclude S01 and S16}
-latencyMedianLegExcl <- filter(latencyMedianLeg, subject != "S01") # discard rows from S01
-latencyMedianLegExcl <- filter(latencyMedianLeg, subject != "S16") # discard rows from S16
-latencyMedianLegExcl$subject <- factor(latencyMedianLegExcl$subject) #remake factor as it now has one level less
-```
+# Median reaction time plots and analyses
 
 ### Line plot per leg over all subjects
 
@@ -308,6 +324,7 @@ kanaiPlot
 ```
 
 Even without S01, there is still a small baseline difference of `r round(mean(baselineDiff$latency.diff[baselineDiff$subject != "S01"]), digits = 1)` ms. There also seems to be a tiny effect in the center-left saccade condition that's in the expected direction for both stimulation sessions, but it's about the size of the baseline difference.
+
 
 ## Subtract baseline
 
