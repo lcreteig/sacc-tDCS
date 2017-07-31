@@ -1,0 +1,344 @@
+---
+title: "Transcranial direct current stimulation of the right frontal eye field in a prosaccade task"
+author: Leon Reteig
+subtitle: Saccade accuracy
+output:
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+```{r include=FALSE}
+library("knitr") # R markdown output (html, pdf, etc.)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
+```
+
+R notebook for inspection of data and analyses of median saccade latency in the `sacc-tDCS` dataset. Previous processing:
+
+* Raw data were parsed into events (saccades, fixations, etc.) by the EyeLink data were collected on.
+* Events were extracted and saccade measures were computed with a MATLAB script.
+
+```{r Load some libraries}
+# Load some libraries
+library(tidyverse) # importing, transforming, and visualizing data frames
+library(ez) # ANOVAs with sphericity tests
+library(BayesFactor) # Bayesian statistics
+
+source("src/lib/InclusionBF.R")
+```
+
+# Load eye data
+
+The .csv file with the eye tracking data was created in MATLAB.
+
+```{r Load the data frame}
+# Load the data frame
+dataFile <- file.path("data", "sacc-tDCS_data.csv")
+groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
+  stimulation = col_factor(c("anodal","cathodal")),
+  leg = col_factor(c("pre","tDCS","post")),
+  type = col_factor(c("lateral","center")),
+  direction = col_factor(c("left","right")) 
+))
+```
+
+```{r Show data frame}
+kable(head(groupData))
+```
+
+* __subject__: subject ID
+* __stimulation__: Whether data are from the `anodal` or `cathodal` session
+* __leg__: Whether data are before (`pre`), during (`tDCS`), or after (`post`) tDCS
+* __block__: After each block participant had a brief break and tracker was recalibrated
+* __trial__: trial number within a block
+* __type__:
+    * `lateral` - fixation in center of display, saccade made towards the periphery
+    * `center` - fixation in periphery, saccade made back towards the center of the display
+* __direction__: `left` for saccades towards the left of current fixation position; `right` for saccades to the right
+* __deviation.start__ : distance (in visual angle) from saccade start point to fixation
+* __deviation.end.x__: distance (in visual angle) from x-coordinate of saccade end point to x-coordinate of target location
+* __deviation.end.y__: same for y-coordinate
+* __amplitude__: distance (in visual angle) between saccade start and end point
+* __latency__: time (in ms) from target onset to start of saccade
+* __drift.x__: distance (in visual angle) between x-coordinate of average fixation position during the break to x-coordinate of fixation stimulus. This stimulus was displayed at each break in the task, so this data can be used as an estimate of offsets to do drift correction.
+* __drift.y__: same for y-coordinate
+
+# Preprocess data
+
+## Outlier trials
+
+```{r Outlier criteria}
+tooFast <- 50
+tooSlow <- 400
+badFix <- 1.8
+badSacc <- 8
+```
+
+Criteria for outliers:
+
+* Discard fast saccades, with a latency of `r tooFast` ms or less
+* Discard slow saccades, saccades with a latency of `r tooSlow` ms or more
+* Discard inaccurate fixations, with saccade starting point more than `r badFix` degrees or more away from fixation
+* Discard faulty saccades, with x-coordinate of saccade end point `r badSacc` degree or more away from the target
+
+In [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045), this was:
+
+* Fast saccades: 50 ms
+* Slow saccades: 400 ms
+* Bad fixations: 1.8 degrees
+* Faulty saccades: opposite hemifield of target (here, that would be 8 degrees as targets were that eccentric)
+
+```{r Mark trials as outliers}
+# Mark outliers
+groupData <- mutate(groupData, outlier = "non.outlier", # fill vector for all trials
+                    outlier = ifelse(latency < tooFast, "fast", outlier), # mark too fast trials as "fast"
+                    outlier = ifelse(latency > tooSlow, "slow", outlier), # mark too slow trials as "slow"
+                    outlier = ifelse(deviation.start > badFix, "fixation", outlier), # mark bad fixations as "fixation"
+                    outlier = ifelse(deviation.end.x > badSacc, "saccade", outlier), # mark inaccurate saccades as "saccade"
+                    outlier = ifelse(is.na(latency), "none", outlier) # mark absence of saccade as "none"
+                    )
+```
+
+## Cut into 15-minute sections
+
+Cut the post-block into two so we have four 15-minute intervals: one before, one during, and two after stimulation.
+
+```{r 15-minute invervals}
+# Split the "post" leg into two
+groupData <- mutate(groupData,
+                    leg = as.character(leg), # cannot edit leg if it's still a factor
+                    leg = replace(leg, leg == "post" & block <= 3, "post.1"),
+                    leg = replace(leg, block > 3, "post.2"),
+                    leg = factor(leg, levels = c("pre", "tDCS", "post.1", "post.2")) # refactor and order levels
+                    )
+```
+
+## Drift correction
+
+Calibration isn't perfect, so there are always small offsets between the measurements and what people are actually looking at. Further, these measurement errors can increase with time away from calibration, which is known as drift.
+
+After every 20 trials (40 saccades) there was a break in the task, in which we asked subjects to fixate the center of the screen before continueing. The offsets recorded here are thus a good estimate of drift, since here you can trust that subjects were actually looking at fixation spot on. 
+
+To do drift correction, we simply subtract the offsets recorded in the break from the x- and y- coordinates of the eye data of interest.
+
+```{r Drift correction}
+# Add columns with drift-corrected values
+groupData <- mutate(groupData,
+                    deviation.end.x.corr = deviation.end.x - drift.x,
+                    deviation.end.y.corr = deviation.end.y - drift.y)
+```
+
+If this does indeed work, then most trials should now have a smaller deviation.
+
+```{r Check correction}
+# Calculate percentage of trials with smaller deviations after drift correction
+driftCorr <- groupData %>%
+  na.omit() %>%
+  summarize(
+    trials = n(),
+    smaller.drift.x = sum(abs(deviation.end.x.corr) < abs(deviation.end.x)) / trials * 100,
+    smaller.drift.y = sum(abs(deviation.end.y.corr) < abs(deviation.end.y)) / trials * 100
+  )
+c(driftCorr$smaller.drift.x, driftCorr$smaller.drift.y)
+```
+Seems that it doesn't really work at all, because it only decreased the error on about 50 percent of trials!
+
+Luckily, inspection of the data reveals that it doesn't seem to change much with or without drift correction.
+
+# Saccade end point deviation
+
+One estimate of the accuracy of saccades is the mean landing position with respect to the target location. [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) also examined this, but found no effects of tDCS.
+
+The simplest measure is the Euclidian distance (shortest straight line) between the saccade end point and the center of the target stimulus. We already have the deviations in the x- and y- directions in degrees of visual angle. Now we just need to calculate the length of the vector.
+
+```{r Calculate end point deviation}
+# Calculate end point deviation
+devData <- mutate(groupData, deviation.end = sqrt(deviation.end.x^2 + deviation.end.y^2))
+devDataCorr <- mutate(groupData, deviation.end = sqrt(deviation.end.x.corr^2 + deviation.end.y.corr^2))
+```
+
+## Prepare data frame for plotting & statistics
+
+```{r Mean over trials}
+# Mean over trials
+
+# Without drift correction
+devData <- devData %>%
+  filter(outlier == "non.outlier") %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  summarise(baseline = mean(deviation.end[leg == "pre"]), # take average of 3 blocks, make new column
+            tDCS = mean(deviation.end[leg == "tDCS"]),
+            post.1 = median(deviation.end[leg == "post.1"]),
+            post.2 = median(deviation.end[leg == "post.2"])) %>%
+gather(leg, deviation.end, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+
+# With drift correction
+devDataCorr <- devDataCorr %>%
+  filter(outlier == "non.outlier") %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  summarise(baseline = mean(deviation.end[leg == "pre"]),
+            tDCS = mean(deviation.end[leg == "tDCS"]),
+            post.1 = median(deviation.end[leg == "post.1"]),
+            post.2 = median(deviation.end[leg == "post.2"])) %>%
+gather(leg, deviation.end, baseline, tDCS, post.1, post.2)  %>%  
+mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2")))
+```
+
+```{r Subtract baseline}
+# Subtract baseline
+
+# Without drift correction
+devDataBase <- devData %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  # subtract baseline block from others, make new column
+  summarise(tDCS = deviation.end[leg == "tDCS"] - deviation.end[leg == "baseline"], 
+            post.1 = deviation.end[leg == "post.1"] - deviation.end[leg == "baseline"],
+            post.2 = deviation.end[leg == "post.2"] - deviation.end[leg == "baseline"]) %>%
+gather(leg, deviation.end, tDCS, post.1, post.2) %>% # gather new columns to use as factor 
+mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) # reorder factor levels
+
+# With drift correction
+devDataCorrBase <- devDataCorr %>%
+ group_by(subject,stimulation,direction,type) %>% 
+  summarise(tDCS = deviation.end[leg == "tDCS"] - deviation.end[leg == "baseline"], 
+            post.1 = deviation.end[leg == "post.1"] - deviation.end[leg == "baseline"],
+            post.2 = deviation.end[leg == "post.2"] - deviation.end[leg == "baseline"]) %>%
+gather(leg, deviation.end, tDCS, post.1, post.2) %>% 
+mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) 
+```
+
+## Plot
+
+### With baseline block
+
+```{r Line plot per leg}
+kanaiPlot <- ggplot(devData, aes(leg, deviation.end, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
+kanaiPlot
+```
+
+The same pattern occurs everywhere: The accuracy increases for both anodal and cathodal during the post-blocks, but not during the tDCS block.
+
+The fact that the change occurs only in the post-block would argue against a general time-on-task effect. So it could be an effect of tDCS, but we have no way of distinguishing between the two. The fact that it's not hemisphere specific also speaks against a tDCS-effect interpretation.
+
+Let's check that this isn't caused by a few outliers:
+
+```{r Line plot per subject - anodal}
+kanaiPlotSubsAnodal <- ggplot(devData[devData$stimulation == "anodal", ], aes(leg, deviation.end)) +
+  facet_grid(type ~ direction) +
+  geom_line(aes(group = subject,color = subject)) +
+  stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point") +
+  ggtitle("Anodal session")
+kanaiPlotSubsAnodal
+```
+
+```{r Line plot per subject - cathodal}
+kanaiPlotSubsCathodal <- ggplot(devData[devData$stimulation == "cathodal", ], aes(leg, deviation.end)) +
+  facet_grid(type ~ direction) +
+  geom_line(aes(group = subject,color = subject)) +
+  stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point") +
+  ggtitle("Cathodal session")
+kanaiPlotSubsCathodal
+```
+
+There are definitely some outliers that show this pattern, but it's not restricted to them: also seems to be the case for many subjects in the "cluster" around the mean.
+
+### Baseline subtracted
+
+```{r Line plot from baseline}
+kanaiPlotBase <- ggplot(devDataBase, aes(leg, deviation.end, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
+kanaiPlotBase
+```
+
+## Statistics
+
+```{r Make subject a factor}
+# Make "subject" a factor, so we can model the repeated measures
+devDataBase$subject <- factor(devDataBase$subject)
+```
+
+### Frequentist
+
+#### ANOVA matching Kanai et al. (2012) - lateral saccades
+
+__Data__: 
+
+* Outliers removed
+* Collapsed into 15-minute intervals
+* Subtract the baseline from each subsequent block
+* Discard center, keep only lateral saccades
+
+__Dependent measure__: saccade end point deviation (uncorrected)
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+```{r Kanai ANOVA, results='asis'}
+
+modelKanai <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")),
+                        dv = .(deviation.end), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
+
+kable(modelKanai$ANOVA)
+```
+
+#### Main effect of leg
+
+```{r Kanai Main effect of leg}
+devDataBase %>%
+  filter(type == "lateral") %>%
+  group_by(subject,leg) %>%
+  summarise(deviation.end = mean(deviation.end)) %>%
+  ggplot(aes(leg, deviation.end)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  stat_summary(fun.data = mean_cl_normal, size = 1) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = 1)) +
+  geom_jitter(width = 0.25) 
+```
+
+This the same effect we saw in the overall plots: This pattern seems to hold for all stimulation, and type combinations. Here we also clearly see that it's not due to a few outliers: almost all participants show an increase in accuracy with respect to baseline.
+
+It is also robust to rejecting trials or not, and doing drift correction or not.
+
+### Bayesian
+
+#### Linear mixed effects matching Kanai - lateral saccades
+
+```{r Compute Bayes Factors cf. null model}
+bfKanaiLateral = anovaBF(deviation.end~stimulation*leg*direction+subject, data = data.frame(filter(devDataBase, type == "lateral")), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+#bfKanaiLateral = sort(bfKanaiLateral, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+```{r results='asis'}
+kable(select(extractBF(bfKanaiLateral), bf)) # show only the Bayes factors in a table
+```
+
+```{r Inclusion BF matched models}
+
+lateral.matched.leg <- inclusionBF(bfKanaiLateral,"leg","matched")
+lateral.matched.stim <- inclusionBF(bfKanaiLateral,"stimulation","matched")
+lateral.matched.stim.dir <- inclusionBF(bfKanaiLateral,"stimulation:direction","matched")
+lateral.matched.stim.dir.leg <- inclusionBF(bfKanaiLateral,"stimulation:direction:leg","matched")
+```
+
+* LEG: $BF_{10} =$ `r lateral.matched.leg`
+
+* STIMULATION: $BF_{01} =$ `r round(1/lateral.matched.stim, digits = 1)`
+* STIMULATION by DIRECTION: $BF_{01} =$ `r round(1/lateral.matched.stim.dir, digits = 1)`
+* STIMULATION by DIRECTION by LEG: $BF_{01} =$ `r round(1/lateral.matched.stim.dir.leg, digits = 1)`
+
+
+__Overall:__ The LEG effect is extremely signifcant / has very strong evidence, but other than that nothing is.
