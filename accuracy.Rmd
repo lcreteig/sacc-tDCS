@@ -72,6 +72,7 @@ tooFast <- 50
 tooSlow <- 400
 badFix <- 1.8
 badSacc <- 8
+subs2exclude <- "S28" # < 30 trials for certain conditions if we filter out outlier trials
 ```
 
 Criteria for outliers:
@@ -88,15 +89,19 @@ In [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045), this was:
 * Bad fixations: 1.8 degrees
 * Faulty saccades: opposite hemifield of target (here, that would be 8 degrees as targets were that eccentric)
 
-```{r Mark trials as outliers}
-# Mark outliers
-groupData <- mutate(groupData, outlier = "non.outlier", # fill vector for all trials
-                    outlier = ifelse(latency < tooFast, "fast", outlier), # mark too fast trials as "fast"
-                    outlier = ifelse(latency > tooSlow, "slow", outlier), # mark too slow trials as "slow"
-                    outlier = ifelse(deviation.start > badFix, "fixation", outlier), # mark bad fixations as "fixation"
-                    outlier = ifelse(deviation.end.x > badSacc, "saccade", outlier), # mark inaccurate saccades as "saccade"
-                    outlier = ifelse(is.na(latency), "none", outlier) # mark absence of saccade as "none"
-                    )
+```{r Remove outlier trials and subjects}
+# Remove outliers and subjects
+groupData <- filter(groupData,
+                    # outliers
+                    latency >= tooFast,
+                    latency <= tooSlow,
+                    deviation.start <= badFix,
+                    deviation.end.x <= badSacc,
+                    # subjects
+                    !(subject %in% subs2exclude),
+                    # missing values
+                    complete.cases(groupData)
+)
 ```
 
 ## Cut into 15-minute sections
@@ -133,7 +138,6 @@ If this does indeed work, then most trials should now have a smaller deviation.
 ```{r Check correction}
 # Calculate percentage of trials with smaller deviations after drift correction
 driftCorr <- groupData %>%
-  na.omit() %>%
   summarize(
     trials = n(),
     smaller.drift.x = sum(abs(deviation.end.x.corr) < abs(deviation.end.x)) / trials * 100,
@@ -164,7 +168,6 @@ devDataCorr <- mutate(groupData, deviation.end = sqrt(deviation.end.x.corr^2 + d
 
 # Without drift correction
 devData <- devData %>%
-  filter(outlier == "non.outlier") %>%
   group_by(subject,stimulation,direction,type) %>% 
   summarise(baseline = mean(deviation.end[leg == "pre"]), # take average of 3 blocks, make new column
             tDCS = mean(deviation.end[leg == "tDCS"]),
@@ -175,7 +178,6 @@ mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # 
 
 # With drift correction
 devDataCorr <- devDataCorr %>%
-  filter(outlier == "non.outlier") %>%
   group_by(subject,stimulation,direction,type) %>% 
   summarise(baseline = mean(deviation.end[leg == "pre"]),
             tDCS = mean(deviation.end[leg == "tDCS"]),
@@ -319,7 +321,7 @@ It is also robust to rejecting trials or not, and doing drift correction or not.
 
 ```{r Compute Bayes Factors cf. null model}
 bfKanaiLateral = anovaBF(deviation.end~stimulation*leg*direction+subject, data = data.frame(filter(devDataBase, type == "lateral")), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
-#bfKanaiLateral = sort(bfKanaiLateral, decreasing = TRUE) # sort such that winning model is at the top
+bfKanaiLateral = sort(bfKanaiLateral, decreasing = TRUE) # sort such that winning model is at the top
 ```
 
 ```{r results='asis'}
@@ -342,3 +344,4 @@ lateral.matched.stim.dir.leg <- inclusionBF(bfKanaiLateral,"stimulation:directio
 
 
 __Overall:__ The LEG effect is extremely signifcant / has very strong evidence, but other than that nothing is.
+

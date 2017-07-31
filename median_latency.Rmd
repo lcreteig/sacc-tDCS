@@ -202,9 +202,27 @@ General patterns:
 * Bad fixations appear to be mostly center saccades (but this varies a lot). Perhaps the eyes already drift back towards the center, before executing the saccade?
 * Or is the source of bad fixations simply poor quality of the eye tracker data? e.g. people are actually fixating, but due to drift it appears they are not.
 
+### Tally number of non-outlier trials
+
+Importantly, we should also see how many trials are left per condition after excluding outliers
+
+```{r}
+trialCount <- groupData %>%
+  filter(outlier == "non.outlier") %>% # keep only non-outlier trials
+  group_by(subject,stimulation,leg,direction,type) %>%
+  summarise(trials = n()) %>% # count how many there are per subject per condition
+  arrange(trials) # sort ascending
+trialCount
+```
+
 __Candidates for rejection__
 
-* S28, mostly because their are many missing saccades (`none`), indicating poor data quality (or just not doing the task)
+S28 should definitely be rejected, as certain conditions would have < 30 trials, some even as low as 2! This is mostly because there are many missing saccades (`none`), indicating poor data quality (or just not doing the task).
+
+```{r List subjects to exclude}
+subs2exclude <- "S28" 
+```
+
 * S22, mostly because of bad fixations, but also many missing saccades
 * S16, because of missing saccades, bad fixations, and also many fast saccades
 * S10, S24 S25 to a lesser extent
@@ -301,9 +319,32 @@ kable(baselineDiff, caption = 'Difference between baseline saccade latencies in 
 
 There are a few subjects with substantial latency differences between sessions, so it's probably a good idea to subtract the baseline for the statistical analyses. The mean difference is `r round(mean(baselineDiff$latency.diff), digits = 1)` ms. So on average, the cathodal session is a little faster, so the counterbalancing is not perfect, but the difference is not very high.
 
-## Optional preprocessing steps
+## Preprocessing steps
 
-* Exclude subjects?
+### Exclude trials and subjects
+
+```{r Exclude trials and subjects}
+preproc <- groupData %>%
+  filter(outlier == "non.outlier", !(subject %in% subs2exclude))
+```
+
+* Others?
+
+### Cut into 15-minute intervals
+
+Cut the post-block into two so we have four 15-minute intervals: one before, one during, and two after stimulation.
+
+```{r Cut into 15-minute intervals}
+preproc <- preproc %>%
+  mutate(leg = as.character(leg), # cannot edit leg if it's still a factor
+         leg = replace(leg, leg == "post" & block <= 3, "post.1"),
+         leg = replace(leg, block > 3, "post.2"),
+         leg = factor(leg, levels = c("pre", "tDCS", "post.1", "post.2")) # refactor and order levels
+         )
+```
+
+### Other
+
 * Check / control for session order effects, and that sessions are balanced?
 * Do drift correction before rejecting trials
 
@@ -312,6 +353,17 @@ There are a few subjects with substantial latency differences between sessions, 
 Here we simply extract median RTs for each condition and use a repeated measures ANOVA for statistical analysis, following [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
 
 ## With baseline block
+
+```{r Compute median over blocks}
+latencyMedianLeg <- preproc %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  summarise(baseline = median(latency[leg == "pre"]), # take average of 3 blocks, make new column
+            tDCS = median(latency[leg == "tDCS"]),
+            post.1 = median(latency[leg == "post.1"]),
+            post.2 = median(latency[leg == "post.2"])) %>%
+  gather(leg,latency,baseline,tDCS,post.1,post.2) %>% # gather new columns to use as factor
+  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
 
 ### Line plot per leg over all subjects
 
@@ -650,22 +702,23 @@ latencyMedianBaseline %>%
 
 For both saccade directions, the direction effect gets smaller over time.
 
-#### Stimulation by direction interaction
+#### Stimulation by leg by direction interaction
 
 This interaction is again marginally significant, but it is the effect that Kanai et al. (2012) found, so let's inspect.
 
-```{r Kanai-Center Interaction stimulation by direction}
+```{r Kanai-Center Interaction stimulation by leg by direction}
 latencyMedianBaseline %>%
   filter(type == "center") %>%
-  group_by(subject,stimulation,direction) %>%
+  group_by(subject,stimulation,leg,direction) %>%
   summarise(latency = mean(latency)) %>%
-  ggplot(aes(direction, latency, colour = stimulation)) +
+  ggplot(aes(leg, latency, colour = stimulation)) +
+  facet_wrap(~direction) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   stat_summary(fun.y = mean, geom = "point") +
   stat_summary(fun.y = mean, geom = "line", aes(group = stimulation, linetype = stimulation))
 ```
 
-For anodal there's no real change; for cathodal subjects get slower for left saccades and faster for right saccades, which is in the hypothesized direction. But again, the effect is absolutely tiny (2.5 ms max).
+For cathodal subjects get slower for left saccades and faster for right saccades, which is in the hypothesized direction. But again, the effect is quite small (4 ms max), and strangely: it is maximal during stimulation for the left saccades, but after stimulation for right saccades. For anodal the changes are so small I don't dare to interpret them.
 
 ## Bayesian
 
