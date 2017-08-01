@@ -163,7 +163,7 @@ devDataCorr <- mutate(groupData, deviation.end = sqrt(deviation.end.x.corr^2 + d
 
 ## Prepare data frame for plotting & statistics
 
-```{r Mean over trials}
+```{r Mean over trials - deviation}
 # Mean over trials
 
 # Without drift correction
@@ -187,7 +187,7 @@ gather(leg, deviation.end, baseline, tDCS, post.1, post.2)  %>%
 mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2")))
 ```
 
-```{r Subtract baseline}
+```{r Subtract baseline - deviation}
 # Subtract baseline
 
 # Without drift correction
@@ -214,13 +214,13 @@ mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2")))
 
 ### With baseline block
 
-```{r Line plot per leg}
-kanaiPlot <- ggplot(devData, aes(leg, deviation.end, color = stimulation, shape = stimulation)) +         
+```{r Line plot per leg - deviation}
+kanaiPlotDev <- ggplot(devData, aes(leg, deviation.end, color = stimulation, shape = stimulation)) +         
   facet_grid(type ~ direction) +
   stat_summary(fun.y = mean, geom = "point", size = 3) +
   stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
-kanaiPlot
+kanaiPlotDev
 ```
 
 At first glance there don't seem to be many differences that are larger than the baseline differences and/or relate clearly to the polarity or timing of stimulation.
@@ -251,21 +251,21 @@ There are definitely some outliers, but mostly in terms of overall offset / base
 
 ### Baseline subtracted
 
-```{r Line plot from baseline}
-kanaiPlotBase <- ggplot(devDataBase, aes(leg, deviation.end, color = stimulation, shape = stimulation)) +         
+```{r Line plot from baseline - deviation}
+kanaiPlotDevBase <- ggplot(devDataBase, aes(leg, deviation.end, color = stimulation, shape = stimulation)) +         
   facet_grid(type ~ direction) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   stat_summary(fun.y = mean, geom = "point", size = 3) +
   stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
-kanaiPlotBase
+kanaiPlotDevBase
 ```
 
 This clearly shows that all the changes are quite tiny (less than 0.1 degree of visual angle). There appears to be a clear difference between anodal and cathodal for left-center saccades, but this pattern is already present in the baseline.
 
 ## Statistics
 
-```{r Make subject a factor}
+```{r Make subject a factor - deviation}
 # Make "subject" a factor, so we can model the repeated measures
 devDataBase$subject <- factor(devDataBase$subject)
 ```
@@ -314,7 +314,6 @@ None of the models are actually better than the null model, so this matches the 
 
 ```{r Inclusion BF matched models}
 # Inclusion Bayes Factors
-lateral.matched.leg <- inclusionBF(bfKanaiLateral,"leg","matched")
 lateral.matched.stim <- inclusionBF(bfKanaiLateral,"stimulation","matched")
 lateral.matched.stim.dir <- inclusionBF(bfKanaiLateral,"stimulation:direction","matched")
 lateral.matched.stim.dir.leg <- inclusionBF(bfKanaiLateral,"stimulation:direction:leg","matched")
@@ -325,3 +324,229 @@ lateral.matched.stim.dir.leg <- inclusionBF(bfKanaiLateral,"stimulation:directio
 * STIMULATION by DIRECTION by LEG: $BF_{01} =$ `r round(1/lateral.matched.stim.dir.leg, digits = 1)`
 
 The inclusion Bayes factors are also quite inconclusive, except for the threeway interaction (because this model fits very poorly, still much more poorly then the one without it, even though this one also came in 2nd-to-last)
+
+# Saccade end point variability
+
+In the motor literature, people often look at the spread in movement endpoints, as it's often believed that this is what the motor system is trying to optimize (i.e. minimize). [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) also examined this, but found no effects of tDCS.
+
+They operationalized variability as the standard deviation of the x-coordinate of the saccade end point. It is arguably better to look at both the x- and y-coordinates, for which we would need a multivariate measure: the [Mahalanobis distance](http://stats.stackexchange.com/a/62147). Mahalanobis distance intuitively is a multivariate generalization of Z-scores.
+
+Using the Mahalanobis distance gets around another problem with the standard deviation: for saccades, the spread in the x-direction is greater than the y-direction:
+
+```{r Plot all end points}
+ggplot(groupData, aes(deviation.end.x, deviation.end.y)) +
+  xlim(-5,5) +
+  ylim(-5,5) +
+  geom_point(size = 0.1)
+```
+
+Because the shape of the distribution is ellipsoidal, distance along the x-axis cannot simply be equated to distance along the y-axis. Mahalanobis distance gets around this problem because it accounts for the covariance between the variables (for non-correlated variables with unit variance, Mahalanobis distance is equivalent to Euclidian distance).
+
+## Calculate endpoint variability
+
+### Horizontal standard deviation
+
+```{r Horizontal standard deviation}
+stdData <- groupData %>%
+  group_by(subject,stimulation,leg,direction,type) %>% 
+  summarise(std.deviation.x = sd(deviation.end.x))
+```
+
+This is a summary measure across trials, so we have one estimate per subject per condition:
+
+```{r results='asis'}
+kable(head(stdData))
+```
+
+### Mahalanobis distance
+
+```{r Mahalanobis distance}
+mahalData <- groupData %>%
+  group_by(subject,stimulation,leg,direction,type) %>%
+  nest(deviation.end.x,deviation.end.y) %>% # for each condition, make separate data frame for Mahalanobis distance
+  mutate(mahalanobis.distance = purrr::map(data, ~mahalanobis(., colMeans(.), cov(.)))) %>% # apply function to each data frame
+  unnest(mahalanobis.distance) # transform the results back into a column again
+```
+
+The Mahalanobis distance is estimated for each trial:
+
+```{r results='asis'}
+kable(head(mahalData))
+```
+
+## Prepare data frame for plotting & statistics
+
+```{r Mean over trials - variability}
+
+# Mean Mahalanobis distance over trials
+mahalMean <- mahalData %>% 
+  group_by(subject,stimulation,direction,type) %>% 
+  summarise(baseline = mean(mahalanobis.distance[leg == "pre"]), # take average of 3 blocks, make new column
+            tDCS = mean(mahalanobis.distance[leg == "tDCS"]),
+            post.1 = mean(mahalanobis.distance[leg == "post.1"]),
+            post.2 = mean(mahalanobis.distance[leg == "post.2"])) %>%
+gather(leg, mahalanobis.distance, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+```{r Subtract baseline - variability}
+# Subtract baseline
+
+# Horizontal standard deviation
+stdDataBase <- stdData %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  # subtract baseline block from others, make new column
+  summarise(tDCS = std.deviation.x[leg == "tDCS"] - std.deviation.x[leg == "pre"], 
+            post.1 = std.deviation.x[leg == "post.1"] - std.deviation.x[leg == "pre"],
+            post.2 = std.deviation.x[leg == "post.2"] - std.deviation.x[leg == "pre"]) %>%
+gather(leg, std.deviation.x, tDCS, post.1, post.2) %>% # gather new columns to use as factor 
+mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) # reorder factor levels
+
+# Mahalanobis distance
+mahalMeanBase <- mahalMean %>%
+ group_by(subject,stimulation,direction,type) %>% 
+  summarise(tDCS = mahalanobis.distance[leg == "tDCS"] - mahalanobis.distance[leg == "baseline"], 
+            post.1 = mahalanobis.distance[leg == "post.1"] - mahalanobis.distance[leg == "baseline"],
+            post.2 = mahalanobis.distance[leg == "post.2"] - mahalanobis.distance[leg == "baseline"]) %>%
+gather(leg, mahalanobis.distance, tDCS, post.1, post.2) %>% 
+mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) 
+```
+
+## Plot
+
+### With baseline block
+
+```{r Line plot per leg - standard deviation}
+kanaiPlotStd <- ggplot(stdData, aes(leg, std.deviation.x, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3) +
+  ggtitle("Horizontal standard deviation")
+kanaiPlotStd
+```
+
+```{r Line plot per leg - Mahalanobis}
+kanaiPlotMahal <- ggplot(mahalMean, aes(leg, mahalanobis.distance, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3) +
+  ggtitle("Average Mahalanobis distance")
+kanaiPlotMahal
+```
+
+### Baseline subtracted
+
+```{r Line plot from baseline - standard deviation}
+kanaiPlotStdBase <- ggplot(stdDataBase, aes(leg, std.deviation.x, color = stimulation, shape = stimulation)) +         
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3) +
+  ggtitle("Horizontal standard deviation")
+kanaiPlotStdBase
+```
+
+```{r Line plot from baseline - mahalanobis}
+kanaiPlotMahalBase <- ggplot(mahalMeanBase, aes(leg, mahalanobis.distance, color = stimulation, shape = stimulation)) +     
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point", size = 3) +
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3) +
+  ggtitle("Average Mahalanobis distance")
+kanaiPlotMahalBase
+```
+
+## Statistics
+
+```{r Make subject a factor - variability}
+# Make "subject" a factor, so we can model the repeated measures
+stdDataBase$subject <- factor(devDataBase$subject)
+mahalMeanBase$subject <- factor(mahalMeanBase$subject)
+```
+
+### Frequentist
+
+#### ANOVA matching Kanai et al. (2012) - lateral saccades
+
+__Data__: 
+
+* Outliers removed
+* Collapsed into 15-minute intervals
+* Subtract the baseline from each subsequent block
+* Discard center, keep only lateral saccades
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+__Dependent measure__: saccade end point horizontal standard deviation
+
+```{r Kanai ANOVA standard deviation, results='asis'}
+
+modelKanaiStd <- ezANOVA(data = data.frame(filter(stdDataBase, type == "lateral")),
+                        dv = .(std.deviation.x), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
+
+kable(modelKanaiStd$ANOVA)
+```
+
+__Dependent measure__: saccade end point Mahalanobis distance
+
+```{r Kanai ANOVA mahalanobis, results='asis'}
+
+modelKanaiMahal <- ezANOVA(data = data.frame(filter(mahalMeanBase, type == "lateral")),
+                        dv = .(mahalanobis.distance), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
+
+kable(modelKanaiMahal$ANOVA)
+```
+
+### Bayesian
+
+#### Horizontal standard deviation, lateral saccades
+
+```{r Compute Bayes Factors cf. null model - standard deviation}
+bfKanaiStd = anovaBF(std.deviation.x~stimulation*leg*direction+subject, data = data.frame(filter(stdDataBase, type == "lateral")), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfKanaiStd = sort(bfKanaiStd, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+```{r results='asis'}
+kable(select(extractBF(bfKanaiStd), bf)) # show only the Bayes factors in a table
+```
+
+```{r Inclusion BF matched models - standard deviation}
+# Inclusion Bayes Factors
+std.lateral.matched.stim <- inclusionBF(bfKanaiStd,"stimulation","matched")
+std.lateral.matched.stim.dir <- inclusionBF(bfKanaiStd,"stimulation:direction","matched")
+std.lateral.matched.stim.dir.leg <- inclusionBF(bfKanaiStd,"stimulation:direction:leg","matched")
+```
+
+* STIMULATION: $BF_{01} =$ `r round(1/std.lateral.matched.stim, digits = 1)`
+* STIMULATION by DIRECTION: $BF_{01} =$ `r round(1/std.lateral.matched.stim.dir, digits = 1)`
+* STIMULATION by DIRECTION by LEG: $BF_{01} =$ `r round(1/std.lateral.matched.stim.dir.leg, digits = 1)`
+
+#### Mahalanobis distance, lateral saccades
+
+```{r Compute Bayes Factors cf. null model - mahalanobis distance}
+bfKanaiMahal = anovaBF(mahalanobis.distance~stimulation*leg*direction+subject, data = data.frame(filter(mahalMeanBase, type == "lateral")), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000)
+bfKanaiMahal = sort(bfKanaiMahal, decreasing = TRUE)
+```
+
+```{r results='asis'}
+kable(select(extractBF(bfKanaiMahal), bf))
+```
+
+```{r Inclusion BF matched models - mahalanobis}
+# Inclusion Bayes Factors
+mahal.lateral.matched.stim <- inclusionBF(bfKanaiMahal,"stimulation","matched")
+mahal.lateral.matched.stim.dir <- inclusionBF(bfKanaiMahal,"stimulation:direction","matched")
+mahal.lateral.matched.stim.dir.leg <- inclusionBF(bfKanaiMahal,"stimulation:direction:leg","matched")
+```
+
+* STIMULATION: $BF_{01} =$ `r round(1/mahal.lateral.matched.stim, digits = 1)`
+* STIMULATION by DIRECTION: $BF_{01} =$ `r round(1/mahal.lateral.matched.stim.dir, digits = 1)`
+* STIMULATION by DIRECTION by LEG: $BF_{01} =$ `r round(1/mahal.lateral.matched.stim.dir.leg, digits = 1)`
