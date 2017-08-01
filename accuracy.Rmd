@@ -13,7 +13,7 @@ library("knitr") # R markdown output (html, pdf, etc.)
 knitr::opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
 ```
 
-R notebook for inspection of data and analyses of median saccade latency in the `sacc-tDCS` dataset. Previous processing:
+R notebook for inspection of data and analyses of saccade end point deviation and variability in the `sacc-tDCS` dataset. Previous processing:
 
 * Raw data were parsed into events (saccades, fixations, etc.) by the EyeLink data were collected on.
 * Events were extracted and saccade measures were computed with a MATLAB script.
@@ -171,8 +171,8 @@ devData <- devData %>%
   group_by(subject,stimulation,direction,type) %>% 
   summarise(baseline = mean(deviation.end[leg == "pre"]), # take average of 3 blocks, make new column
             tDCS = mean(deviation.end[leg == "tDCS"]),
-            post.1 = median(deviation.end[leg == "post.1"]),
-            post.2 = median(deviation.end[leg == "post.2"])) %>%
+            post.1 = mean(deviation.end[leg == "post.1"]),
+            post.2 = mean(deviation.end[leg == "post.2"])) %>%
 gather(leg, deviation.end, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
 mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
 
@@ -181,8 +181,8 @@ devDataCorr <- devDataCorr %>%
   group_by(subject,stimulation,direction,type) %>% 
   summarise(baseline = mean(deviation.end[leg == "pre"]),
             tDCS = mean(deviation.end[leg == "tDCS"]),
-            post.1 = median(deviation.end[leg == "post.1"]),
-            post.2 = median(deviation.end[leg == "post.2"])) %>%
+            post.1 = mean(deviation.end[leg == "post.1"]),
+            post.2 = mean(deviation.end[leg == "post.2"])) %>%
 gather(leg, deviation.end, baseline, tDCS, post.1, post.2)  %>%  
 mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2")))
 ```
@@ -223,11 +223,9 @@ kanaiPlot <- ggplot(devData, aes(leg, deviation.end, color = stimulation, shape 
 kanaiPlot
 ```
 
-The same pattern occurs everywhere: The accuracy increases for both anodal and cathodal during the post-blocks, but not during the tDCS block.
+At first glance there don't seem to be many differences that are larger than the baseline differences and/or relate clearly to the polarity or timing of stimulation.
 
-The fact that the change occurs only in the post-block would argue against a general time-on-task effect. So it could be an effect of tDCS, but we have no way of distinguishing between the two. The fact that it's not hemisphere specific also speaks against a tDCS-effect interpretation.
-
-Let's check that this isn't caused by a few outliers:
+Let's look at the individual subject data:
 
 ```{r Line plot per subject - anodal}
 kanaiPlotSubsAnodal <- ggplot(devData[devData$stimulation == "anodal", ], aes(leg, deviation.end)) +
@@ -249,7 +247,7 @@ kanaiPlotSubsCathodal <- ggplot(devData[devData$stimulation == "cathodal", ], ae
 kanaiPlotSubsCathodal
 ```
 
-There are definitely some outliers that show this pattern, but it's not restricted to them: also seems to be the case for many subjects in the "cluster" around the mean.
+There are definitely some outliers, but mostly in terms of overall offset / baseline differences.
 
 ### Baseline subtracted
 
@@ -262,6 +260,8 @@ kanaiPlotBase <- ggplot(devDataBase, aes(leg, deviation.end, color = stimulation
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3)
 kanaiPlotBase
 ```
+
+This clearly shows that all the changes are quite tiny (less than 0.1 degree of visual angle). There appears to be a clear difference between anodal and cathodal for left-center saccades, but this pattern is already present in the baseline.
 
 ## Statistics
 
@@ -297,24 +297,6 @@ modelKanai <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")),
 kable(modelKanai$ANOVA)
 ```
 
-#### Main effect of leg
-
-```{r Kanai Main effect of leg}
-devDataBase %>%
-  filter(type == "lateral") %>%
-  group_by(subject,leg) %>%
-  summarise(deviation.end = mean(deviation.end)) %>%
-  ggplot(aes(leg, deviation.end)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  stat_summary(fun.data = mean_cl_normal, size = 1) +
-  stat_summary(fun.y = mean, geom = "line", aes(group = 1)) +
-  geom_jitter(width = 0.25) 
-```
-
-This the same effect we saw in the overall plots: This pattern seems to hold for all stimulation, and type combinations. Here we also clearly see that it's not due to a few outliers: almost all participants show an increase in accuracy with respect to baseline.
-
-It is also robust to rejecting trials or not, and doing drift correction or not.
-
 ### Bayesian
 
 #### Linear mixed effects matching Kanai - lateral saccades
@@ -328,20 +310,18 @@ bfKanaiLateral = sort(bfKanaiLateral, decreasing = TRUE) # sort such that winnin
 kable(select(extractBF(bfKanaiLateral), bf)) # show only the Bayes factors in a table
 ```
 
-```{r Inclusion BF matched models}
+None of the models are actually better than the null model, so this matches the fact that there are no significant result in the frequentist analysis.
 
+```{r Inclusion BF matched models}
+# Inclusion Bayes Factors
 lateral.matched.leg <- inclusionBF(bfKanaiLateral,"leg","matched")
 lateral.matched.stim <- inclusionBF(bfKanaiLateral,"stimulation","matched")
 lateral.matched.stim.dir <- inclusionBF(bfKanaiLateral,"stimulation:direction","matched")
 lateral.matched.stim.dir.leg <- inclusionBF(bfKanaiLateral,"stimulation:direction:leg","matched")
 ```
 
-* LEG: $BF_{10} =$ `r lateral.matched.leg`
-
 * STIMULATION: $BF_{01} =$ `r round(1/lateral.matched.stim, digits = 1)`
 * STIMULATION by DIRECTION: $BF_{01} =$ `r round(1/lateral.matched.stim.dir, digits = 1)`
 * STIMULATION by DIRECTION by LEG: $BF_{01} =$ `r round(1/lateral.matched.stim.dir.leg, digits = 1)`
 
-
-__Overall:__ The LEG effect is extremely signifcant / has very strong evidence, but other than that nothing is.
-
+The inclusion Bayes factors are also quite inconclusive, except for the threeway interaction (because this model fits very poorly, still much more poorly then the one without it, even though this one also came in 2nd-to-last)
