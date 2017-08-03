@@ -6,7 +6,7 @@ subtitle: Saccade latency quantile analysis
 output:
   html_notebook:
     toc: yes
-    #toc_float: yes
+    toc_float: yes
 ---
 
 ```{r Ignore warnings and messages, include=FALSE}
@@ -28,18 +28,26 @@ library("knitr") # R markdown output (html, pdf, etc.)
 ```{r Load the data frame}
 # Load the data frame
 dataFile <- file.path("data", "sacc-tDCS_data.csv")
-groupData <- read_csv(dataFile, na = "NaN")
-groupData <- select(groupData, -X12) # drop final empty column named "X12"
+groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
+  stimulation = col_factor(c("anodal","cathodal")),
+  leg = col_factor(c("pre","tDCS","post")),
+  type = col_factor(c("lateral","center")),
+  direction = col_factor(c("left","right")) 
+))
 ```
 
 ```{r Make separate leg out of final 3 post blokcs}
 # Load the data frame
-groupData <- mutate(groupData, leg=replace(leg, leg == "post", "post.1"), # split the "post" level into two
-                  leg=replace(leg, block > 3, "post.2"))
+groupData <- mutate(groupData,
+                    leg = as.character(leg), # cannot edit leg if it's still a factor
+                    leg = replace(leg, leg == "post", "post.1"),
+                    leg = replace(leg, block > 3, "post.2"),
+                    leg = factor(leg, levels = c("pre", "tDCS", "post.1", "post.2")) # refactor and order levels
+                    )
 ```
 
 ```{r Show data frame}
-print(groupData)
+kable(head(groupData))
 ```
 
 * __subject__: subject ID
@@ -52,9 +60,12 @@ print(groupData)
     * `center` - fixation in periphery, saccade made back towards the center of the display
 * __direction__: `left` for saccades towards the left of current fixation position; `right` for saccades to the right
 * __deviation.start__ : distance (in visual angle) from saccade start point to fixation
-* __deviation.end__: distance (in visual angle) from saccade end point to target location
+* __deviation.end.x__: distance (in visual angle) from x-coordinate of saccade end point to x-coordinate of target location
+* __deviation.end.y__: same for y-coordinate
 * __amplitude__: distance (in visual angle) between saccade start and end point
 * __latency__: time (in ms) from target onset to start of saccade
+* __drift.x__: distance (in visual angle) between x-coordinate of average fixation position during the break to x-coordinate of fixation stimulus. This stimulus was displayed at each break in the task, so this data can be used as an estimate of offsets to do drift correction.
+* __drift.y__: same for y-coordinate
 
 # Shift function analysis
 
@@ -81,7 +92,7 @@ qData <- unnest(qData,shift) # unpack the list column to get the model results f
 # do(shiftdhd(.[,c("stimulation","latency")], formula = latency ~ stimulation, nboot = 100)) # estimate quantiles and compute shift function
 ```
 
-This takes quite a while to compute with a large number of bootstrap samples, so write the data file to disk. The current and next code chunk are not evaluated by default! (`eval = false`)
+This takes quite a while to compute with a large number of bootstrap samples, so write the data file to disk. The current and next code chunk are not evaluated by default! (`eval=FALSE`)
 
 ```{r Write quantile data, eval=FALSE}
 
@@ -92,14 +103,15 @@ write_csv(qData, file.path("data", "sacc-tDCS_quantiles.csv"))
 ```{r Load quantile data}
 
 qData <- read_csv(file.path("data", "sacc-tDCS_quantiles.csv"))
-
+subs2exclude <- "S28" # S28 has only a few trials in some conditions, which will heavily bias average plots
+qData <- filter(qData, !(subject %in% subs2exclude))
 ```
 
 ## Plot shift functions for each subject
 
-```{r Shift tDCS, lateral, left}
-shiftTdcsLateralLeft <- ggplot(filter(qData, leg == "tDCS", type  == "lateral", direction == "left"), aes(anodal, difference)) +
-  facet_wrap(~subject, nrow = 3, scales = "free") +
+```{r Shift tDCS lateral left, fig.height=6}
+shiftTdcsLateralLeft <- ggplot(filter(qData, leg == "post.1", type  == "center", direction == "right"), aes(anodal, difference)) +
+  facet_wrap(~subject, ncol = 5, scales = "free") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_line() +
   geom_point() +
@@ -189,7 +201,7 @@ ggplot(filter(qSig, leg == "tDCS"), aes(q, significance, fill = effect.dir)) +
   ggtitle("tDCS")
 ```
 
-### Post stimulation
+### Post stimulation 1
 
 ```{r Average shift function post}
 shiftAfter <- ggplot(filter(qStatsAve, leg == "post.1"), aes(anodal, difference)) +
@@ -212,5 +224,31 @@ ggplot(filter(qSig, leg == "post.1"), aes(q, significance, fill = effect.dir)) +
   geom_col(position = "dodge") +
   scale_x_continuous(breaks = seq(0.1,0.9,0.1)) +
   ylab("Number of subjects with significant difference") +
-  ggtitle("post")
+  ggtitle("post.1")
+```
+
+### Post stimulation 2
+
+```{r Average shift function post2}
+shiftAfter2 <- ggplot(filter(qStatsAve, leg == "post.2"), aes(anodal, difference)) +
+  facet_grid(type ~ direction) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(aes(xintercept = anodal_median), linetype = "dashed") +
+  stat_summary(fun.y = mean, geom = "point") +
+  stat_summary(fun.y = mean, geom = "line") +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar") +
+  xlab("anodal deciles") +
+  ylab("anodal - cathodal deciles") +
+  ggtitle("Saccades after tDCS (15-30 min)")
+
+shiftAfter2
+```
+
+```{r Significance per subject post2}
+ggplot(filter(qSig, leg == "post.2"), aes(q, significance, fill = effect.dir)) +
+  facet_grid(type ~ direction) +
+  geom_col(position = "dodge") +
+  scale_x_continuous(breaks = seq(0.1,0.9,0.1)) +
+  ylab("Number of subjects with significant difference") +
+  ggtitle("post.2")
 ```
