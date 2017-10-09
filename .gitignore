@@ -9,17 +9,24 @@ Thumbs.db
 ._*
 *.dll
 *.exe
-
 # Documents
 *.xlsx
 *.docx
 *.pdf
-
 # Binary data
 *.edf
 *.nii
+# Images
+*.JPG
 
 # Folders
-doc/*
 IRB/*
 figures/*
+
+# except the tDCS blinding info file
+doc/*
+!doc/tDCS_blinding/
+doc/tDCS_blinding/codes
+
+.Rproj.user
+packrat/lib*/
