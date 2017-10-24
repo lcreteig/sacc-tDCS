@@ -31,7 +31,7 @@ inclusionBF <- function(BFobj, effects = NULL, models = "all") {
   BFs <- extractBF(BFobj)[,1:2] # convert to data frame, keep only first two columns
   
   if (is.null(effects)) { # if no effect was specified
-    effects <- gsub(" ","",strsplit(rownames(BFs)[nrow(BFs)], "\\+")[[1]]) # get the names of all the effects in the model
+    effects <- gsub(" ","",strsplit(rownames(BFs)[which.max(nchar(rownames(BFs)))], "\\+")[[1]]) # get the names of all the effects in the model
     
     if ((unlist(attributes(BFobj))$denominator@dataTypes == "random")) { # if there's a random factor
       randName <- names(unlist(attributes(BFobj))$denominator@dataTypes == "random") # get its name
