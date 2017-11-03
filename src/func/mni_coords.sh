@@ -23,15 +23,18 @@ do
 
     if [ $bet_flirt = "all" ]; then
 
+      # Reorient to match orientation of MNI template (if not already)
+      fslreorient2std ${readFolder}/${scan}.nii ${writeFolder}/${scan}_reorient.nii.gz
+
       # BET (strip the skull)
-      bet ${readFolder}/${scan}.nii ${writeFolder}/${scan}_brain.nii.gz
+      bet ${writeFolder}/${scan}_reorient.nii.gz ${writeFolder}/${scan}_reorient_brain.nii.gz
 
       # FLIRT (register to MNI)
-      flirt -in ${writeFolder}/${scan}_brain.nii.gz -ref ${FSLDIR}/data/standard/MNI152_T1_1mm_brain -out ${writeFolder}/${scan}_brain_toMNI1mm.nii.gz -omat ${writeFolder}/${folder}_native2mNI.mat
+      flirt -in ${writeFolder}/${scan}_reorient_brain.nii.gz -ref ${FSLDIR}/data/standard/MNI152_T1_1mm_brain -out ${writeFolder}/${scan}_reorient_brain_toMNI1mm.nii.gz -omat ${writeFolder}/${folder}_native2mNI.mat
     fi
 
     # Convert coordinates to MNI
-    MNI_mm=$(echo "$native_X $native_Y $native_Z" | img2stdcoord -img ${readFolder}/${scan} -std ${FSLDIR}/data/standard/MNI152_T1_1mm -xfm ${writeFolder}/${folder}_native2mNI.mat)
+    MNI_mm=$(echo "$native_X $native_Y $native_Z" | img2stdcoord -img ${writeFolder}/${scan}_reorient.nii.gz -std ${FSLDIR}/data/standard/MNI152_T1_1mm -xfm ${writeFolder}/${folder}_native2mNI.mat)
 
     # Append MNI coordinates to file
     echo "$subject;$folder;$scan;${MNI_mm//  /;}" >> $outFile # replace (double) spaces in MNI coords with ";"
