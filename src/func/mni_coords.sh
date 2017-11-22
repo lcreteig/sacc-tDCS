@@ -24,7 +24,8 @@ do
     if [ "$strip_reg" = "all" ]; then
 
       # Reorient to match orientation of MNI template (if not already)
-      fslreorient2std ${readFolder}/${scan}.nii ${writeFolder}/${scan}_reorient.nii.gz
+      fslreorient2std ${readFolder}/${scan}.nii ${writeFolder}/${scan}_reorient
+      gzip -f ${writeFolder}/${scan}_reorient.nii # fslreorient2std doesn't zip because the original wasn't zipped; do here
 
       # BET (strip the skull)
       if [ "$subject" = "S03" ]; then
