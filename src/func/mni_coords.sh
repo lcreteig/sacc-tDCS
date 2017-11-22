@@ -7,7 +7,7 @@
 
 inFile=$1
 outFile=$2
-bet_flirt=$3
+strip_reg=$3
 
 echo "subject;folder;scan;MNI_X;MNI_Y;MNI_Z" > $outFile # header for new file
 
@@ -21,13 +21,19 @@ do
 
     mkdir -p "$writeFolder" # if it doesn't exist yet, create directory
 
-    if [ $bet_flirt = "all" ]; then
+    if [ "$strip_reg" = "all" ]; then
 
       # Reorient to match orientation of MNI template (if not already)
       fslreorient2std ${readFolder}/${scan}.nii ${writeFolder}/${scan}_reorient.nii.gz
 
       # BET (strip the skull)
-      bet ${writeFolder}/${scan}_reorient.nii.gz ${writeFolder}/${scan}_reorient_brain.nii.gz
+      if [ "$subject" = "S03" ]; then
+        # run BET with bias reduction, to deal with non-uniform intensities outside skull
+        bet_flag="-B"
+      else
+        bet_flag=""
+      fi
+      bet ${writeFolder}/${scan}_reorient.nii.gz ${writeFolder}/${scan}_reorient_brain.nii.gz "$bet_flag"
 
       # FLIRT (register to MNI)
       flirt -in ${writeFolder}/${scan}_reorient_brain.nii.gz -ref ${FSLDIR}/data/standard/MNI152_T1_1mm_brain -out ${writeFolder}/${scan}_reorient_brain_toMNI1mm.nii.gz -omat ${writeFolder}/${folder}_native2mNI.mat
