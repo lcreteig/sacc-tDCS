@@ -1,0 +1,128 @@
+---
+title: Transcranial direct current stimulation of the right frontal eye field in a
+  prosaccade task
+author: "Leon Reteig"
+subtitle: Frontal Eye Field coordinates
+output: 
+  html_notebook: 
+    highlight: pygments
+---
+
+R notebook for analysis of frontal eye field coordinates in the `sacc-tDCS` dataset.
+
+# Setup
+
+```{r include=FALSE}
+# Don't show warnings and messages in HTML output
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+```{r Load some libraries}
+# Load some libraries
+library(tidyverse) # importing, transforming, and visualizing data frames
+library(knitr) # R markdown output (html, pdf, etc.)
+sessionInfo()
+```
+
+List the subjects that were excluded in the eye data analyses.
+
+```{r List of subjects to exclude}
+subs2exclude <- c("S21","S25","S16","S22","S28")
+```
+
+# Coordinates in native space
+
+These were determined for each subject's scan; see `neuronav_notes.md` for further info.
+
+```{r Show native coords, results='asis'}
+dataFile <- file.path("data", "FEF_coords_native.csv")
+nativeCoords <- read_csv2(dataFile)
+nativeCoords %>% 
+  select(-folder, -scan) %>% # drop columns with folder and scan names
+  filter(!(subject %in% subs2exclude)) %>% # drop rows with excluded subjects
+  kable(.)
+```
+
+# Transform to MNI space
+
+## Run shell script
+
+`mni_coords.sh` reads in the native coordinates, converts them to MNI space, and writes out a `.csv` of the same format as for the native coordinates.
+
+Under `# FSL setup`, replace `FSLDIR` with the directory path you installed FSL to.
+
+Arguments:
+
+1. __Input:__ csv file with coordinates in native space
+2. __Output:__ csv file coordinates in MNI space
+3. Passing `all` as a 3rd argument first (re)runs skull stripping and registration to the MNI template.
+
+```{bash}
+# FSL Setup
+FSLDIR=/usr/local/fsl
+PATH=${FSLDIR}/bin:${PATH}
+export FSLDIR PATH
+. ${FSLDIR}/etc/fslconf/fsl.sh
+
+# Run shell script to compute MNI coordinates
+bash src/func/mni_coords.sh data/FEF_coords_native.csv data/FEF_coords_MNI.csv all
+```
+
+## MNI coordinates
+
+Load in the MNI coordinates that were written to a `.csv` file by the shell script.
+
+```{r show MNI coords, results='asis'}
+dataFile <- file.path("data", "FEF_coords_MNI.csv")
+mniCoords <- read_delim(dataFile, ";")
+mniCoords <- filter(mniCoords, !(subject %in% subs2exclude)) # exclude subjects
+mniCoords %>%
+  select(-folder, -scan) %>% # drop columns with folder and scan names
+  kable(.)
+```
+
+Calculate statistics over subjects:
+
+```{r Descriptives of MNI coordinates, results = 'asis'}
+mniCoords %>%
+  gather(dimension, coord, MNI_X:MNI_Z) %>%
+  group_by(dimension) %>%
+  summarise(average = mean(coord), standard.deviation = sd(coord), minimum = min(coord), maximum = max(coord)) %>%
+  kable(.)
+```
+
+# Create spherical ROI for each coordinate
+
+## Exclude subjects
+
+Write a new `.csv' file with MNI coordinates, without the coordinates from the excluded subjects.
+
+```{r Write new csv without excluded subjects}
+exclMNI <- file.path("data", "FEF_coords_MNI_excl.csv")
+write_delim(mniCoords, exclMNI, delim = ";")
+Sys.setenv(exclMNI = exclMNI) # port variable with csv file name to bash
+```
+
+## Run script
+
+`fef_rois.sh` takes the MNI coordinates and adds spherical masks, centered around each subjects FEF coordinate, to the MNI template. The masks for each subject have different intensities, to be able to distinguish them easily in overlays.
+
+Under `# FSL setup`, replace `FSLDIR` with the directory path you installed FSL to.
+
+Arguments:
+
+1. __Input:__ csv file with coordinates in MNI space
+2. __Output:__ NIfTI file of `MNI_152_1mm` template with spherical ROI around each subject's frontal eye field
+3. Radius of the spherical ROI in mm
+
+```{bash}
+
+# FSL Setup
+FSLDIR=/usr/local/fsl
+PATH=${FSLDIR}/bin:${PATH}
+export FSLDIR PATH
+. ${FSLDIR}/etc/fslconf/fsl.sh
+
+# Run shell script to make spherical ROIs
+bash src/func/fef_rois.sh $exclMNI neuronav/FEF_ROIs.nii.gz 2
+```
