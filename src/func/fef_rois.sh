@@ -1,12 +1,14 @@
 #!/bin/sh
 # First argument: input csv file with MNI coordinates (as created by mni_coords.sh)
 # Second argument: output NIfTI file with FEF ROIs for each subject
-#
+# Third argument: radius in mm of the spherical ROI that's created for each subject
+
 # e.g.
-# bash fef_rois.sh FEF_coords_MNI.csv FEF_ROIs.nii.gz
+# bash fef_rois.sh FEF_coords_MNI.csv FEF_ROIs.nii.gz 2
 
 inFile=$1
 outFile=$2
+sphere_radius=$3
 
 # Create mask of MNI template filled with zeroes
 fslmaths ${FSLDIR}/data/standard/MNI152_T1_1mm_brain -mul 0 ${outFile}
@@ -25,7 +27,7 @@ do
 
   # Define mask for each subject
   fslmaths ${FSLDIR}/data/standard/MNI152_T1_1mm_brain -mul 0 -add 1 -roi $vox_X 1 $vox_Y 1 $vox_Z 1 0 1 ${writeFolder}/${folder}_FEF_vox.nii.gz -odt float # Create mask with FEF voxel set to "1"
-  fslmaths ${writeFolder}/${folder}_FEF_vox.nii.gz -kernel sphere 1 -fmean ${writeFolder}/${folder}_FEF_sphere.nii.gz -odt float # inflate to sphere with radius 1 mm
+  fslmaths ${writeFolder}/${folder}_FEF_vox.nii.gz -kernel sphere $sphere_radius -fmean ${writeFolder}/${folder}_FEF_sphere.nii.gz -odt float # inflate to sphere with radius 2 mm
   fslmaths ${writeFolder}/${folder}_FEF_sphere.nii.gz -bin ${writeFolder}/${folder}_FEF_sphere.nii.gz #binarize (set all values to 1)
   fslmaths ${writeFolder}/${folder}_FEF_sphere.nii.gz -mul $COUNTER ${writeFolder}/${folder}_FEF_sphere.nii.gz -odt float # multiply values in sphere with subject number
 
