@@ -105,7 +105,9 @@ Sys.setenv(exclMNI = exclMNI) # port variable with csv file name to bash
 
 ## Run script
 
-`fef_rois.sh` takes the MNI coordinates and adds spherical masks, centered around each subjects FEF coordinate, to the MNI template. The masks for each subject have different intensities, to be able to distinguish them easily in overlays.
+The coords can be very nicely visualized with [Surf Ice](https://www.nitrc.org/projects/surfice/) by running the `plot_coords.m` script (requires MATLAB)
+
+Alternatively, `fef_rois.sh` takes the MNI coordinates and adds spherical masks, centered around each subjects FEF coordinate, to the MNI template.
 
 Under `# FSL setup`, replace `FSLDIR` with the directory path you installed FSL to.
 
@@ -124,5 +126,5 @@ export FSLDIR PATH
 . ${FSLDIR}/etc/fslconf/fsl.sh
 
 # Run shell script to make spherical ROIs
-bash src/func/fef_rois.sh $exclMNI neuronav/FEF_ROIs.nii.gz 2
+bash src/func/fef_rois.sh $exclMNI neuronav/FEF_ROIs_bigspheres.nii.gz 2
 ```
