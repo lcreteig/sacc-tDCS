@@ -8,11 +8,6 @@ output:
     toc_float: true
 ---
 
-```{r include=FALSE}
-library("knitr") # R markdown output (html, pdf, etc.)
-knitr::opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
-```
-
 R notebook for inspection of data and analyses of median saccade latency in the `sacc-tDCS` dataset. Previous processing:
 
 * Raw data were parsed into events (saccades, fixations, etc.) by the EyeLink data were collected on.
@@ -23,6 +18,8 @@ R notebook for inspection of data and analyses of median saccade latency in the 
 library("tidyverse")
 library("ez") # ANOVA
 library("BayesFactor") # Bayesian statistics
+library("knitr") # R markdown output (html, pdf, etc.)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
 
 source("src/lib/InclusionBF.R")
 ```
@@ -158,30 +155,36 @@ outlierPlotTrials <- ggplot(groupData[!(groupData$outlier %in% c("none", "non.ou
 outlierPlotTrials
 ```
 
-### Tally outlier types
+### Tally outlier types 
 
 ```{r Tally outliers}
-outlierTrialCount <- groupData %>%
+outlierCount <- groupData %>%
+  group_by(subject,stimulation,leg,direction,type,outlier) %>%
+  summarize(outlier_count = n()) # for each condition and subject, count how many (non)outliers there are
+```
+
+```{r Table of outlier counts per subject, results= 'asis'}
+outlierTable <- outlierCount %>%
   group_by(subject,outlier) %>%
-  summarize(outlier_count = n()) %>%
-  mutate(total = sum(outlier_count[outlier != "non.outlier"]))
+  summarize(outlier_count = sum(outlier_count)) %>% # create column with sum across all conditions per subject
+  mutate(total = sum(outlier_count[outlier != "non.outlier"])) %>% # create column with sum across all outlier types
+  spread(outlier, outlier_count) %>% # one column per outlier type
+  select(subject, non.outlier, total, none, fast, slow, fixation, saccade) #reorder columns
+kable(outlierTable, caption = "Number of outlier saccades per subject")
 ```
 
-```{r Table of outlier counts, results= 'asis'}
-outlierTable <- outlierTrialCount %>%
-  spread(outlier, outlier_count) %>%
-  select(subject, non.outlier, total, none, fast, slow, fixation, saccade)
-kable(outlierTable, caption = "Number of outlier trials per subject")
-```
+### Plot outlier counts per subject and type
 
-### Plot outlier counts per subject
+```{r Plot outlier counts per subject and type}
+max_n <- nrow(filter(groupData, subject == "S01", type == "center")) # max amount of saccades in experiment
 
-```{r Plot outlier counts per subject}
-outlierPlotSubjects <- ggplot(outlierTrialCount[!(outlierTrialCount$outlier %in% "non.outlier"), ], aes(subject, outlier_count, fill = outlier)) +
+ggplot(filter(outlierCount, outlier != "non.outlier"), aes(subject, outlier_count, fill = outlier)) +
   geom_col() +
-  coord_flip()
-outlierPlotSubjects
+  scale_y_continuous("number of saccades", limits = c(0,max_n), sec.axis = sec_axis(~./max_n*100, name = "percent of all saccades")) +
+  coord_flip() +
+  facet_wrap(~type)
 ```
+
 
 __Stray observations:__
 
@@ -202,30 +205,34 @@ General patterns:
 * Bad fixations appear to be mostly center saccades (but this varies a lot). Perhaps the eyes already drift back towards the center, before executing the saccade?
 * Or is the source of bad fixations simply poor quality of the eye tracker data? e.g. people are actually fixating, but due to drift it appears they are not.
 
-### Tally number of non-outlier trials
+### Tally number of non-outlier saccades
 
-Importantly, we should also see how many trials are left per condition after excluding outliers
+Importantly, we should also see how many saccades are left per condition after excluding outliers
 
-```{r}
+```{r Table with number of non-outlier saccades}
 trialCount <- groupData %>%
-  filter(outlier == "non.outlier") %>% # keep only non-outlier trials
+  filter(outlier == "non.outlier") %>% # keep only non-outlier saccades
+  # Equally cut leg factor into 15-minute intervals, because the "post" leg is currently 30 minutes 
+  mutate(leg = as.character(leg), # cannot edit leg if it's still a factor
+         leg = replace(leg, leg == "post" & block <= 3, "post.1"),
+         leg = replace(leg, block > 3, "post.2"),
+         leg = factor(leg, levels = c("pre", "tDCS", "post.1", "post.2")) # refactor and order levels
+         ) %>%
   group_by(subject,stimulation,leg,direction,type) %>%
-  summarise(trials = n()) %>% # count how many there are per subject per condition
-  arrange(trials) # sort ascending
+  summarise(saccades = n()) %>% # count how many there are per subject per condition
+  arrange(saccades) # sort ascending
 trialCount
 ```
 
 __Candidates for rejection__
 
-S28 should definitely be rejected, as certain conditions would have < 30 trials, some even as low as 2! This is mostly because there are many missing saccades (`none`), indicating poor data quality (or just not doing the task).
+S28 should definitely be rejected, as certain conditions have only 2 useable saccades! S16 and S22 (together with S28) also have quite few saccade counts: less than 50 in some conditions. This is mostly because there are many missing saccades (`none`). Inspection of the data shows that this is not due to poor data quality, but because these subjects move their eyes too soon (i.e. before the stimulus even). That also explains why these low saccade counts occur almost exclusively in the _center_ saccade condition (as there the location of the target was predictable).
 
 ```{r List subjects to exclude}
-subs2exclude <- "S28" 
+subs2exclude <- c("S28","S16","S22","S21","S25") 
 ```
 
-* S22, mostly because of bad fixations, but also many missing saccades
-* S16, because of missing saccades, bad fixations, and also many fast saccades
-* S10, S24 S25 to a lesser extent
+S21 and S25 should also be excluded. Their anodal and cathodal sessions were separated by less than 48 hours, which is in violation of the protocol.
 
 # Inspect medians
 
@@ -253,7 +260,7 @@ There is some overlap with the analysis of outlier trials. For instance, there i
 ```{r Compute median in each condition}
 # Compute median in each condition
 latencyMedian <- groupData %>%
-  filter(outlier == "non.outlier") %>% 
+  filter(outlier == "non.outlier") %>% # exclude outlier saccades
   group_by(subject,stimulation,leg,block,type,direction) %>%
   summarise(latency = median(latency))
 ```
@@ -269,7 +276,7 @@ fullPlot <- ggplot(latencyMedian, aes(interaction(block,leg), latency, color = s
 fullPlot
 ```
 
-For some reason cathodal is always faster than anodal. There is probably a few ms difference between them on average, also in the baseline block. This is clearly just random variation, but it could be a problem, since the effects we expect are not much bigger...
+For some reason cathodal is always a little faster than anodal. There is probably a few ms difference between them on average, also in the baseline block. This is clearly just random variation, but it could be a problem, since the effects we expect are not much bigger...
 
 The above plot also shows a lot of variability, so it might be best to average over each 3 consecutive blocks so the data come in 15-minute intervals.
 
@@ -278,7 +285,7 @@ The above plot also shows a lot of variability, so it might be best to average o
 ```{r Compute median, collapsed across blocks}
 # Compute median per leg
 latencyMedianLeg <- groupData %>%
-  filter(outlier == "non.outlier") %>%
+  filter(outlier == "non.outlier") %>% # exclude outlier saccades
   group_by(subject,stimulation,direction,type) %>% 
   summarise(baseline = median(latency[leg == "pre"]), # take average of 3 blocks, make new column
             tDCS = median(latency[leg == "tDCS"]),
@@ -328,8 +335,6 @@ preproc <- groupData %>%
   filter(outlier == "non.outlier", !(subject %in% subs2exclude))
 ```
 
-* Others?
-
 ### Cut into 15-minute intervals
 
 Cut the post-block into two so we have four 15-minute intervals: one before, one during, and two after stimulation.
@@ -342,11 +347,6 @@ preproc <- preproc %>%
          leg = factor(leg, levels = c("pre", "tDCS", "post.1", "post.2")) # refactor and order levels
          )
 ```
-
-### Other
-
-* Check / control for session order effects, and that sessions are balanced?
-* Do drift correction before rejecting trials
 
 # Median reaction time plots and analyses
 
@@ -435,11 +435,11 @@ kanaiPlotBase <- ggplot(latencyMedianBaseline, aes(leg, latency, color = stimula
   stat_summary(fun.y = mean, geom = "point", size = 3) +
   stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.3) +
-  coord_cartesian(ylim = c(-15,15))
+  coord_cartesian(ylim = c(-10,10))
 kanaiPlotBase
 ```
 
-The biggest difference from baseline seems to be 4 ms max; the largest difference between the stimulation conditions is even tinier.
+The biggest difference from baseline seems to be 4 ms max. Generally the differences between the stimulation conditions are even tinier, except for the center-left condition.
 
 ### Individual subjects
 
