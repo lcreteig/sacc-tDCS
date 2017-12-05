@@ -146,37 +146,6 @@ groupData <- mutate(groupData,
                     )
 ```
 
-## Drift correction
-
-Calibration isn't perfect, so there are always small offsets between the measurements and what people are actually looking at. Further, these measurement errors can increase with time away from calibration, which is known as drift.
-
-After every 20 trials (40 saccades) there was a break in the task, in which we asked subjects to fixate the center of the screen before continueing. The offsets recorded here are thus a good estimate of drift, since here you can trust that subjects were actually looking at fixation spot on. 
-
-To do drift correction, we simply subtract the offsets recorded in the break from the x- and y- coordinates of the eye data of interest.
-
-```{r Drift correction}
-# Add columns with drift-corrected values
-groupData <- mutate(groupData,
-                    deviation.end.x.corr = deviation.end.x - drift.x,
-                    deviation.end.y.corr = deviation.end.y - drift.y)
-```
-
-If this does indeed work, then most trials should now have a smaller deviation.
-
-```{r Check correction}
-# Calculate percentage of trials with smaller deviations after drift correction
-driftCorr <- groupData %>%
-  summarize(
-    trials = n(),
-    smaller.drift.x = sum(abs(deviation.end.x.corr) < abs(deviation.end.x)) / trials * 100,
-    smaller.drift.y = sum(abs(deviation.end.y.corr) < abs(deviation.end.y)) / trials * 100
-  )
-c(driftCorr$smaller.drift.x, driftCorr$smaller.drift.y)
-```
-Seems that it doesn't really work at all, because it only decreased the error on about 50 percent of trials!
-
-Luckily, inspection of the data reveals that it doesn't seem to change much with or without drift correction.
-
 # Saccade end point deviation
 
 One estimate of the accuracy of saccades is the mean landing position with respect to the target location. [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) also examined this, but found no effects of tDCS.

@@ -1,0 +1,291 @@
+---
+title: "Transcranial direct current stimulation of the right frontal eye field in a prosaccade task"
+author: Leon Reteig
+subtitle: Data inspection
+output:
+  html_notebook:
+  highlight: pygments
+toc: true
+toc_float: true
+---
+  
+R notebook for inspection of eye tracking data in the `sacc-tDCS` dataset. Previous processing:
+  
+* Raw data were parsed into events (saccades, fixations, etc.) by the EyeLink data were collected on.
+* Events were extracted and saccade measures were computed with a MATLAB script.
+
+```{r setup}
+# Load some libraries
+library(tidyverse) # importing, transforming, and visualizing data frames
+library(knitr) # R markdown output (html, pdf, etc.)
+opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
+
+sessionInfo()
+```
+
+# Load data
+
+The .csv file with the eye tracking data was created in MATLAB.
+
+```{r Load the data frame}
+# Load the data frame
+dataFile <- file.path("data", "sacc-tDCS_data.csv")
+groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
+  stimulation = col_factor(c("anodal","cathodal")),
+  leg = col_factor(c("pre","tDCS","post")),
+  type = col_factor(c("lateral","center")),
+  direction = col_factor(c("left","right")) 
+))
+```
+
+```{r Show data frame}
+kable(head(groupData))
+```
+
+* __subject__: subject ID
+* __stimulation__: Whether data are from the `anodal` or `cathodal` session
+* __leg__: Whether data are before (`pre`), during (`tDCS`), or after (`post`) tDCS
+* __block__: After each block participant had a brief break and tracker was recalibrated
+* __trial__: trial number within a block
+* __type__:
+    * `lateral` - fixation in center of display, saccade made towards the periphery
+    * `center` - fixation in periphery, saccade made back towards the center of the display
+* __direction__: `left` for saccades towards the left of current fixation position; `right` for saccades to the right
+* __deviation.start__ : distance (in visual angle) from saccade start point to fixation
+* __deviation.end.x__: distance (in visual angle) from x-coordinate of saccade end point to x-coordinate of target location
+* __deviation.end.y__: same for y-coordinate
+* __amplitude__: distance (in visual angle) between saccade start and end point
+* __latency__: time (in ms) from target onset to start of saccade
+* __drift.x__: distance (in visual angle) between x-coordinate of average fixation position during the break to x-coordinate of fixation stimulus. This stimulus was displayed at each break in the task, so this data can be used as an estimate of offsets to do drift correction.
+* __drift.y__: same for y-coordinate
+
+# Inspect distributions
+
+### Histograms for each subject 
+
+```{r Histogram per subject, fig.height = 6}
+histType <- ggplot(groupData, aes(latency, fill = type)) +
+  facet_wrap(~subject, ncol = 5, scales = "free_y") +
+  geom_histogram(binwidth = 5, color = "grey50", size = .2) +
+  xlim(-50,300)
+histType
+```
+
+__Stray observations:__
+
+* Center saccades are much faster than lateral, though not to the same degree in all subjects
+* Some have a fat short latency tail - too fast saccades that are virtually all towards the center: S10, S11, S22, S28
+* Some appear bimodal (S28), but when split for type this is generally because center saccades are faster: S05, S06, S11
+* Some look almost normally distributed (S10); others are very heavily right-skewed (S32)
+* Some are super sharp (S08); others really broad (S01)
+
+### Stimulation effects across subjects
+
+```{r Density: stimulation across subjects}
+dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) +
+  facet_grid(type ~ direction) +
+  geom_density() +
+  xlim(0, 250) +
+  scale_color_brewer(palette = "Set1")
+dens
+```
+
+### Session effects in each subject
+```{r Density: anodal vs. cathodal baseline per subject, fig.height = 6}
+denstDCS <- ggplot(groupData[groupData$leg == 'pre' & groupData$type == "lateral", ], aes(latency, color = stimulation)) +
+  facet_wrap(~subject, ncol = 5, scales ="free_y") +
+  geom_density() +
+  xlim(0, 250) +
+  scale_color_brewer(palette = "Set1") +
+  ggtitle('Lateral saccades, baseline block')
+denstDCS
+```
+
+For most subjects, the latency distributions in both sessions are reasonably similar. Note that this is the baseline block, so we also wouldn't expect any differences. In that light, it is a little worrisome that for some subjects the distributions differ markedly (S01, S02, S09, S12, S17, S21, S26, S29, S32).
+
+# Outliers
+
+## Outlier trials
+
+```{r Outlier criteria}
+tooFast <- 50
+tooSlow <- 400
+badFix <- 1.8
+badSacc <- 8
+```
+
+Criteria for outliers:
+
+* Discard fast saccades, with a latency of `r tooFast` ms or less
+* Discard slow saccades, saccades with a latency of `r tooSlow` ms or more
+* Discard inaccurate fixations, with saccade starting point more than `r badFix` degrees or more away from fixation
+* Discard faulty saccades, with x-coordinate of saccade end point `r badSacc` degree or more away from the target
+
+In [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045), this was:
+
+* Fast saccades: 50 ms
+* Slow saccades: 400 ms
+* Bad fixations: 1.8 degrees
+* Faulty saccades: opposite hemifield of target (here, that would be 8 degrees as targets were that eccentric)
+
+```{r Mark trials as outliers}
+# Mark outliers
+groupData <- mutate(groupData, outlier = "non.outlier", # fill vector for all trials
+                    outlier = ifelse(latency < tooFast, "fast", outlier), # mark too fast trials as "fast"
+                    outlier = ifelse(latency > tooSlow, "slow", outlier), # mark too slow trials as "slow"
+                    outlier = ifelse(deviation.start > badFix, "fixation", outlier), # mark bad fixations as "fixation"
+                    outlier = ifelse(deviation.end.x > badSacc, "saccade", outlier), # mark inaccurate saccades as "saccade"
+                    outlier = ifelse(is.na(latency), "none", outlier) # mark absence of saccade as "none"
+                    )
+```
+
+### Plot latencies of outlier trials per subject
+
+```{r Plot outlier trials per subject, fig.height = 6}
+outlierPlotTrials <- ggplot(groupData[!(groupData$outlier %in% c("none", "non.outlier")), ], aes(interaction(stimulation,leg,block,trial), latency, color = outlier, shape = type)) +
+  facet_wrap(~subject, ncol = 5, scales = "free_y") +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = tooFast, linetype = "dashed") +
+  geom_hline(yintercept = tooSlow, linetype = "dashed") +
+  xlab('Trial') +
+  theme(axis.text.x = element_blank(), # remove x-axis (just trial count)
+  axis.ticks.x = element_blank())
+outlierPlotTrials
+```
+
+### Tally outlier types 
+
+```{r Tally outliers}
+outlierCount <- groupData %>%
+  group_by(subject,stimulation,leg,direction,type,outlier) %>%
+  summarize(outlier_count = n()) # for each condition and subject, count how many (non)outliers there are
+```
+
+```{r Table of outlier counts per subject, results= 'asis'}
+outlierTable <- outlierCount %>%
+  group_by(subject,outlier) %>%
+  summarize(outlier_count = sum(outlier_count)) %>% # create column with sum across all conditions per subject
+  mutate(total = sum(outlier_count[outlier != "non.outlier"])) %>% # create column with sum across all outlier types
+  spread(outlier, outlier_count) %>% # one column per outlier type
+  select(subject, non.outlier, total, none, fast, slow, fixation, saccade) #reorder columns
+kable(outlierTable, caption = "Number of outlier saccades per subject")
+```
+
+### Plot outlier counts per subject and type
+
+```{r Plot outlier counts per subject and type}
+max_n <- nrow(filter(groupData, subject == "S01", type == "center")) # max amount of saccades in experiment
+
+ggplot(filter(outlierCount, outlier != "non.outlier"), aes(subject, outlier_count, fill = outlier)) +
+  geom_col() +
+  scale_y_continuous("number of saccades", limits = c(0,max_n), sec.axis = sec_axis(~./max_n*100, name = "percent of all saccades")) +
+  coord_flip() +
+  facet_wrap(~type)
+```
+
+
+__Stray observations:__
+
+Differences between subjects:
+
+* Some subjects have extremely clen data with barely any outliers (S02, S07, S18)
+* Most subjects have quite a few outliers, especially S10, S16, S22, S25 and S28
+* Only S01 has a sizable amount of slow saccades
+* Only S16 has a sizable amount of saccades to the opposite hemifield
+* Those subjects with many fast saccades also tend to have many bad fixations
+
+General patterns:
+
+* Occurence of outliers seems stable throughout the session: there aren't more/less in the beginning / end
+* There are very few inaccurate saccades (makes sense, because task is easy and criterion is not strict)
+* Most outliers are too fast saccades and bad fixations
+* Slow saccades are lateral, fast saccades are to the center, because only the latter are predictable
+* Bad fixations appear to be mostly center saccades (but this varies a lot). Perhaps the eyes already drift back towards the center, before executing the saccade?
+* Or is the source of bad fixations simply poor quality of the eye tracker data? e.g. people are actually fixating, but due to drift it appears they are not.
+
+### Tally number of non-outlier saccades
+
+Importantly, we should also see how many saccades are left per condition after excluding outliers
+
+```{r Table with number of non-outlier saccades}
+trialCount <- groupData %>%
+  filter(outlier == "non.outlier") %>% # keep only non-outlier saccades
+  # Equally cut leg factor into 15-minute intervals, because the "post" leg is currently 30 minutes 
+  mutate(leg = as.character(leg), # cannot edit leg if it's still a factor
+         leg = replace(leg, leg == "post" & block <= 3, "post.1"),
+         leg = replace(leg, block > 3, "post.2"),
+         leg = factor(leg, levels = c("pre", "tDCS", "post.1", "post.2")) # refactor and order levels
+         ) %>%
+  group_by(subject,stimulation,leg,direction,type) %>%
+  summarise(saccades = n()) %>% # count how many there are per subject per condition
+  arrange(saccades) # sort ascending
+trialCount
+```
+
+__Candidates for rejection__
+
+S28 should definitely be rejected, as certain conditions have only 2 useable saccades! S16 and S22 (together with S28) also have quite few saccade counts: less than 50 in some conditions. This is mostly because there are many missing saccades (`none`). Inspection of the data shows that this is not due to poor data quality, but because these subjects move their eyes too soon (i.e. before the stimulus even). That also explains why these low saccade counts occur almost exclusively in the _center_ saccade condition (as there the location of the target was predictable).
+
+```{r List subjects to exclude}
+subs2exclude <- c("S28","S16","S22","S21","S25") 
+```
+
+S21 and S25 should also be excluded. Their anodal and cathodal sessions were separated by less than 48 hours, which is in violation of the protocol.
+
+# Outliers in median latency
+
+Next to rejecting outlier trials, we could also consider rejecting outlier subjects or certain conditions from the statistical tests. One way to detect outliers (that is itself robust to outliers, unlike the standard deviation) is the MAD-median rule (see [this blogpost](https://eurekastatistics.com/using-the-median-absolute-deviation-to-find-outliers/) and [this preprint](http://dx.doi.org/10.1101/151811)). The MAD is the _median absolute devian from the median_.
+
+```{r Table of outliers per subject-condition combination}
+outliersPerCondition <- groupData %>%
+  filter(outlier == "non.outlier") %>% # drop all outlier trials
+  group_by(subject,stimulation,leg,type,direction) %>%
+  summarise(latency = median(latency)) %>% # compute median latency
+  group_by(stimulation,leg,type,direction) %>%
+  mutate(mad.median.rule = (abs(latency - median(latency)) / mad(latency))) %>% # deviation from the median, standardized by the MAD
+  filter(mad.median.rule > 2.24) # MAD-median rule
+outliersPerCondition
+```
+
+These are all the subject-condition combinations for which the MAD-median rule is violated. If we were to reject subjects with one more more violation, we would have to remove `r length(unique(outliersPerCondition$subject))` subjects.
+
+There is some overlap with the analysis of outlier trials. For instance, there is reason to remove S28 in both analyses. But this is not always the case: S26 has very clean trial-data, but is still flagged as an outlier here because their median latencies are quite slow.
+
+# Drift correction
+
+Calibration isn't perfect, so there are always small offsets between the measurements and what people are actually looking at. Further, these measurement errors can increase with time away from calibration, which is known as drift.
+
+After every 20 trials (40 saccades) there was a break in the task, in which we asked subjects to fixate the center of the screen before continueing. The offsets recorded here should thus be a good estimate of drift, since here you can trust that subjects were actually looking at fixation spot on. 
+
+To do drift correction, we simply subtract the offsets recorded in the break from the x- and y- coordinates of the eye data of interest.
+
+```{r Drift correction}
+# Add columns with drift-corrected values
+groupData <- mutate(groupData,
+                    deviation.end.x.corr = deviation.end.x - drift.x,
+                    deviation.end.y.corr = deviation.end.y - drift.y)
+```
+
+If this does indeed work, then most trials should now have a smaller deviation.
+
+```{r Check correction}
+# Calculate percentage of trials with smaller deviations after drift correction
+groupData %>%
+  group_by(subject, stimulation) %>% # split per subject and session
+  summarize(
+    trials = n(),
+    smaller.drift.x = sum(abs(deviation.end.x.corr) < abs(deviation.end.x), na.rm = TRUE) / trials * 100,
+    smaller.drift.y = sum(abs(deviation.end.y.corr) < abs(deviation.end.y), na.rm = TRUE) / trials * 100
+  ) %>%
+  
+  # Plot
+  ggplot(aes(smaller.drift.x, smaller.drift.y)) +
+  facet_wrap(~stimulation) +
+  geom_hline(yintercept = 50, linetype = "dashed") + geom_vline(xintercept = 50, linetype = "dashed") +
+  geom_point(aes(color = subject)) +
+  coord_fixed(xlim = c(0,100), ylim = c(0,100)) +
+  #geom_text_repel(aes(label = subject, color = subject)) +
+  theme(legend.position = "none")
+```
+Seems that it doesn't really work at all, because for most subjects the errors are decreased on less than 50% of saccades! Of course, this is only a rough analysis, but this does match with SR Research's advice in the EyeLink manual, which states that drift correction may actually deteriorate the calibration maps.
