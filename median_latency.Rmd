@@ -16,9 +16,10 @@ R notebook for analyses of median saccade latency in the `sacc-tDCS` dataset. Pr
 
 ```{r setup}
 # Load some libraries
-library(tidyverse)
+library(tidyverse) # importing, transforming, and visualizing data frames
 library(ez) # ANOVA
 library(BayesFactor) # Bayesian statistics
+library(broom) # transform model output into a data frame
 library(knitr) # R markdown output (html, pdf, etc.)
 opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
 
@@ -266,6 +267,104 @@ latencyMedianBaseline <- latencyMedianLeg %>%
   mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
+### Baseline data
+
+Before we look at the change-from-baseline data, it would be good to check the baseline data itself.
+
+#### Baseline reliability
+
+Analyzing change-from-baseline only makes sense if the baseline data are not very noisy. Subtracting a noisy measure from the data will increase the noise in the data, and thereby [reduce power](http://datacolada.org/39). One way to assess this is to look at the correlation between the baseline blocks in both sessions. If there is a high correlation, the pro-saccade task produces comparable latencies each time it is performed, and thus the baseline data should on average not be very noisy.
+
+Let's compute the correlation between all baselines (i.e. for the factors DIRECTION and TYPE).
+
+```{r baseline correlations}
+baselineCorr <- latencyMedianLeg %>%
+  filter(leg == "baseline") %>% # keep only baseline data
+  group_by(direction,type) %>% # for each of these 4 pairs
+  spread(stimulation,latency) %>% # make 2 columns with baseline latencies of anodal and cathodal session
+  nest() %>% # create a separate data frame of all remaining columns. These data frames are stored in a list-column named "data"
+  mutate(stats = map(data, ~cor.test(formula = ~ anodal + cathodal, data =.))) %>% # run correlation test on baselines from each condition
+  mutate(tidy_model = map(stats, tidy)) %>% # force the four test outputs to also be data frames in a list column ("tidy_model")
+  unnest(tidy_model, .drop = TRUE)  # unpack the list-column with results, drop the list-column we used to organize the data
+```
+
+Now a scatter plot of the data, with the results of the test:
+
+```{r baseline scatterplots}
+latencyMedianLeg %>%
+  filter(leg == "baseline") %>%
+  spread(stimulation,latency) %>%
+  inner_join(., subjectData[ ,c("subject","session.order")], by = c("subject")) %>% # add column on session order from other data frame
+  ggplot(aes(anodal,cathodal)) +
+    facet_grid(type ~ direction) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+    geom_smooth(method = "lm") +
+    geom_point(aes(color=session.order)) +
+    xlim(80,220) + ylim(80,220) +
+    geom_text(data = baselineCorr, x = 100, y = 200, aes(label = paste("italic(r) == ", round(estimate,2))), parse = TRUE) +
+    labs(title = "Baseline in anodal and cathodal sessions", subtitle = "scatterplot of baseline latencies")
+```
+
+The correlations are quite high, at least high enough for the baseline subtraction to help power rather than hurt (r's > 0.5).
+
+There are a few outliers though: some subjects deviate quite a bit from the idealized line (dashed).
+
+When the data is split for session order, a clear pattern becomes apparent: latencies are generally faster in the 2nd session (for those who got cathodal first, are above the diagonal, meaning anodal < cathodal. The reverse pattern is visible for those who received anodal first). So in that sense there is a difference between two groups of subjects.
+
+#### Baseline differences
+
+If the prosaccade task is indeed reliable, there shouldn't be any significant differences at the group-level between the baseline blocks of both sessions. If there are, this may be problematic, because all the change-scores are expressed relative to the baseline. A significant difference between two conditions in later blocks could then be driven by the differences that already occur in the baseline.
+
+Let's plot the baseline scores in each session for each subject:
+
+```{r baseline linked stripchart}
+latencyMedianLeg %>%
+  filter(leg == "baseline") %>%
+  ggplot(aes(stimulation, latency)) +
+    facet_grid(type ~ direction) +
+    stat_summary(fun.y = mean, geom = "line", aes(group = 1), size = 1.5) +
+    geom_line(aes(group = subject, colour = subject), alpha = 0.5, position = position_dodge(width = 0.1)) +
+    labs(title = "Baseline in anodal and cathodal sessions", subtitle = "linked stripchart of baseline latencies")
+```
+
+Most lines appear fairly flat. However, there is quite some variability around the mean, and some subjects show quite a steep difference. There appears to be some sort of regression to the mean also: extreme scores in either session show a steeper slope than those scores that are less extreme.
+
+Let's look at the pairwise differences in more detail:
+
+```{r baseline difference stripchart}
+latencyMedianLeg %>%
+  filter(leg == "baseline") %>%
+  inner_join(., subjectData[ ,c("subject","session.order")], by = c("subject")) %>% # add column on session order from other data frame
+  group_by(subject,direction,type,session.order) %>%
+  summarise(latency.diff = latency[stimulation == "anodal"] - latency[stimulation == "cathodal"]) %>%
+  ggplot(aes(factor(0), latency.diff)) +
+    facet_grid(type ~ direction) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    stat_summary(fun.data = mean_cl_normal) +
+    stat_summary(fun.y = mean, aes(label=round(..y.., digits=2), x = 1.3), geom = "label", alpha = 0.5) +
+    geom_point(shape = 21, aes(colour = session.order), position = position_jitter(width=.1)) +
+    labs(title = "Baseline in anodal and cathodal sessions", subtitle = "anodal - cathodal")
+```
+
+The sequence effect we observed earlier is very clear when we split the data by session order again, particularly in the lateral condition (i.e. latencies are always faster in the 2nd session).
+
+Somewhat worryingly, the baseline differences are in the range of the tDCS effect size we expect, particularly in the center condition. That said, the differences do cluster around 0, there are really only a few subjects that fall far outside the boundary (one is really extreme). 
+
+The CIs appear to overlap with 0 though, so the differences shouldn't be significant. Let's test that:
+
+```{r t-tests of baseline difference}
+latencyMedianLeg %>%
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>% # for each of these 4 pairs
+  nest() %>% # create a separate data frame of all remaining columns. These data frames are stored in a list-column named "data"
+  mutate(stats = map(data, ~t.test(formula = latency~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
+  mutate(tidy_model = map(stats, tidy)) %>% # force the four test outputs to also be data frames in a list column ("tidy_model")
+  unnest(tidy_model, .drop = TRUE) %>% # unpack the list-column with results, drop the list-column we used to organize the data
+  kable(.)
+```
+
+Indeed, they are not, although the center conditions come close.
+
 ### Line plots per leg from baseline
 
 ```{r Line plot from baseline}
@@ -279,7 +378,7 @@ kanaiPlotBase <- ggplot(latencyMedianBaseline, aes(leg, latency, color = stimula
 kanaiPlotBase
 ```
 
-The biggest difference from baseline seems to be 4 ms max. Generally the differences between the stimulation conditions are even tinier, except for the center-left condition.
+Generally the differences between the stimulation conditions are small (< 4 ms). Except for the center-left condition, but this condition also had the largest baseline difference...
 
 ### Individual subjects
 

@@ -20,6 +20,7 @@ library(tidyverse) # importing, transforming, and visualizing data frames
 library(forcats) # manipulatin factors
 library(ez) # ANOVA
 library(BayesFactor) # Bayesian statistics
+library(broom) # transform model output into a data frame
 library(knitr) # R markdown output (html, pdf, etc.)
 opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
 
@@ -45,7 +46,7 @@ groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, 
 ))
 ```
 
-```{r Show data frame}
+```{r Show data frame, results = 'asis'}
 kable(head(groupData))
 ```
 
@@ -225,6 +226,70 @@ kanaiPlotSubsCathodal
 
 There are definitely some outliers, but mostly in terms of overall offset / baseline differences.
 
+#### Baseline reliability
+
+Scatterplot and correlation of baseline data in the two sessions:
+
+```{r baseline correlations - deviation}
+baselineCorrDev <- devData %>%
+  filter(leg == "baseline") %>% 
+  group_by(direction,type) %>% 
+  spread(stimulation,deviation.end) %>% 
+  nest() %>% 
+  mutate(stats = map(data, ~cor.test(formula = ~ anodal + cathodal, data =.))) %>% # run correlation test on baselines from each condition
+  mutate(tidy_model = map(stats, tidy)) %>% 
+  unnest(tidy_model, .drop = TRUE)
+```
+
+```{r baseline scatterplots - deviation}
+devData %>%
+  filter(leg == "baseline") %>%
+  spread(stimulation,deviation.end) %>%
+  inner_join(., subjectData[ ,c("subject","session.order")], by = c("subject")) %>% # add column on session order from other data frame
+  ggplot(aes(anodal,cathodal)) +
+    facet_grid(type ~ direction) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+    geom_smooth(method = "lm") +
+    geom_point(aes(color=session.order)) +
+    xlim(0,2) + ylim(0,2) +
+    geom_text(data = baselineCorrDev, x = 0.2, y = 1.5, aes(label = paste("italic(r) == ", round(estimate,2))), parse = TRUE) +
+    labs(title = "Baseline in anodal and cathodal sessions", subtitle = "scatterplot of baseline endpoint deviation")
+```
+
+The correlations are not as high as for the latency data, but still reasonable. The sequence effect we observed in the latency data is not so prominent, so apparently there's less of a practice effect in saccade enpdoint deviation.
+
+#### Baseline differences
+
+```{r baseline difference stripchart - deviation}
+devData %>%
+  filter(leg == "baseline") %>%
+  inner_join(., subjectData[ ,c("subject","session.order")], by = c("subject")) %>% # add column on session order from other data frame
+  group_by(subject,direction,type,session.order) %>%
+  summarise(deviation.end.diff = deviation.end[stimulation == "anodal"] - deviation.end[stimulation == "cathodal"]) %>%
+  ggplot(aes(factor(0), deviation.end.diff)) +
+    facet_grid(type ~ direction) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    stat_summary(fun.data = mean_cl_normal) +
+    stat_summary(fun.y = mean, aes(label=round(..y.., digits=2), x = 1.3), geom = "label", alpha = 0.5) +
+    geom_point(shape = 21, aes(colour = session.order), position = position_jitter(width=.1)) +
+    labs(title = "Baseline in anodal and cathodal sessions", subtitle = "anodal - cathodal")
+```
+
+The baseline differences are not so extreme, except for the center (left) condition: that seems quite large and consistent over subjects.
+
+```{r t-tests of baseline difference - deviation}
+devData %>%
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>% 
+  nest() %>% 
+  mutate(stats = map(data, ~t.test(formula = deviation.end~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
+  mutate(tidy_model = map(stats, tidy)) %>%
+  unnest(tidy_model, .drop = TRUE) %>% 
+  kable(.)
+```
+
+Indeed, in the center-left condition the baseline difference is significant, and it's at trend in the center-right condition.
+
 ### Baseline subtracted
 
 ```{r Line plot from baseline - deviation}
@@ -237,7 +302,9 @@ kanaiPlotDevBase <- ggplot(devDataBase, aes(leg, deviation.end, color = stimulat
 kanaiPlotDevBase
 ```
 
-This clearly shows that all the changes are quite tiny (less than 0.15 degrees of visual angle). There appears to be a clear difference in  between the anodal and cathodal change scores for center saccades (and maybe for left-lateral saccades). However, the earlier plots show what the difference between anodal and cathodal is actually maximal in the baseline. Thus it remains unclear whether the baseline differences are spurious and the effect is real, or whether the effect is driven by the baseline difference.
+This clearly shows that all the changes are quite tiny (less than 0.15 degrees of visual angle). There appears to be a clear difference in  between the anodal and cathodal change scores for center saccades (and maybe for left-lateral saccades). 
+
+However, we know that the difference between anodal and cathodal is actually maximal in the baseline. Thus it remains unclear whether the baseline differences are spurious and the effect is real, or whether the "effect" is driven by the baseline difference (i.e. something akin to regression to the mean).
 
 ## Statistics
 
@@ -471,6 +538,70 @@ kanaiPlotSubsCathodal
 ```
 
 This measure seems particularly variable across subjects and also subject to quite a few spikes that only show up in a few conditions.
+
+#### Baseline reliability
+
+Scatterplot and correlation of baseline data in the two sessions:
+
+```{r baseline correlations - variability}
+baselineCorrStd <- stdData %>%
+  filter(leg == "baseline") %>% 
+  group_by(direction,type) %>% 
+  spread(stimulation,std.deviation.x) %>% 
+  nest() %>% 
+  mutate(stats = map(data, ~cor.test(formula = ~ anodal + cathodal, data =.))) %>% # run correlation test on baselines from each condition
+  mutate(tidy_model = map(stats, tidy)) %>% 
+  unnest(tidy_model, .drop = TRUE)
+```
+
+```{r baseline scatterplots - variability}
+stdData %>%
+  filter(leg == "baseline") %>%
+  spread(stimulation,std.deviation.x) %>%
+  inner_join(., subjectData[ ,c("subject","session.order")], by = c("subject")) %>% # add column on session order from other data frame
+  ggplot(aes(anodal,cathodal)) +
+    facet_grid(type ~ direction) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+    geom_smooth(method = "lm") +
+    geom_point(aes(color=session.order)) +
+    xlim(0.2,1.6) + ylim(0.2,1.6) +
+    geom_text(data = baselineCorrStd, x = 0.5, y = 1.5, aes(label = paste("italic(r) == ", round(estimate,2))), parse = TRUE) +
+    labs(title = "Baseline in anodal and cathodal sessions", subtitle = "scatterplot of baseline endpoint variability")
+```
+
+The correlations for this measure are quite low, especially for the center conditions. Apparently the standard deviation of saccade endpoints is not so reliable.
+
+#### Baseline differences
+
+```{r baseline difference stripchart - variability}
+stdData %>%
+  filter(leg == "baseline") %>%
+  inner_join(., subjectData[ ,c("subject","session.order")], by = c("subject")) %>% # add column on session order from other data frame
+  group_by(subject,direction,type,session.order) %>%
+  summarise(std.deviation.x.diff = std.deviation.x[stimulation == "anodal"] - std.deviation.x[stimulation == "cathodal"]) %>%
+  ggplot(aes(factor(0), std.deviation.x.diff)) +
+    facet_grid(type ~ direction) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    stat_summary(fun.data = mean_cl_normal) +
+    stat_summary(fun.y = mean, aes(label=round(..y.., digits=2), x = 1.3), geom = "label", alpha = 0.5) +
+    geom_point(shape = 21, aes(colour = session.order), position = position_jitter(width=.1)) +
+    labs(title = "Baseline in anodal and cathodal sessions", subtitle = "anodal - cathodal")
+```
+
+The average baseline differences are small, but the spread is quite large.
+
+```{r t-tests of baseline difference - variability}
+stdData %>%
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>% 
+  nest() %>% 
+  mutate(stats = map(data, ~t.test(formula = std.deviation.x~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
+  mutate(tidy_model = map(stats, tidy)) %>%
+  unnest(tidy_model, .drop = TRUE) %>% 
+  kable(.)
+```
+
+On average none of the baselines differ significantly from each other.
 
 ### Baseline subtracted
 
