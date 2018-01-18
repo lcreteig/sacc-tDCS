@@ -389,6 +389,22 @@ devDataBase %>%
 
 The accuracy in the cathodal session improves from baseline for most subjects; anodal stays the same or slightly worsens.
 
+Let's do some follow-up tests to see whether the anodal or cathodal change scores are significantly different from 0 on their own.
+
+Frequentist one-sample t-tests:
+
+```{r Classical follow-up test - deviation}
+devDataBase %>%
+  filter(type == "center") %>% # keep only center saccades
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation.end = mean(deviation.end)) %>% # average over all other variables (df is now still grouped per stimulation)
+  summarise_if(is.numeric, funs(list(tidy(t.test(.))))) %>%  # run one-sample t-test for each stimulation condition, return tidy data frames
+  unnest() %>% # unpack the list-column with data frame for each test
+  kable(.)
+```
+
+The cathodal effect is highly signifcant, but the anodal is not.
+
 ###### Interaction: Leg by direction
 
 ```{r Kanai Interaction leg by direction}
@@ -457,6 +473,21 @@ inclusionBF(bfKanaiCenter, models = "matched")
 ```
 
 Overwhelming evidence for inclusion of a main effect of stimulation, which is in accord with the highly significant p-value.
+
+Bayesian one-sample t-tests:
+
+```{r Bayesian follow-up test - deviation}
+devDataBase %>% 
+  filter(type == "center") %>% # keep only center saccades
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation.end = mean(deviation.end)) %>% # average over all other variables
+  spread(stimulation,deviation.end) %>% # make separate columns with test data
+  summarise_if(is.numeric, funs(extractBF(ttestBF(.), onlybf = TRUE))) %>% # run Bayesian t-test on each column, keeping only the BF
+  gather(stimulation,BF,anodal,cathodal) %>% # make row for each stimulation condition
+  kable(.)
+```
+
+The cathodal effect on its ownhas a BF~10~ > 10, but the anodal effect does not.
 
 # Saccade end point variability
 
@@ -745,3 +776,32 @@ inclusionBF(bfKanaiStdCenter, models = "matched")
 ```
 
 Again, especially considering the non-significant p-value, the support is quite strong.
+
+Let's do some follow-up tests to see whether the anodal or cathodal change scores are significantly different from 0 on their own.
+
+Bayesian one-sample t-tests:
+
+```{r Bayesian follow-up test - variability}
+stdDataBase %>%
+  filter(type == "center") %>% # keep only center saccades
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation.end = mean(std.deviation.x)) %>% # average over all other variables
+  spread(stimulation,deviation.end) %>% # make separate columns with test data
+  summarise_if(is.numeric, funs(extractBF(ttestBF(.), onlybf = TRUE))) %>% # run Bayesian t-test on each column, keeping only the BF
+  gather(stimulation,BF,anodal,cathodal) %>% # make row for each stimulation condition
+  kable(.)
+```
+
+Frequentist one-sample t-tests:
+
+```{r Classical follow-up test - variability}
+stdDataBase %>%
+  filter(type == "center") %>% # keep only center saccades
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation.end = mean(std.deviation.x)) %>% # average over all other variables (df is now still grouped per stimulation)
+  summarise_if(is.numeric, funs(list(tidy(t.test(.))))) %>%  # run one-sample t-test for each stimulation condition, return tidy data frames
+  unnest() %>% # unpack the list-column with data frame for each test
+  kable(.) 
+```
+
+So neither effect holds up on their own.

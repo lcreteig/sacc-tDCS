@@ -804,3 +804,32 @@ kable(inclusionBF(bfKanaiCenterNoS01, models = "matched"))
 ```
 
 This completely abolishes the strong support for Stimulation, and greatly enhances the support for Direction, bringing the Bayesian and the classical ANOVAs more in line.
+
+Still, let's do some follow-up tests with all of the data (i.e. including this subject) to see whether the anodal or cathodal change scores are significantly different from 0 on their own.
+
+Bayesian one-sample t-tests:
+
+```{r Bayesian follow-up test, results='asis'}
+latencyMedianBaseline %>%
+  filter(type == "center") %>% # keep only center saccades
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation.end = mean(latency)) %>% # average over all other variables
+  spread(stimulation,deviation.end) %>% # make separate columns with test data
+  summarise_if(is.numeric, funs(extractBF(ttestBF(.), onlybf = TRUE))) %>% # run Bayesian t-test on each column, keeping only the BF
+  gather(stimulation,BF,anodal,cathodal) %>% # make row for each stimulation condition
+  kable(.)
+```
+
+Frequentist one-sample t-tests:
+
+```{r Classical follow-up test, results='asis'}
+latencyMedianBaseline %>%
+  filter(type == "center") %>% # keep only center saccades
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation.end = mean(latency)) %>% # average over all other variables (df is now still grouped per stimulation)
+  summarise_if(is.numeric, funs(list(tidy(t.test(.))))) %>%  # run one-sample t-test for each stimulation condition, return tidy data frames
+  unnest() %>% # unpack the list-column with data frame for each test
+  kable(.)
+```
+
+So neither are actually significant or have a BF with evidence for the alternative.
