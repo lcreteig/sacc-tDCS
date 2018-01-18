@@ -223,7 +223,7 @@ trialCount <- groupData %>%
 trialCount
 ```
 
-__Candidates for rejection__
+### List candidates for rejection
 
 S28 should definitely be rejected, as certain conditions have only 2 useable saccades! S16 and S22 (together with S28) also have quite few saccade counts: less than 50 in some conditions. This is mostly because there are many missing saccades (`none`). Inspection of the data shows that this is not due to poor data quality, but because these subjects move their eyes too soon (i.e. before the stimulus even). That also explains why these low saccade counts occur almost exclusively in the _center_ saccade condition (as there the location of the target was predictable).
 
@@ -232,6 +232,29 @@ subs2exclude <- c("S28","S16","S22","S21","S25")
 ```
 
 S21 and S25 should also be excluded. Their anodal and cathodal sessions were separated by less than 48 hours, which is in violation of the protocol.
+
+### Saccade counts for included participants
+
+For all participants that will be included in the data analysis, compute descriptives of how many valid saccades remain for each type per cell (i.e. each stimulation, direction and leg combination used for statistical analysis)
+
+```{r valid saccades per cell}
+trialCount %>%
+  filter(!(subject %in% subs2exclude)) %>% # for all included participants
+  group_by(type) %>%
+  summarise(average = mean(saccades), standard.deviation = sd(saccades), minimum = min(saccades), maximum = max(saccades)) %>%
+  kable(.)
+```
+
+Let's also look at proportion of saccades for each outlier type:
+
+```{r proportion of outlier types}
+n_total <- nrow(filter(groupData, !(subject %in% subs2exclude)))  # total amount of saccades across all included sessions/subjects
+outlierCount %>%
+  filter(!(subject %in% subs2exclude), !(outlier %in% c("non.outlier", "none"))) %>%
+  group_by(outlier) %>%
+  summarise(percentage = sum(outlier_count) / n_total *100)
+```
+
 
 # Outliers in median latency
 
