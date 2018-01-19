@@ -18,6 +18,7 @@ R notebook for inspection of eye tracking data in the `sacc-tDCS` dataset. Previ
 
 ```{r setup}
 # Load some libraries
+library(here) # file paths
 library(tidyverse) # importing, transforming, and visualizing data frames
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
@@ -32,7 +33,7 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ```{r Load the data frame}
 # Load the data frame
-dataFile <- file.path("data", "sacc-tDCS_data.csv")
+dataFile <- here("data", "sacc-tDCS_data.csv")
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),

@@ -17,6 +17,7 @@ R notebook for analysis of frontal eye field coordinates in the `sacc-tDCS` data
 
 ```{r setup}
 # Load some libraries
+library(here) # file paths
 library(tidyverse) # importing, transforming, and visualizing data frames
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
@@ -36,7 +37,7 @@ subs2exclude <- c("S21","S25","S16","S22","S28")
 These were determined for each subject's scan; see `neuronav_notes.md` for further info.
 
 ```{r Show native coords, results='asis'}
-dataFile <- file.path("data", "FEF_coords_native.csv")
+dataFile <- here("data", "FEF_coords_native.csv")
 nativeCoords <- read_csv2(dataFile)
 nativeCoords %>% 
   select(-folder, -scan) %>% # drop columns with folder and scan names
@@ -74,7 +75,7 @@ bash src/func/mni_coords.sh data/FEF_coords_native.csv data/FEF_coords_MNI.csv a
 Load in the MNI coordinates that were written to a `.csv` file by the shell script.
 
 ```{r show MNI coords, results='asis'}
-dataFile <- file.path("data", "FEF_coords_MNI.csv")
+dataFile <- here("data", "FEF_coords_MNI.csv")
 mniCoords <- read_delim(dataFile, ";")
 mniCoords <- filter(mniCoords, !(subject %in% subs2exclude)) # exclude subjects
 mniCoords %>%
@@ -99,7 +100,7 @@ mniCoords %>%
 Write a new `.csv' file with MNI coordinates, without the coordinates from the excluded subjects.
 
 ```{r Write new csv without excluded subjects}
-exclMNI <- file.path("data", "FEF_coords_MNI_excl.csv")
+exclMNI <- here("data", "FEF_coords_MNI_excl.csv")
 write_delim(mniCoords, exclMNI, delim = ";")
 Sys.setenv(exclMNI = exclMNI) # port variable with csv file name to bash
 ```

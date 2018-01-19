@@ -18,6 +18,7 @@ R notebook for analyses of median saccade latency in the `sacc-tDCS` dataset. Pr
 
 ```{r setup}
 # Load some libraries
+library(here) # file paths
 library(tidyverse) # importing, transforming, and visualizing data frames
 library(ez) # ANOVA
 library(BayesFactor) # Bayesian statistics
@@ -26,7 +27,7 @@ library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
 knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
 
-source("src/lib/InclusionBF.R")
+source(here("src", "lib", "InclusionBF.R"))
 
 sessionInfo()
 ```
@@ -39,7 +40,7 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ```{r Load the data frame}
 # Load the data frame
-dataFile <- file.path("data", "sacc-tDCS_data.csv")
+dataFile <- here("data", "sacc-tDCS_data.csv")
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
@@ -71,7 +72,7 @@ kable(head(groupData))
 
 ```{r Load subject info data}
 # Load eye tracking data into data frame
-dataFile <- file.path("data", "subject_info.csv")
+dataFile <- here("data", "subject_info.csv")
 subjectData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
   session.order = col_factor(c("first.anodal", "first.cathodal"))
 ))

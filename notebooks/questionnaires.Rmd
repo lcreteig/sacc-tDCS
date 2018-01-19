@@ -15,6 +15,7 @@ R notebook for analysis of questionnaires in the `sacc-tDCS` dataset.
 
 ```{r setup}
 # Load some libraries
+library(here) # file paths
 library(tidyverse) # importing, transforming, and visualizing data frames
 library(ez) # ANOVA
 library(knitr) # R markdown output (html, pdf, etc.)
@@ -37,7 +38,7 @@ As most participants were native Dutch speakers, we also used a [Dutch language 
 
 ```{r Load PANAS data}
 # Load the data frame
-dataFile <- file.path("data", "PANAS.csv")
+dataFile <- here("data", "PANAS.csv")
 panasData <- read_csv2(dataFile, col_types = cols( # read in data; make columns into factors
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal")),
@@ -160,7 +161,7 @@ After each session, subjects also completed a custom questionnaire probing tDCS 
 
 ```{r Load tDCS sensations data}
 # Load the data frame
-dataFile <- file.path("data", "tdcs_sensations.csv")
+dataFile <- here("data", "tdcs_sensations.csv")
 sensData <- read_csv2(dataFile, col_types = cols(
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal"))
