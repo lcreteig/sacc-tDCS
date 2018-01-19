@@ -4,9 +4,9 @@ author: Leon Reteig
 subtitle: Data inspection
 output:
   html_notebook:
-  highlight: pygments
-toc: true
-toc_float: true
+    highlight: pygments
+    toc: true
+    toc_float: true
 ---
   
 R notebook for inspection of eye tracking data in the `sacc-tDCS` dataset. Previous processing:

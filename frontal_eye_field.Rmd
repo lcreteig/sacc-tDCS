@@ -6,6 +6,8 @@ subtitle: Frontal Eye Field coordinates
 output: 
   html_notebook: 
     highlight: pygments
+    toc: true
+    toc_float: true
 ---
 
 R notebook for analysis of frontal eye field coordinates in the `sacc-tDCS` dataset.

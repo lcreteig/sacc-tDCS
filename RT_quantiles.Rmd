@@ -5,8 +5,9 @@ author: "Leon Reteig"
 subtitle: Saccade latency quantile analysis
 output:
   html_notebook:
-    toc: yes
-    toc_float: yes
+    highlight: pygments
+    toc: true
+    toc_float: true
 ---
 
 # Setup
