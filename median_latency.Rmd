@@ -1,8 +1,10 @@
 ---
-title: "Transcranial direct current stimulation of the right frontal eye field in a prosaccade task"
-author: Leon Reteig
-subtitle: Median latency analysis
+title: "sacc-tDCS: Median saccade latency"
+author: "Leon Reteig"
 output:
+  github_document:
+    toc: true
+    toc_depth: 2
   html_notebook:
     highlight: pygments
     toc: true

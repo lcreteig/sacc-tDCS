@@ -1,8 +1,11 @@
 ---
-title: "Transcranial direct current stimulation of the right frontal eye field in a prosaccade task"
-author: Leon Reteig
-subtitle: Saccade accuracy
+title: "sacc-tDCS: Saccade accuracy"
+author: "Leon Reteig"
+subtitle:
 output:
+  github_document:
+    toc: true
+    toc_depth: 3
   html_notebook:
     highlight: pygments
     toc: true

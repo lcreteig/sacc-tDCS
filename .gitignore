@@ -19,6 +19,7 @@ Thumbs.db
 *.xlsx
 *.docx
 *.pdf
+*.nb.html
 
 # Binary data
 *.edf
