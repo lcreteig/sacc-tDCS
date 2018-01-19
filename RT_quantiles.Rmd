@@ -19,7 +19,9 @@ R notebook for analysis of saccade latency quantiles in the `sacc-tDCS` dataset.
 library(tidyverse) # ggplot2, tibble, tidyr, readr, purrr, and dplyr
 library(rogme) # robust graphical methods (quantile estimation, shift function)
 library(knitr) # R markdown output (html, pdf, etc.)
-opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
+# set default output and figure options
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+
 sessionInfo()
 ```
 

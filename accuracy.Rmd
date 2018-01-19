@@ -22,7 +22,8 @@ library(ez) # ANOVA
 library(BayesFactor) # Bayesian statistics
 library(broom) # transform model output into a data frame
 library(knitr) # R markdown output (html, pdf, etc.)
-opts_chunk$set(message = FALSE, warning = FALSE) # Don't show warnings and messages in HTML output
+# set default output and figure options
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
 
 source("src/lib/InclusionBF.R")
 

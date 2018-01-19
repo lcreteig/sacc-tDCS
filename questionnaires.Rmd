@@ -4,22 +4,21 @@ author: Leon Reteig
 subtitle: Questionnaires
 output:
   html_notebook:
+    highlight: pygments
     toc: true
     toc_float: true
 ---
 
-```{r include=FALSE}
-# Don't show warnings and messages in HTML output
-knitr::opts_chunk$set(message = FALSE, warning = FALSE)
-```
-
 R notebook for analysis of questionnaires in the `sacc-tDCS` dataset.
 
-```{r Load some libraries}
+```{r setup}
 # Load some libraries
 library(tidyverse) # importing, transforming, and visualizing data frames
 library(ez) # ANOVA
 library(knitr) # R markdown output (html, pdf, etc.)
+# set default output and figure options
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+
 sessionInfo()
 ```
 
