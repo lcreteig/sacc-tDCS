@@ -22,7 +22,7 @@ library(tidyverse) # ggplot2, tibble, tidyr, readr, purrr, and dplyr
 library(rogme) # robust graphical methods (quantile estimation, shift function)
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
 sessionInfo()
 ```
@@ -208,7 +208,7 @@ Let's plot the shift functions for each subject for the left-lateral condition (
 
 ### Baseline
 
-```{r Shift lateral left baseline, fig.height=6}
+```{r Shift lateral left baseline, fig.width=10}
 ggplot(filter(qStats, leg == "baseline", type  == "lateral", direction == "left"), aes(anodal, difference)) +
   facet_wrap(~subject, ncol = 5, scales = "free") +
   geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
@@ -224,7 +224,7 @@ ggplot(filter(qStats, leg == "baseline", type  == "lateral", direction == "left"
 
 ### During tDCS
 
-```{r Shift lateral left tDCS, fig.height=6}
+```{r Shift lateral left tDCS, fig.width=10}
 ggplot(filter(qStats, leg == "tDCS", type  == "lateral", direction == "left"), aes(anodal, difference)) +
   facet_wrap(~subject, ncol = 5, scales = "free") +
   geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
@@ -240,7 +240,7 @@ ggplot(filter(qStats, leg == "tDCS", type  == "lateral", direction == "left"), a
 
 ### After tDCS (0-15 min)
 
-```{r Shift lateral left post-1, fig.height=6}
+```{r Shift lateral left post-1, fig.width=10}
 ggplot(filter(qStats, leg == "post-1", type  == "lateral", direction == "left"), aes(anodal, difference)) +
   facet_wrap(~subject, ncol = 5, scales = "free") +
   geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
@@ -256,7 +256,7 @@ ggplot(filter(qStats, leg == "post-1", type  == "lateral", direction == "left"),
 
 ### After tDCS (15-30 min)
 
-```{r Shift lateral left post-2, fig.height=6}
+```{r Shift lateral left post-2, fig.width=10}
 ggplot(filter(qStats, leg == "post-2", type  == "lateral", direction == "left"), aes(anodal, difference)) +
   facet_wrap(~subject, ncol = 5, scales = "free") +
   geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +

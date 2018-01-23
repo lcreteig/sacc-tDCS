@@ -19,6 +19,12 @@ R notebook for inspection of eye tracking data in the `sacc-tDCS` dataset. Previ
 
 ``` r
 # Load some libraries
+library(here) # file paths
+```
+
+    ## here() starts at /Volumes/research$/reteig/sacc-tDCS
+
+``` r
 library(tidyverse) # importing, transforming, and visualizing data frames
 ```
 
@@ -36,8 +42,9 @@ library(tidyverse) # importing, transforming, and visualizing data frames
 
 ``` r
 library(knitr) # R markdown output (html, pdf, etc.)
+library(formatR)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, tidy.opts=list(width.cutoff=80), tidy=TRUE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
 sessionInfo()
 ```
@@ -57,8 +64,9 @@ sessionInfo()
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
     ## 
     ## other attached packages:
-    ## [1] knitr_1.15.1    dplyr_0.5.0     purrr_0.2.2     readr_1.1.0    
-    ## [5] tidyr_0.6.1     tibble_1.3.0    ggplot2_2.2.1   tidyverse_1.1.1
+    ##  [1] formatR_1.5     knitr_1.15.1    dplyr_0.5.0     purrr_0.2.2    
+    ##  [5] readr_1.1.0     tidyr_0.6.1     tibble_1.3.0    ggplot2_2.2.1  
+    ##  [9] tidyverse_1.1.1 here_0.1       
     ## 
     ## loaded via a namespace (and not attached):
     ##  [1] Rcpp_0.12.10     cellranger_1.1.0 compiler_3.4.0   plyr_1.8.4      
@@ -80,13 +88,10 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ``` r
 # Load the data frame
-dataFile <- file.path("data", "sacc-tDCS_data.csv")
-groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
-  stimulation = col_factor(c("anodal","cathodal")),
-  leg = col_factor(c("pre","tDCS","post")),
-  type = col_factor(c("lateral","center")),
-  direction = col_factor(c("left","right")) 
-))
+dataFile <- here("data", "sacc-tDCS_data.csv")
+groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(stimulation = col_factor(c("anodal", 
+    "cathodal")), leg = col_factor(c("pre", "tDCS", "post")), type = col_factor(c("lateral", 
+    "center")), direction = col_factor(c("left", "right"))))
 ```
 
 ``` r
@@ -125,14 +130,13 @@ Inspect distributions
 ### Histograms for each subject
 
 ``` r
-histType <- ggplot(groupData, aes(latency, fill = type)) +
-  facet_wrap(~subject, ncol = 5, scales = "free_y") +
-  geom_histogram(binwidth = 5, color = "grey50", size = .2) +
-  xlim(-50,300)
+histType <- ggplot(groupData, aes(latency, fill = type)) + facet_wrap(~subject, ncol = 5, 
+    scales = "free_y") + geom_histogram(binwidth = 5, color = "grey50", size = 0.2) + 
+    xlim(-50, 300)
 histType
 ```
 
-<img src="inspection_files/figure-markdown_github/Histogram per subject-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="inspection_files/figure-markdown_github/Histogram per subject-1.png" width="75%" style="display: block; margin: auto;" />
 
 **Stray observations:**
 
@@ -145,29 +149,23 @@ histType
 ### Stimulation effects across subjects
 
 ``` r
-dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) +
-  facet_grid(type ~ direction) +
-  geom_density() +
-  xlim(0, 250) +
-  scale_color_brewer(palette = "Set1")
+dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) + facet_grid(type ~ 
+    direction) + geom_density() + xlim(0, 250) + scale_color_brewer(palette = "Set1")
 dens
 ```
 
-<img src="inspection_files/figure-markdown_github/Density: stimulation across subjects-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="inspection_files/figure-markdown_github/Density: stimulation across subjects-1.png" width="75%" style="display: block; margin: auto;" />
 
 ### Session effects in each subject
 
 ``` r
-denstDCS <- ggplot(groupData[groupData$leg == 'pre' & groupData$type == "lateral", ], aes(latency, color = stimulation)) +
-  facet_wrap(~subject, ncol = 5, scales ="free_y") +
-  geom_density() +
-  xlim(0, 250) +
-  scale_color_brewer(palette = "Set1") +
-  ggtitle('Lateral saccades, baseline block')
+denstDCS <- ggplot(groupData[groupData$leg == "pre" & groupData$type == "lateral", 
+    ], aes(latency, color = stimulation)) + facet_wrap(~subject, ncol = 5, scales = "free_y") + 
+    geom_density() + xlim(0, 250) + scale_color_brewer(palette = "Set1") + ggtitle("Lateral saccades, baseline block")
 denstDCS
 ```
 
-<img src="inspection_files/figure-markdown_github/Density: anodal vs. cathodal baseline per subject-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="inspection_files/figure-markdown_github/Density: anodal vs. cathodal baseline per subject-1.png" width="75%" style="display: block; margin: auto;" />
 
 For most subjects, the latency distributions in both sessions are reasonably similar. Note that this is the baseline block, so we also wouldn't expect any differences. In that light, it is a little worrisome that for some subjects the distributions differ markedly (S01, S02, S09, S12, S17, S21, S26, S29, S32).
 
@@ -224,14 +222,13 @@ outlierPlotTrials <- ggplot(groupData[!(groupData$outlier %in% c("none", "non.ou
 outlierPlotTrials
 ```
 
-<img src="inspection_files/figure-markdown_github/Plot outlier trials per subject-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="inspection_files/figure-markdown_github/Plot outlier trials per subject-1.png" width="75%" style="display: block; margin: auto;" />
 
 ### Tally outlier types
 
 ``` r
-outlierCount <- groupData %>%
-  group_by(subject,stimulation,leg,direction,type,outlier) %>%
-  summarize(outlier_count = n()) # for each condition and subject, count how many (non)outliers there are
+outlierCount <- groupData %>% group_by(subject, stimulation, leg, direction, type, 
+    outlier) %>% summarize(outlier_count = n())  # for each condition and subject, count how many (non)outliers there are
 ```
 
 ``` r
@@ -281,16 +278,15 @@ kable(outlierTable, caption = "Number of outlier saccades per subject")
 ### Plot outlier counts per subject and type
 
 ``` r
-max_n <- nrow(filter(groupData, subject == "S01", type == "center")) # max amount of saccades in experiment
+max_n <- nrow(filter(groupData, subject == "S01", type == "center"))  # max amount of saccades in experiment
 
-ggplot(filter(outlierCount, outlier != "non.outlier"), aes(subject, outlier_count, fill = outlier)) +
-  geom_col() +
-  scale_y_continuous("number of saccades", limits = c(0,max_n), sec.axis = sec_axis(~./max_n*100, name = "percent of all saccades")) +
-  coord_flip() +
-  facet_wrap(~type)
+ggplot(filter(outlierCount, outlier != "non.outlier"), aes(subject, outlier_count, 
+    fill = outlier)) + geom_col() + scale_y_continuous("number of saccades", limits = c(0, 
+    max_n), sec.axis = sec_axis(~./max_n * 100, name = "percent of all saccades")) + 
+    coord_flip() + facet_wrap(~type)
 ```
 
-<img src="inspection_files/figure-markdown_github/Plot outlier counts per subject and type-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="inspection_files/figure-markdown_github/Plot outlier counts per subject and type-1.png" width="75%" style="display: block; margin: auto;" />
 
 **Stray observations:**
 
@@ -327,32 +323,24 @@ trialCount <- groupData %>%
   group_by(subject,stimulation,leg,direction,type) %>%
   summarise(saccades = n()) %>% # count how many there are per subject per condition
   arrange(saccades) # sort ascending
-trialCount
+kable(head(trialCount))
 ```
 
-    ## Source: local data frame [992 x 6]
-    ## Groups: subject, stimulation, leg, direction [496]
-    ## 
-    ##    subject stimulation    leg direction   type saccades
-    ##      <chr>      <fctr> <fctr>    <fctr> <fctr>    <int>
-    ## 1      S28      anodal post.1     right center        2
-    ## 2      S28      anodal post.2     right center        2
-    ## 3      S28    cathodal post.2     right center        3
-    ## 4      S28      anodal post.1      left center        5
-    ## 5      S28      anodal post.2      left center        6
-    ## 6      S28    cathodal post.1     right center        6
-    ## 7      S28      anodal   tDCS     right center       10
-    ## 8      S28      anodal   tDCS      left center       11
-    ## 9      S28    cathodal post.2      left center       12
-    ## 10     S28      anodal    pre     right center       13
-    ## # ... with 982 more rows
+| subject | stimulation | leg    | direction | type   |  saccades|
+|:--------|:------------|:-------|:----------|:-------|---------:|
+| S28     | anodal      | post.1 | right     | center |         2|
+| S28     | anodal      | post.2 | right     | center |         2|
+| S28     | cathodal    | post.2 | right     | center |         3|
+| S28     | anodal      | post.1 | left      | center |         5|
+| S28     | anodal      | post.2 | left      | center |         6|
+| S28     | cathodal    | post.1 | right     | center |         6|
 
 ### List candidates for rejection
 
 S28 should definitely be rejected, as certain conditions have only 2 useable saccades! S16 and S22 (together with S28) also have quite few saccade counts: less than 50 in some conditions. This is mostly because there are many missing saccades (`none`). Inspection of the data shows that this is not due to poor data quality, but because these subjects move their eyes too soon (i.e. before the stimulus even). That also explains why these low saccade counts occur almost exclusively in the *center* saccade condition (as there the location of the target was predictable).
 
 ``` r
-subs2exclude <- c("S28","S16","S22","S21","S25") 
+subs2exclude <- c("S28", "S16", "S22", "S21", "S25")
 ```
 
 S21 and S25 should also be excluded. Their anodal and cathodal sessions were separated by less than 48 hours, which is in violation of the protocol.
@@ -378,19 +366,17 @@ Let's also look at proportion of saccades for each outlier type:
 
 ``` r
 n_total <- nrow(filter(groupData, !(subject %in% subs2exclude)))  # total amount of saccades across all included sessions/subjects
-outlierCount %>%
-  filter(!(subject %in% subs2exclude), !(outlier %in% c("non.outlier", "none"))) %>%
-  group_by(outlier) %>%
-  summarise(percentage = sum(outlier_count) / n_total *100)
+outlierCount %>% filter(!(subject %in% subs2exclude), !(outlier %in% c("non.outlier", 
+    "none"))) %>% group_by(outlier) %>% summarise(percentage = sum(outlier_count)/n_total * 
+    100) %>% kable(.)
 ```
 
-    ## # A tibble: 4 x 2
-    ##    outlier percentage
-    ##      <chr>      <dbl>
-    ## 1     fast  1.9958600
-    ## 2 fixation  2.5848024
-    ## 3  saccade  0.1555823
-    ## 4     slow  0.1161859
+| outlier  |  percentage|
+|:---------|-----------:|
+| fast     |   1.9958600|
+| fixation |   2.5848024|
+| saccade  |   0.1555823|
+| slow     |   0.1161859|
 
 Outliers in median latency
 ==========================
@@ -405,25 +391,17 @@ outliersPerCondition <- groupData %>%
   group_by(stimulation,leg,type,direction) %>%
   mutate(mad.median.rule = (abs(latency - median(latency)) / mad(latency))) %>% # deviation from the median, standardized by the MAD
   filter(mad.median.rule > 2.24) # MAD-median rule
-outliersPerCondition
+kable(head(outliersPerCondition))
 ```
 
-    ## Source: local data frame [81 x 7]
-    ## Groups: stimulation, leg, type, direction [24]
-    ## 
-    ##    subject stimulation    leg    type direction latency mad.median.rule
-    ##      <chr>      <fctr> <fctr>  <fctr>    <fctr>   <dbl>           <dbl>
-    ## 1      S01      anodal    pre lateral      left   219.5        4.890058
-    ## 2      S01      anodal    pre lateral     right   195.0        2.810378
-    ## 3      S01      anodal    pre  center      left   214.0        7.194568
-    ## 4      S01      anodal    pre  center     right   211.0        3.943177
-    ## 5      S01      anodal   tDCS lateral      left   210.5        4.143300
-    ## 6      S01      anodal   tDCS lateral     right   192.0        3.035208
-    ## 7      S01      anodal   tDCS  center      left   187.0        6.070417
-    ## 8      S01      anodal   tDCS  center     right   205.0        5.246039
-    ## 9      S01      anodal   post lateral      left   197.0        3.065867
-    ## 10     S01      anodal   post lateral     right   193.0        3.867080
-    ## # ... with 71 more rows
+| subject | stimulation | leg  | type    | direction |  latency|  mad.median.rule|
+|:--------|:------------|:-----|:--------|:----------|--------:|----------------:|
+| S01     | anodal      | pre  | lateral | left      |    219.5|         4.890058|
+| S01     | anodal      | pre  | lateral | right     |    195.0|         2.810378|
+| S01     | anodal      | pre  | center  | left      |    214.0|         7.194568|
+| S01     | anodal      | pre  | center  | right     |    211.0|         3.943177|
+| S01     | anodal      | tDCS | lateral | left      |    210.5|         4.143300|
+| S01     | anodal      | tDCS | lateral | right     |    192.0|         3.035208|
 
 These are all the subject-condition combinations for which the MAD-median rule is violated. If we were to reject subjects with one more more violation, we would have to remove 11 subjects.
 
@@ -440,9 +418,8 @@ To do drift correction, we simply subtract the offsets recorded in the break fro
 
 ``` r
 # Add columns with drift-corrected values
-groupData <- mutate(groupData,
-                    deviation.end.x.corr = deviation.end.x - drift.x,
-                    deviation.end.y.corr = deviation.end.y - drift.y)
+groupData <- mutate(groupData, deviation.end.x.corr = deviation.end.x - drift.x, 
+    deviation.end.y.corr = deviation.end.y - drift.y)
 ```
 
 If this does indeed work, then most trials should now have a smaller deviation.
@@ -467,4 +444,4 @@ groupData %>%
   theme(legend.position = "none")
 ```
 
-<img src="inspection_files/figure-markdown_github/Check correction-1.png" width="70%" style="display: block; margin: auto;" /> Seems that it doesn't really work at all, because for most subjects the errors are decreased on less than 50% of saccades! Of course, this is only a rough analysis, but this does match with SR Research's advice in the EyeLink manual, which states that drift correction may actually deteriorate the calibration maps.
+<img src="inspection_files/figure-markdown_github/Check correction-1.png" width="75%" style="display: block; margin: auto;" /> Seems that it doesn't really work at all, because for most subjects the errors are decreased on less than 50% of saccades! Of course, this is only a rough analysis, but this does match with SR Research's advice in the EyeLink manual, which states that drift correction may actually deteriorate the calibration maps.

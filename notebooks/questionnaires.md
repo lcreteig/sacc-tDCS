@@ -16,6 +16,12 @@ R notebook for analysis of questionnaires in the `sacc-tDCS` dataset.
 
 ``` r
 # Load some libraries
+library(here) # file paths
+```
+
+    ## here() starts at /Volumes/research$/reteig/sacc-tDCS
+
+``` r
 library(tidyverse) # importing, transforming, and visualizing data frames
 ```
 
@@ -35,7 +41,7 @@ library(tidyverse) # importing, transforming, and visualizing data frames
 library(ez) # ANOVA
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
 sessionInfo()
 ```
@@ -55,9 +61,9 @@ sessionInfo()
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
     ## 
     ## other attached packages:
-    ## [1] knitr_1.15.1    ez_4.4-0        dplyr_0.5.0     purrr_0.2.2    
-    ## [5] readr_1.1.0     tidyr_0.6.1     tibble_1.3.0    ggplot2_2.2.1  
-    ## [9] tidyverse_1.1.1
+    ##  [1] knitr_1.15.1    ez_4.4-0        dplyr_0.5.0     purrr_0.2.2    
+    ##  [5] readr_1.1.0     tidyr_0.6.1     tibble_1.3.0    ggplot2_2.2.1  
+    ##  [9] tidyverse_1.1.1 here_0.1       
     ## 
     ## loaded via a namespace (and not attached):
     ##  [1] reshape2_1.4.2     splines_3.4.0      haven_1.0.0       
@@ -95,31 +101,23 @@ As most participants were native Dutch speakers, we also used a [Dutch language 
 
 ``` r
 # Load the data frame
-dataFile <- file.path("data", "PANAS.csv")
+dataFile <- here("data", "PANAS.csv")
 panasData <- read_csv2(dataFile, col_types = cols( # read in data; make columns into factors
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal")),
   time = col_factor(c("pre","post"))
 ))
-head(panasData) # show data frame
+kable(head(panasData)) # show data frame
 ```
 
-    ## # A tibble: 6 x 24
-    ##   subject session stimulation   time pos.1.interested neg.2.distressed
-    ##     <chr>  <fctr>      <fctr> <fctr>            <int>            <int>
-    ## 1     S01   first    cathodal    pre                2                1
-    ## 2     S01   first    cathodal   post                2                1
-    ## 3     S01  second      anodal    pre                1                1
-    ## 4     S01  second      anodal   post                1                1
-    ## 5     S02   first      anodal    pre                4                1
-    ## 6     S02   first      anodal   post                4                1
-    ## # ... with 18 more variables: pos.3.excited <int>, neg.4.upset <int>,
-    ## #   pos.5.strong <int>, neg.6.guilty <int>, neg.7.scared <int>,
-    ## #   neg.8.hostile <int>, pos.9.enthusiastic <int>, pos.10.proud <int>,
-    ## #   neg.11.irritable <int>, pos.12alert <int>, neg.13.ashamed <int>,
-    ## #   pos.14.inspired <int>, neg.15.nervous <int>, pos.16.determined <int>,
-    ## #   pos.17.attentive <int>, neg.18.jittery <int>, pos.19.active <int>,
-    ## #   neg.20.afraid <int>
+| subject | session | stimulation | time |  pos.1.interested|  neg.2.distressed|  pos.3.excited|  neg.4.upset|  pos.5.strong|  neg.6.guilty|  neg.7.scared|  neg.8.hostile|  pos.9.enthusiastic|  pos.10.proud|  neg.11.irritable|  pos.12alert|  neg.13.ashamed|  pos.14.inspired|  neg.15.nervous|  pos.16.determined|  pos.17.attentive|  neg.18.jittery|  pos.19.active|  neg.20.afraid|
+|:--------|:--------|:------------|:-----|-----------------:|-----------------:|--------------:|------------:|-------------:|-------------:|-------------:|--------------:|-------------------:|-------------:|-----------------:|------------:|---------------:|----------------:|---------------:|------------------:|-----------------:|---------------:|--------------:|--------------:|
+| S01     | first   | cathodal    | pre  |                 2|                 1|              3|            1|             2|             1|             1|              1|                   2|             2|                 1|            1|               1|                2|               1|                  1|                 2|               1|              2|              1|
+| S01     | first   | cathodal    | post |                 2|                 1|              3|            1|             2|             1|             1|              1|                   2|             2|                 1|            1|               1|                1|               1|                  2|                 1|               1|              3|              1|
+| S01     | second  | anodal      | pre  |                 1|                 1|              2|            1|             1|             1|             1|              1|                   1|             1|                 1|            1|               1|                2|               1|                  1|                 2|               1|              2|              1|
+| S01     | second  | anodal      | post |                 1|                 1|              1|            1|             1|             1|             1|              1|                   1|             1|                 1|            1|               1|                1|               1|                  1|                 1|               1|              1|              1|
+| S02     | first   | anodal      | pre  |                 4|                 1|              4|            1|             3|             1|             1|              1|                   3|             3|                 1|            2|               1|                3|               1|                  4|                 4|               1|              3|              1|
+| S02     | first   | anodal      | post |                 4|                 1|              1|            1|             4|             1|             1|              1|                   3|             4|                 1|            4|               1|                3|               1|                  4|                 4|               1|              4|              1|
 
 **Factors**:
 
@@ -164,7 +162,7 @@ panasPrePost %>%
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-<img src="questionnaires_files/figure-markdown_github/Plot post-pre differences per item-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="questionnaires_files/figure-markdown_github/Plot post-pre differences per item-1.png" width="75%" style="display: block; margin: auto;" />
 
 Most scores become negative, meaning the `post` score was smaller than `pre`. So they generally feel "less" of everything. This seems particularly the case for positive affect (except for *determined*).
 
@@ -192,7 +190,7 @@ facet_wrap(~affect) +
   stat_summary(fun.data = mean_cl_normal, position = position_dodge(width = .5), shape = 21, size = 1, aes(fill = stimulation), color = "black")
 ```
 
-<img src="questionnaires_files/figure-markdown_github/Plot the composite scores-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="questionnaires_files/figure-markdown_github/Plot the composite scores-1.png" width="75%" style="display: block; margin: auto;" />
 
 The negative scores are much lower than the positive overall.
 
@@ -217,23 +215,15 @@ panasCompositeStats <- panasComposite %>%
 ``` r
 modelPositive <- ezANOVA(data = data.frame(filter(panasCompositeStats, affect == "positive")), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
                          dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
-kable(modelPositive)
+kable(modelPositive$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect           |  DFn|  DFd|           F|          p| p&lt;.05 |        ges|
 |-----|:-----------------|----:|----:|-----------:|----------:|:---------|----------:|
 | 2   | stimulation      |    1|   29|   0.3362518|  0.5664791|          |  0.0016411|
 | 3   | time             |    1|   29|  20.9326283|  0.0000825| \*       |  0.0662793|
 | 4   | stimulation:time |    1|   29|   4.6731175|  0.0390292| \*       |  0.0070037|
 
-</td>
-</tr>
-</tbody>
-</table>
 This confirms our observation that subjects' mood becomes less positive after stimulation, particularly in the cathodal session
 
 ### Negative scores
@@ -243,23 +233,15 @@ Repeated measures ANOVA with factors STIMULATION (anodal vs. cathodal) and TIME 
 ``` r
 modelNegative <- ezANOVA(data = data.frame(filter(panasCompositeStats, affect == "negative")), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
                         dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
-kable(modelNegative)
+kable(modelNegative$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect           |  DFn|  DFd|           F|          p| p&lt;.05 |        ges|
 |-----|:-----------------|----:|----:|-----------:|----------:|:---------|----------:|
 | 2   | stimulation      |    1|   29|   0.0986395|  0.7557167|          |  0.0003892|
 | 3   | time             |    1|   29|  22.4236431|  0.0000529| \*       |  0.0677905|
 | 4   | stimulation:time |    1|   29|   1.3206320|  0.2598687|          |  0.0021153|
 
-</td>
-</tr>
-</tbody>
-</table>
 Subjects' mood also become less negative, but this time there is no interaction with stimulation condition, so this is likely a pure effect of time.
 
 tDCS sensations
@@ -272,28 +254,22 @@ Load data
 
 ``` r
 # Load the data frame
-dataFile <- file.path("data", "tdcs_sensations.csv")
+dataFile <- here("data", "tdcs_sensations.csv")
 sensData <- read_csv2(dataFile, col_types = cols(
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal"))
 ))
-head(sensData) # show data frame
+kable(head(sensData)) # show data frame
 ```
 
-    ## # A tibble: 6 x 20
-    ##   subject session stimulation itching tingling burning  pain headache
-    ##     <chr>  <fctr>      <fctr>   <int>    <int>   <int> <int>    <int>
-    ## 1     S01   first    cathodal       2        4       4     2        0
-    ## 2     S01  second      anodal       1        1       1     0        0
-    ## 3     S02   first      anodal       1        2       2     0        0
-    ## 4     S02  second    cathodal       1        2       2     0        0
-    ## 5     S03   first    cathodal       0        0       0     0        0
-    ## 6     S03  second      anodal       0        0       0     0        0
-    ## # ... with 12 more variables: fatigue <int>, dizziness <int>,
-    ## #   nausea <int>, conf.itching <int>, conf.tingling <int>,
-    ## #   conf.burning <int>, conf.pain <int>, conf.headache <int>,
-    ## #   conf.fatigue <int>, conf.dizziness <int>, conf.nausea <int>,
-    ## #   felt.more <chr>
+| subject | session | stimulation |  itching|  tingling|  burning|  pain|  headache|  fatigue|  dizziness|  nausea|  conf.itching|  conf.tingling|  conf.burning|  conf.pain|  conf.headache|  conf.fatigue|  conf.dizziness|  conf.nausea| felt.more |
+|:--------|:--------|:------------|--------:|---------:|--------:|-----:|---------:|--------:|----------:|-------:|-------------:|--------------:|-------------:|----------:|--------------:|-------------:|---------------:|------------:|:----------|
+| S01     | first   | cathodal    |        2|         4|        4|     2|         0|        0|          0|       0|             3|              4|             4|          4|              0|             0|               0|            0| cathode   |
+| S01     | second  | anodal      |        1|         1|        1|     0|         0|        1|          0|       0|             4|              4|             4|          0|              0|             1|               0|            0| anode     |
+| S02     | first   | anodal      |        1|         2|        2|     0|         0|        1|          0|       0|             4|              4|             4|          0|              0|             1|               0|            0| anode     |
+| S02     | second  | cathodal    |        1|         2|        2|     0|         0|        0|          0|       0|             4|              4|             4|          0|              0|             0|               0|            0| equal     |
+| S03     | first   | cathodal    |        0|         0|        0|     0|         0|        0|          0|       0|             0|              0|             0|          0|              0|             0|               0|            0| equal     |
+| S03     | second  | anodal      |        0|         0|        0|     0|         0|        0|          0|       0|             0|              0|             0|          0|              0|             0|               0|            0| equal     |
 
 They were asked to which degree the following sensations were present during stimulation: *tingling*, *itching sensation*, *burning sensation*, *pain*, *headache*, *fatigue*, *dizziness* and *nausea*. Each was rated on a scale from 0-4:
 
@@ -343,7 +319,7 @@ sensData %>%
     ggtitle(paste("Sensations over", nAnodal, "anodal sessions,", nCathodal, "cathodal sessions"))
 ```
 
-<img src="questionnaires_files/figure-markdown_github/tDCS sensation distributions-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="questionnaires_files/figure-markdown_github/tDCS sensation distributions-1.png" width="75%" style="display: block; margin: auto;" />
 
 *Nausea* was never experienced; *dizziness* is especially rare and mild, as are *headache* and *pain*.
 
@@ -363,7 +339,7 @@ sensData %>%
     ggtitle(paste("Confidence over", nAnodal, "anodal sessions,", nCathodal, "cathodal sessions"))
 ```
 
-<img src="questionnaires_files/figure-markdown_github/tDCS confidence distributions-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="questionnaires_files/figure-markdown_github/tDCS confidence distributions-1.png" width="75%" style="display: block; margin: auto;" />
 
 For "local" sensations like *burning*, *tingling* and *dizziness*, subjects have high confidence that these are due to tDCS. For more diffuse sensations, like *fatigue* and *headache*, ratings are very low, so their occurence might just be due to performing the task for an extended period of time.
 
@@ -380,7 +356,7 @@ sensData %>%
     stat_count(geom = "text", aes(label = ..count..), position = position_stack(vjust = 0.5), color = "white")
 ```
 
-<img src="questionnaires_files/figure-markdown_github/Sensations for anode and cathode-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="questionnaires_files/figure-markdown_github/Sensations for anode and cathode-1.png" width="75%" style="display: block; margin: auto;" />
 
 There's a pretty even split between which electrode people feel the most, so there don't appear to be worrisome biases.
 

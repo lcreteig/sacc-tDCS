@@ -20,7 +20,7 @@ library(tidyverse) # importing, transforming, and visualizing data frames
 library(ez) # ANOVA
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
 sessionInfo()
 ```
@@ -44,7 +44,7 @@ panasData <- read_csv2(dataFile, col_types = cols( # read in data; make columns 
   stimulation = col_factor(c("anodal","cathodal")),
   time = col_factor(c("pre","post"))
 ))
-head(panasData) # show data frame
+kable(head(panasData)) # show data frame
 ```
 
 __Factors__:
@@ -136,7 +136,7 @@ panasCompositeStats <- panasComposite %>%
 ```{r RM ANOVA for Positive scores, results='asis'}
 modelPositive <- ezANOVA(data = data.frame(filter(panasCompositeStats, affect == "positive")), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
                          dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
-kable(modelPositive)
+kable(modelPositive$ANOVA)
 ```
 
 This confirms our observation that subjects' mood becomes less positive after stimulation, particularly in the cathodal session
@@ -148,7 +148,7 @@ Repeated measures ANOVA with factors STIMULATION (anodal vs. cathodal) and TIME 
 ```{r RM ANOVA for negative scores}
 modelNegative <- ezANOVA(data = data.frame(filter(panasCompositeStats, affect == "negative")), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
                         dv = .(score), wid = .(subject), within = .(stimulation, time), type = 3)
-kable(modelNegative)
+kable(modelNegative$ANOVA)
 ```
 
 Subjects' mood also become less negative, but this time there is no interaction with stimulation condition, so this is likely a pure effect of time.
@@ -166,7 +166,7 @@ sensData <- read_csv2(dataFile, col_types = cols(
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal"))
 ))
-head(sensData) # show data frame
+kable(head(sensData)) # show data frame
 ```
 
 They were asked to which degree the following sensations were present during stimulation: _tingling_, _itching sensation_, _burning sensation_, _pain_, _headache_, _fatigue_, _dizziness_ and _nausea_. Each was rated on a scale from 0-4:

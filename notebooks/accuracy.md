@@ -33,6 +33,12 @@ R notebook for inspection of data and analyses of saccade end point deviation an
 
 ``` r
 # Load some libraries
+library(here) # file paths
+```
+
+    ## here() starts at /Volumes/research$/reteig/sacc-tDCS
+
+``` r
 library(tidyverse) # importing, transforming, and visualizing data frames
 ```
 
@@ -75,9 +81,9 @@ library(BayesFactor) # Bayesian statistics
 library(broom) # transform model output into a data frame
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
-source("src/lib/InclusionBF.R")
+source(here("src", "lib", "InclusionBF.R"))
 
 sessionInfo()
 ```
@@ -101,7 +107,7 @@ sessionInfo()
     ##  [4] Matrix_1.2-9         coda_0.19-1          ez_4.4-0            
     ##  [7] forcats_0.2.0        dplyr_0.5.0          purrr_0.2.2         
     ## [10] readr_1.1.0          tidyr_0.6.1          tibble_1.3.0        
-    ## [13] ggplot2_2.2.1        tidyverse_1.1.1     
+    ## [13] ggplot2_2.2.1        tidyverse_1.1.1      here_0.1            
     ## 
     ## loaded via a namespace (and not attached):
     ##  [1] gtools_3.5.0       pbapply_1.3-2      reshape2_1.4.2    
@@ -134,7 +140,7 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ``` r
 # Load the data frame
-dataFile <- file.path("data", "sacc-tDCS_data.csv")
+dataFile <- here("data", "sacc-tDCS_data.csv")
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
@@ -178,7 +184,7 @@ Subject metadata
 
 ``` r
 # Load eye tracking data into data frame
-dataFile <- file.path("data", "subject_info.csv")
+dataFile <- here("data", "subject_info.csv")
 subjectData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
   session.order = col_factor(c("first.anodal", "first.cathodal"))
 ))
@@ -322,7 +328,7 @@ kanaiPlotDev <- ggplot(devData, aes(leg, deviation.end, color = stimulation, sha
 kanaiPlotDev
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot per leg - deviation-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot per leg - deviation-1.png" width="75%" style="display: block; margin: auto;" />
 
 At first glance there don't seem to be many differences that are larger than the baseline differences and/or relate clearly to the polarity or timing of stimulation.
 
@@ -338,7 +344,7 @@ kanaiPlotSubsAnodal <- ggplot(devData[devData$stimulation == "anodal", ], aes(le
 kanaiPlotSubsAnodal
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot per subject - deviation anodal-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot per subject - deviation anodal-1.png" width="75%" style="display: block; margin: auto;" />
 
 ``` r
 kanaiPlotSubsCathodal <- ggplot(devData[devData$stimulation == "cathodal", ], aes(leg, deviation.end)) +
@@ -350,7 +356,7 @@ kanaiPlotSubsCathodal <- ggplot(devData[devData$stimulation == "cathodal", ], ae
 kanaiPlotSubsCathodal
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot per subject - deviation cathodal-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot per subject - deviation cathodal-1.png" width="75%" style="display: block; margin: auto;" />
 
 There are definitely some outliers, but mostly in terms of overall offset / baseline differences.
 
@@ -384,7 +390,7 @@ devData %>%
     labs(title = "Baseline in anodal and cathodal sessions", subtitle = "scatterplot of baseline endpoint deviation")
 ```
 
-<img src="accuracy_files/figure-markdown_github/baseline scatterplots - deviation-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/baseline scatterplots - deviation-1.png" width="75%" style="display: block; margin: auto;" />
 
 The correlations are not as high as for the latency data, but still reasonable. The sequence effect we observed in the latency data is not so prominent, so apparently there's less of a practice effect in saccade enpdoint deviation.
 
@@ -405,7 +411,7 @@ devData %>%
     labs(title = "Baseline in anodal and cathodal sessions", subtitle = "anodal - cathodal")
 ```
 
-<img src="accuracy_files/figure-markdown_github/baseline difference stripchart - deviation-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/baseline difference stripchart - deviation-1.png" width="75%" style="display: block; margin: auto;" />
 
 The baseline differences are not so extreme, except for the center (left) condition: that seems quite large and consistent over subjects.
 
@@ -441,7 +447,7 @@ kanaiPlotDevBase <- ggplot(devDataBase, aes(leg, deviation.end, color = stimulat
 kanaiPlotDevBase
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot from baseline - deviation-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot from baseline - deviation-1.png" width="75%" style="display: block; margin: auto;" />
 
 This clearly shows that all the changes are quite tiny (less than 0.15 degrees of visual angle). There appears to be a clear difference in between the anodal and cathodal change scores for center saccades (and maybe for left-lateral saccades).
 
@@ -483,13 +489,9 @@ devDataBase <- devDataBase %>%
 modelKanai <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")),
                         dv = .(deviation.end), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanai)
+kable(modelKanai$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                    |  DFn|  DFd|          F|          p| p&lt;.05 |        ges|
 |-----|:--------------------------|----:|----:|----------:|----------:|:---------|----------:|
 | 2   | stimulation               |    1|   25|  2.0266072|  0.1669269|          |  0.0178886|
@@ -500,8 +502,10 @@ kable(modelKanai)
 | 7   | leg:direction             |    2|   50|  0.1400779|  0.8696305|          |  0.0002306|
 | 8   | stimulation:leg:direction |    2|   50|  0.2773853|  0.7589209|          |  0.0002720|
 
-</td>
-<td>
+``` r
+kable(modelKanai$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                    |          W|          p| p&lt;.05 |
 |-----|:--------------------------|----------:|----------:|:---------|
 | 3   | leg                       |  0.6913883|  0.0119307| \*       |
@@ -509,8 +513,10 @@ kable(modelKanai)
 | 7   | leg:direction             |  0.9738561|  0.7276748|          |
 | 8   | stimulation:leg:direction |  0.7556773|  0.0346766| \*       |
 
-</td>
-<td>
+``` r
+kable(modelKanai$`Sphericity Corrections`)
+```
+
 |     | Effect                    |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:--------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 3   | leg                       |  0.7641686|  0.3907386|                |  0.8038793|  0.3951392|                |
@@ -518,10 +524,6 @@ kable(modelKanai)
 | 7   | leg:direction             |  0.9745222|  0.8646202|                |  1.0558164|  0.8696305|                |
 | 8   | stimulation:leg:direction |  0.8036501|  0.7108179|                |  0.8504748|  0.7234385|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 ##### With session order
 
 Add an additional factor SESSION ORDER, which creates two groups: those subjects who received anodal tDCS in the first session vs. those who received cathodal tDCS in the first session. Note that these groups are not exactly balanced, which might affect (correcting for) violations of sphericity:
@@ -541,13 +543,9 @@ devDataBase %>%
 ``` r
 modelKanaiOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")), dv = .(deviation.end), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiOrder)
+kable(modelKanaiOrder$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                                  |  DFn|  DFd|          F|          p| p&lt;.05 |        ges|
 |-----|:----------------------------------------|----:|----:|----------:|----------:|:---------|----------:|
 | 2   | session.order                           |    1|   24|  0.2049021|  0.6548582|          |  0.0033510|
@@ -566,8 +564,10 @@ kable(modelKanaiOrder)
 | 15  | stimulation:leg:direction               |    2|   48|  0.2604897|  0.7717565|          |  0.0002689|
 | 16  | session.order:stimulation:leg:direction |    2|   48|  0.5209071|  0.5973007|          |  0.0005376|
 
-</td>
-<td>
+``` r
+kable(modelKanaiOrder$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                                  |          W|          p| p&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------|
 | 5   | leg                                     |  0.6837007|  0.0126171| \*       |
@@ -579,8 +579,10 @@ kable(modelKanaiOrder)
 | 15  | stimulation:leg:direction               |  0.7507047|  0.0369739| \*       |
 | 16  | session.order:stimulation:leg:direction |  0.7507047|  0.0369739| \*       |
 
-</td>
-<td>
+``` r
+kable(modelKanaiOrder$`Sphericity Corrections`)
+```
+
 |     | Effect                                  |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 5   | leg                                     |  0.7597056|  0.4008100|                |  0.8003634|  0.4056562|                |
@@ -592,10 +594,6 @@ kable(modelKanaiOrder)
 | 15  | stimulation:leg:direction               |  0.8004512|  0.7225967|                |  0.8487521|  0.7357368|                |
 | 16  | session.order:stimulation:leg:direction |  0.8004512|  0.5582804|                |  0.8487521|  0.5685106|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 #### ANOVA matching Kanai et al. (2012) - center saccades
 
 ##### Without session order
@@ -606,13 +604,9 @@ Repeat the same ANOVA, but now discard the lateral and keep only center saccades
 modelKanaiCenter <- ezANOVA(data = data.frame(filter(devDataBase, type == "center")),
                         dv = .(deviation.end), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanaiCenter)
+kable(modelKanaiCenter$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                    |  DFn|  DFd|           F|          p| p&lt;.05 |        ges|
 |-----|:--------------------------|----:|----:|-----------:|----------:|:---------|----------:|
 | 2   | stimulation               |    1|   25|  10.3422560|  0.0035735| \*       |  0.0698321|
@@ -623,8 +617,10 @@ kable(modelKanaiCenter)
 | 7   | leg:direction             |    2|   50|   3.8854661|  0.0270094| \*       |  0.0071117|
 | 8   | stimulation:leg:direction |    2|   50|   0.5883554|  0.5590374|          |  0.0011173|
 
-</td>
-<td>
+``` r
+kable(modelKanaiCenter$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                    |          W|          p| p&lt;.05 |
 |-----|:--------------------------|----------:|----------:|:---------|
 | 3   | leg                       |  0.8436804|  0.1300575|          |
@@ -632,8 +628,10 @@ kable(modelKanaiCenter)
 | 7   | leg:direction             |  0.6656519|  0.0075677| \*       |
 | 8   | stimulation:leg:direction |  0.8210183|  0.0938067|          |
 
-</td>
-<td>
+``` r
+kable(modelKanaiCenter$`Sphericity Corrections`)
+```
+
 |     | Effect                    |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:--------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 3   | leg                       |  0.8648128|  0.1084443|                |  0.9232826|  0.1046730|                |
@@ -641,10 +639,6 @@ kable(modelKanaiCenter)
 | 7   | leg:direction             |  0.7494296|  0.0403283| \*             |  0.7865648|  0.0380011| \*             |
 | 8   | stimulation:leg:direction |  0.8481896|  0.5328387|                |  0.9034188|  0.5428502|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 ###### Main effect of stimulation
 
 ``` r
@@ -658,7 +652,7 @@ devDataBase %>%
   geom_jitter(width = 0.25)
 ```
 
-<img src="accuracy_files/figure-markdown_github/Kanai-Center Main effect of stimulation-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Kanai-Center Main effect of stimulation-1.png" width="75%" style="display: block; margin: auto;" />
 
 The accuracy in the cathodal session improves from baseline for most subjects; anodal stays the same or slightly worsens.
 
@@ -696,7 +690,7 @@ devDataBase %>%
   stat_summary(fun.y = mean, geom = "line", aes(group = direction, linetype = direction))
 ```
 
-<img src="accuracy_files/figure-markdown_github/Kanai Interaction leg by direction-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Kanai Interaction leg by direction-1.png" width="75%" style="display: block; margin: auto;" />
 
 The accuracy of leftward saccades is improved for left saccades in the final half hour of task performance, more so than for right saccades, for which the accuracy goes back to baseline eventually.
 
@@ -705,13 +699,9 @@ The accuracy of leftward saccades is improved for left saccades in the final hal
 ``` r
 modelKanaiCenterOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "center")), dv = .(deviation.end), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiCenterOrder)
+kable(modelKanaiCenterOrder$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                                  |  DFn|  DFd|           F|          p| p&lt;.05 |        ges|
 |-----|:----------------------------------------|----:|----:|-----------:|----------:|:---------|----------:|
 | 2   | session.order                           |    1|   24|   0.9091324|  0.3498501|          |  0.0093825|
@@ -730,8 +720,10 @@ kable(modelKanaiCenterOrder)
 | 15  | stimulation:leg:direction               |    2|   48|   0.4549433|  0.6371915|          |  0.0008799|
 | 16  | session.order:stimulation:leg:direction |    2|   48|   1.7824344|  0.1791825|          |  0.0034386|
 
-</td>
-<td>
+``` r
+kable(modelKanaiCenterOrder$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                                  |          W|          p| p&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------|
 | 5   | leg                                     |  0.8326608|  0.1217259|          |
@@ -743,8 +735,10 @@ kable(modelKanaiCenterOrder)
 | 15  | stimulation:leg:direction               |  0.8547089|  0.1644030|          |
 | 16  | session.order:stimulation:leg:direction |  0.8547089|  0.1644030|          |
 
-</td>
-<td>
+``` r
+kable(modelKanaiCenterOrder$`Sphericity Corrections`)
+```
+
 |     | Effect                                  |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 5   | leg                                     |  0.8566490|  0.0868332|                |  0.9160721|  0.0828527|                |
@@ -756,10 +750,6 @@ kable(modelKanaiCenterOrder)
 | 15  | stimulation:leg:direction               |  0.8731405|  0.6112836|                |  0.9359565|  0.6245419|                |
 | 16  | session.order:stimulation:leg:direction |  0.8731405|  0.1842757|                |  0.9359565|  0.1817943|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 There are some significant effects, but they do not interact with session order.
 
 ### Bayesian
@@ -781,39 +771,40 @@ kable(select(extractBF(bfKanaiLateral), bf)) # show only the Bayes factors in a 
 
 |                                                                                                                               |         bf|
 |-------------------------------------------------------------------------------------------------------------------------------|----------:|
-| stimulation + subject                                                                                                         |  6.3193125|
-| stimulation + direction + subject                                                                                             |  2.8777068|
-| stimulation + direction + stimulation:direction + subject                                                                     |  0.5665412|
-| direction + subject                                                                                                           |  0.4347378|
-| stimulation + leg + subject                                                                                                   |  0.3496719|
-| stimulation + direction + leg + subject                                                                                       |  0.1593865|
-| leg + subject                                                                                                                 |  0.0537824|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0299003|
-| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0294942|
-| direction + leg + subject                                                                                                     |  0.0233883|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0135322|
-| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0103230|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0025180|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0020019|
-| direction + leg + direction:leg + subject                                                                                     |  0.0015891|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0008962|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0001833|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000202|
+| stimulation + subject                                                                                                         |  6.3642726|
+| stimulation + direction + subject                                                                                             |  2.8399145|
+| stimulation + direction + stimulation:direction + subject                                                                     |  0.5499363|
+| direction + subject                                                                                                           |  0.4404612|
+| stimulation + leg + subject                                                                                                   |  0.3677395|
+| stimulation + direction + leg + subject                                                                                       |  0.1659268|
+| leg + subject                                                                                                                 |  0.0538981|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0299974|
+| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0292944|
+| direction + leg + subject                                                                                                     |  0.0243664|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0141287|
+| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0104664|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0026945|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0021618|
+| direction + leg + direction:leg + subject                                                                                     |  0.0015586|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0008993|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0001764|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000205|
 
 Two models fare better than the null model: (1) a main effect of stimulation, and (2) a main effect of both stimulation and direction.
 
 ``` r
-inclusionBF(bfKanaiLateral, models = "matched")
+kable(inclusionBF(bfKanaiLateral, models = "matched"))
 ```
 
-    ##                      effect Bayes.factor
-    ## 1               stimulation   6.41983261
-    ## 2                 direction   0.45261010
-    ## 3     stimulation:direction   0.19633414
-    ## 4                       leg   0.05501992
-    ## 5           stimulation:leg   0.08457339
-    ## 6             direction:leg   0.06555207
-    ## 7 stimulation:direction:leg   0.11009814
+| effect                    |  Bayes.factor|
+|:--------------------------|-------------:|
+| stimulation               |     6.4121688|
+| direction                 |     0.4458997|
+| stimulation:direction     |     0.1929732|
+| leg                       |     0.0573427|
+| stimulation:leg           |     0.0818914|
+| direction:leg             |     0.0643676|
+| stimulation:direction:leg |     0.1161846|
 
 There is moderate evidence for inclusion of an effect of stimulation, even though the classical analysis does not reach significance.
 
@@ -830,39 +821,40 @@ kable(select(extractBF(bfKanaiCenter), bf)) # show only the Bayes factors in a t
 
 |                                                                                                                               |            bf|
 |-------------------------------------------------------------------------------------------------------------------------------|-------------:|
-| stimulation + subject                                                                                                         |  4.059019e+04|
-| stimulation + direction + stimulation:direction + subject                                                                     |  1.674061e+04|
-| stimulation + direction + subject                                                                                             |  1.051873e+04|
-| stimulation + leg + subject                                                                                                   |  4.207337e+03|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |  1.712539e+03|
-| stimulation + direction + leg + subject                                                                                       |  1.079519e+03|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  3.602672e+02|
-| stimulation + leg + stimulation:leg + subject                                                                                 |  3.254140e+02|
-| stimulation + direction + leg + direction:leg + subject                                                                       |  2.156527e+02|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  1.275241e+02|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |  8.579462e+01|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  2.707515e+01|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  1.735635e+01|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  3.278777e+00|
-| direction + subject                                                                                                           |  2.396816e-01|
-| leg + subject                                                                                                                 |  9.409320e-02|
-| direction + leg + subject                                                                                                     |  2.307420e-02|
-| direction + leg + direction:leg + subject                                                                                     |  4.186700e-03|
+| stimulation + subject                                                                                                         |  4.084821e+04|
+| stimulation + direction + stimulation:direction + subject                                                                     |  1.703212e+04|
+| stimulation + direction + subject                                                                                             |  1.063972e+04|
+| stimulation + leg + subject                                                                                                   |  4.202821e+03|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |  1.762731e+03|
+| stimulation + direction + leg + subject                                                                                       |  1.079042e+03|
+| stimulation + leg + stimulation:leg + subject                                                                                 |  3.647316e+02|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  3.521635e+02|
+| stimulation + direction + leg + direction:leg + subject                                                                       |  2.126847e+02|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  1.312202e+02|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |  8.493246e+01|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  2.706365e+01|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  1.633230e+01|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  3.700570e+00|
+| direction + subject                                                                                                           |  2.393791e-01|
+| leg + subject                                                                                                                 |  9.380680e-02|
+| direction + leg + subject                                                                                                     |  2.317930e-02|
+| direction + leg + direction:leg + subject                                                                                     |  4.075600e-03|
 
 All the models with a main effect of stimulation are strongly supported.
 
 ``` r
-inclusionBF(bfKanaiCenter, models = "matched")
+kable(inclusionBF(bfKanaiCenter, models = "matched"))
 ```
 
-    ##                      effect Bayes.factor
-    ## 1               stimulation 4.159438e+04
-    ## 2                 direction 2.589376e-01
-    ## 3     stimulation:direction 1.591669e+00
-    ## 4                       leg 1.031604e-01
-    ## 5           stimulation:leg 7.698218e-02
-    ## 6             direction:leg 2.064136e-01
-    ## 7 stimulation:direction:leg 1.210991e-01
+| effect                    |  Bayes.factor|
+|:--------------------------|-------------:|
+| stimulation               |  4.188530e+04|
+| direction                 |  2.599025e-01|
+| stimulation:direction     |  1.604402e+00|
+| leg                       |  1.028105e-01|
+| stimulation:leg           |  8.204020e-02|
+| direction:leg             |  1.989073e-01|
+| stimulation:direction:leg |  1.367358e-01|
 
 Overwhelming evidence for inclusion of a main effect of stimulation, which is in accord with the highly significant p-value.
 
@@ -953,7 +945,7 @@ kanaiPlotStd <- ggplot(stdData, aes(leg, std.deviation.x, color = stimulation, s
 kanaiPlotStd
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot per leg - variability-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot per leg - variability-1.png" width="75%" style="display: block; margin: auto;" />
 
 The changes here seem less pronounced than in the endpoint deviation data.
 
@@ -969,7 +961,7 @@ kanaiPlotSubsAnodal <- ggplot(stdData[stdData$stimulation == "anodal", ], aes(le
 kanaiPlotSubsAnodal
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot per subject - variability anodal-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot per subject - variability anodal-1.png" width="75%" style="display: block; margin: auto;" />
 
 ``` r
 kanaiPlotSubsCathodal <- ggplot(stdData[stdData$stimulation == "cathodal", ], aes(leg, std.deviation.x)) +
@@ -981,7 +973,7 @@ kanaiPlotSubsCathodal <- ggplot(stdData[stdData$stimulation == "cathodal", ], ae
 kanaiPlotSubsCathodal
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot per subject - variability cathodal-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot per subject - variability cathodal-1.png" width="75%" style="display: block; margin: auto;" />
 
 This measure seems particularly variable across subjects and also subject to quite a few spikes that only show up in a few conditions.
 
@@ -1015,7 +1007,7 @@ stdData %>%
     labs(title = "Baseline in anodal and cathodal sessions", subtitle = "scatterplot of baseline endpoint variability")
 ```
 
-<img src="accuracy_files/figure-markdown_github/baseline scatterplots - variability-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/baseline scatterplots - variability-1.png" width="75%" style="display: block; margin: auto;" />
 
 The correlations for this measure are quite low, especially for the center conditions. Apparently the standard deviation of saccade endpoints is not so reliable.
 
@@ -1036,7 +1028,7 @@ stdData %>%
     labs(title = "Baseline in anodal and cathodal sessions", subtitle = "anodal - cathodal")
 ```
 
-<img src="accuracy_files/figure-markdown_github/baseline difference stripchart - variability-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/baseline difference stripchart - variability-1.png" width="75%" style="display: block; margin: auto;" />
 
 The average baseline differences are small, but the spread is quite large.
 
@@ -1072,7 +1064,7 @@ kanaiPlotStdBase <- ggplot(stdDataBase, aes(leg, std.deviation.x, color = stimul
 kanaiPlotStdBase
 ```
 
-<img src="accuracy_files/figure-markdown_github/Line plot from baseline - standard deviation-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Line plot from baseline - standard deviation-1.png" width="75%" style="display: block; margin: auto;" />
 
 Here the changes are even tinier than the endpoint deviation data (&lt;.1 degree). If anything, the differences seem to grow more pronounced after tDCS.
 
@@ -1112,13 +1104,9 @@ stdDataBase <- stdDataBase %>%
 modelKanaiStd <- ezANOVA(data = data.frame(filter(stdDataBase, type == "lateral")),
                         dv = .(std.deviation.x), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanaiStd)
+kable(modelKanaiStd$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                    |  DFn|  DFd|          F|          p| p&lt;.05 |        ges|
 |-----|:--------------------------|----:|----:|----------:|----------:|:---------|----------:|
 | 2   | stimulation               |    1|   25|  1.2189602|  0.2800786|          |  0.0138324|
@@ -1129,8 +1117,10 @@ kable(modelKanaiStd)
 | 7   | leg:direction             |    2|   50|  0.9403214|  0.3972980|          |  0.0023341|
 | 8   | stimulation:leg:direction |    2|   50|  0.1873223|  0.8297557|          |  0.0003276|
 
-</td>
-<td>
+``` r
+kable(modelKanaiStd$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                    |         W|          p| p&lt;.05 |
 |-----|:--------------------------|---------:|----------:|:---------|
 | 3   | leg                       |  0.994425|  0.9351138|          |
@@ -1138,8 +1128,10 @@ kable(modelKanaiStd)
 | 7   | leg:direction             |  0.908637|  0.3167270|          |
 | 8   | stimulation:leg:direction |  0.903796|  0.2970605|          |
 
-</td>
-<td>
+``` r
+kable(modelKanaiStd$`Sphericity Corrections`)
+```
+
 |     | Effect                    |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:--------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 3   | leg                       |  0.9944559|  0.6379765|                |  1.0801686|  0.6390443|                |
@@ -1147,22 +1139,14 @@ kable(modelKanaiStd)
 | 7   | leg:direction             |  0.9162854|  0.3907925|                |  0.9851512|  0.3961957|                |
 | 8   | stimulation:leg:direction |  0.9122389|  0.8102650|                |  0.9802676|  0.8255939|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 ##### With session order
 
 ``` r
 modelKanaiStdOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "lateral")), dv = .(std.deviation.x), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiStdOrder)
+kable(modelKanaiStdOrder$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                                  |  DFn|  DFd|          F|          p| p&lt;.05 |        ges|
 |-----|:----------------------------------------|----:|----:|----------:|----------:|:---------|----------:|
 | 2   | session.order                           |    1|   24|  0.1607364|  0.6920265|          |  0.0017906|
@@ -1181,8 +1165,10 @@ kable(modelKanaiStdOrder)
 | 15  | stimulation:leg:direction               |    2|   48|  0.2086854|  0.8123830|          |  0.0003866|
 | 16  | session.order:stimulation:leg:direction |    2|   48|  0.1838631|  0.8326329|          |  0.0003406|
 
-</td>
-<td>
+``` r
+kable(modelKanaiStdOrder$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                                  |          W|          p| p&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------|
 | 5   | leg                                     |  0.9929565|  0.9219294|          |
@@ -1194,8 +1180,10 @@ kable(modelKanaiStdOrder)
 | 15  | stimulation:leg:direction               |  0.9042201|  0.3141614|          |
 | 16  | session.order:stimulation:leg:direction |  0.9042201|  0.3141614|          |
 
-</td>
-<td>
+``` r
+kable(modelKanaiStdOrder$`Sphericity Corrections`)
+```
+
 |     | Effect                                  |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 5   | leg                                     |  0.9930058|  0.6196034|                |  1.0822730|  0.6209047|                |
@@ -1207,10 +1195,6 @@ kable(modelKanaiStdOrder)
 | 15  | stimulation:leg:direction               |  0.9125920|  0.7926861|                |  0.9837647|  0.8089070|                |
 | 16  | session.order:stimulation:leg:direction |  0.9125920|  0.8133016|                |  0.9837647|  0.8292325|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 The interaction with session order, stimulation, and direction is significant. However, the stimulation:direction interaction was not significant in the ANOVA without the session order factor, so we should interpret this with caution. In addition, an interaction of session order and stimulation could just as well reflect a main effect of session (1 vs. 2): there's no way to distinguish between these possibilities.
 
 #### ANOVA matching Kanai et al. (2012) - center saccades
@@ -1221,13 +1205,9 @@ The interaction with session order, stimulation, and direction is significant. H
 modelKanaiStdCenter <- ezANOVA(data = data.frame(filter(stdDataBase, type == "center")),
                         dv = .(std.deviation.x), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanaiStdCenter)
+kable(modelKanaiStdCenter$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                    |  DFn|  DFd|          F|          p| p&lt;.05 |        ges|
 |-----|:--------------------------|----:|----:|----------:|----------:|:---------|----------:|
 | 2   | stimulation               |    1|   25|  3.8851203|  0.0598820|          |  0.0399400|
@@ -1238,8 +1218,10 @@ kable(modelKanaiStdCenter)
 | 7   | leg:direction             |    2|   50|  2.1601871|  0.1259451|          |  0.0035285|
 | 8   | stimulation:leg:direction |    2|   50|  0.4735067|  0.6255786|          |  0.0007475|
 
-</td>
-<td>
+``` r
+kable(modelKanaiStdCenter$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                    |          W|          p| p&lt;.05 |
 |-----|:--------------------------|----------:|----------:|:---------|
 | 3   | leg                       |  0.8960127|  0.2677749|          |
@@ -1247,8 +1229,10 @@ kable(modelKanaiStdCenter)
 | 7   | leg:direction             |  0.6679634|  0.0078892| \*       |
 | 8   | stimulation:leg:direction |  0.8089994|  0.0785921|          |
 
-</td>
-<td>
+``` r
+kable(modelKanaiStdCenter$`Sphericity Corrections`)
+```
+
 |     | Effect                    |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:--------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 3   | leg                       |  0.9058075|  0.0824883|                |  0.9725125|  0.0781996|                |
@@ -1256,10 +1240,6 @@ kable(modelKanaiStdCenter)
 | 7   | leg:direction             |  0.7507301|  0.1405427|                |  0.7880908|  0.1383445|                |
 | 8   | stimulation:leg:direction |  0.8396302|  0.5929099|                |  0.8932129|  0.6044505|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 ##### Main effect of stimulation
 
 This effect is just non-significant, but let's inspect anyway:
@@ -1275,7 +1255,7 @@ stdDataBase %>%
   geom_jitter(width = 0.25)
 ```
 
-<img src="accuracy_files/figure-markdown_github/Kanai-Center-variability Main effect of stimulation-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="accuracy_files/figure-markdown_github/Kanai-Center-variability Main effect of stimulation-1.png" width="75%" style="display: block; margin: auto;" />
 
 This resembles the difference found for the saccade endpoint deviation, except here the larger and more consistent effect seems to be in the anodal condition.
 
@@ -1284,13 +1264,9 @@ This resembles the difference found for the saccade endpoint deviation, except h
 ``` r
 modelKanaiStdCenterOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "center")), dv = .(std.deviation.x), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiStdCenterOrder)
+kable(modelKanaiStdCenterOrder$ANOVA)
 ```
 
-<table class="kable_wrapper">
-<tbody>
-<tr>
-<td>
 |     | Effect                                  |  DFn|  DFd|          F|          p| p&lt;.05 |        ges|
 |-----|:----------------------------------------|----:|----:|----------:|----------:|:---------|----------:|
 | 2   | session.order                           |    1|   24|  0.1624780|  0.6904536|          |  0.0015282|
@@ -1309,8 +1285,10 @@ kable(modelKanaiStdCenterOrder)
 | 15  | stimulation:leg:direction               |    2|   48|  0.4598347|  0.6341403|          |  0.0007630|
 | 16  | session.order:stimulation:leg:direction |    2|   48|  0.7980825|  0.4560741|          |  0.0013235|
 
-</td>
-<td>
+``` r
+kable(modelKanaiStdCenterOrder$`Mauchly's Test for Sphericity`)
+```
+
 |     | Effect                                  |          W|          p| p&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------|
 | 5   | leg                                     |  0.8967279|  0.2854944|          |
@@ -1322,8 +1300,10 @@ kable(modelKanaiStdCenterOrder)
 | 15  | stimulation:leg:direction               |  0.7903814|  0.0668532|          |
 | 16  | session.order:stimulation:leg:direction |  0.7903814|  0.0668532|          |
 
-</td>
-<td>
+``` r
+kable(modelKanaiStdCenterOrder$`Sphericity Corrections`)
+```
+
 |     | Effect                                  |        GGe|    p\[GG\]| p\[GG\]&lt;.05 |        HFe|    p\[HF\]| p\[HF\]&lt;.05 |
 |-----|:----------------------------------------|----------:|----------:|:---------------|----------:|----------:|:---------------|
 | 5   | leg                                     |  0.9063947|  0.0747228|                |  0.9762321|  0.0702670|                |
@@ -1335,10 +1315,6 @@ kable(modelKanaiStdCenterOrder)
 | 15  | stimulation:leg:direction               |  0.8267068|  0.5980305|                |  0.8801197|  0.6098886|                |
 | 16  | session.order:stimulation:leg:direction |  0.8267068|  0.4356829|                |  0.8801197|  0.4424174|                |
 
-</td>
-</tr>
-</tbody>
-</table>
 Here the effect does just reach significance, but there's no interaction with session order.
 
 ### Bayesian
@@ -1358,38 +1334,39 @@ kable(select(extractBF(bfKanaiStd), bf)) # show only the Bayes factors in a tabl
 
 |                                                                                                                               |         bf|
 |-------------------------------------------------------------------------------------------------------------------------------|----------:|
-| stimulation + subject                                                                                                         |  1.6435119|
-| stimulation + direction + subject                                                                                             |  0.2506199|
-| direction + subject                                                                                                           |  0.1522912|
-| stimulation + leg + subject                                                                                                   |  0.0688916|
-| stimulation + direction + stimulation:direction + subject                                                                     |  0.0461304|
-| leg + subject                                                                                                                 |  0.0423792|
-| stimulation + direction + leg + subject                                                                                       |  0.0104902|
-| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0075101|
-| direction + leg + subject                                                                                                     |  0.0063375|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0019310|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0010857|
-| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0010284|
-| direction + leg + direction:leg + subject                                                                                     |  0.0006035|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0001965|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0001836|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0001012|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0000194|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000021|
+| stimulation + subject                                                                                                         |  1.6364316|
+| stimulation + direction + subject                                                                                             |  0.2469168|
+| direction + subject                                                                                                           |  0.1500116|
+| stimulation + leg + subject                                                                                                   |  0.0684145|
+| stimulation + direction + stimulation:direction + subject                                                                     |  0.0459231|
+| leg + subject                                                                                                                 |  0.0420189|
+| stimulation + direction + leg + subject                                                                                       |  0.0103679|
+| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0074625|
+| direction + leg + subject                                                                                                     |  0.0065961|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0018949|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0010750|
+| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0009494|
+| direction + leg + direction:leg + subject                                                                                     |  0.0005850|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0002060|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0001810|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0001116|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0000189|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000023|
 
 ``` r
 # Inclusion Bayes Factors
-inclusionBF(bfKanaiStd, models = "matched")
+kable(inclusionBF(bfKanaiStd, models = "matched"))
 ```
 
-    ##                      effect Bayes.factor
-    ## 1               stimulation   1.64324522
-    ## 2                 direction   0.15234609
-    ## 3     stimulation:direction   0.18403395
-    ## 4                       leg   0.04204598
-    ## 5           stimulation:leg   0.10800287
-    ## 6             direction:leg   0.09660458
-    ## 7 stimulation:direction:leg   0.10831713
+| effect                    |  Bayes.factor|
+|:--------------------------|-------------:|
+| stimulation               |     1.6369755|
+| direction                 |     0.1506602|
+| stimulation:direction     |     0.1858909|
+| leg                       |     0.0419878|
+| stimulation:leg           |     0.1084736|
+| direction:leg             |     0.0916570|
+| stimulation:direction:leg |     0.1199970|
 
 Across the board, there is only marginal support for an effect of stimulation. For the interaction between stimulation and direction, the BF approaches moderate evidence for the null.
 
@@ -1406,40 +1383,41 @@ kable(select(extractBF(bfKanaiStdCenter), bf)) # show only the Bayes factors in 
 
 |                                                                                                                               |           bf|
 |-------------------------------------------------------------------------------------------------------------------------------|------------:|
-| stimulation + subject                                                                                                         |  141.3218729|
-| stimulation + direction + subject                                                                                             |   31.3722123|
-| stimulation + leg + subject                                                                                                   |   17.4798589|
-| stimulation + direction + stimulation:direction + subject                                                                     |    6.2920364|
-| stimulation + direction + leg + subject                                                                                       |    3.8156410|
-| stimulation + leg + stimulation:leg + subject                                                                                 |    2.0747730|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |    0.8217815|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |    0.4303726|
-| stimulation + direction + leg + direction:leg + subject                                                                       |    0.4166426|
-| direction + subject                                                                                                           |    0.2142540|
-| leg + subject                                                                                                                 |    0.1155812|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |    0.0874919|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    0.0843555|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |    0.0674698|
-| direction + leg + subject                                                                                                     |    0.0247495|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |    0.0100521|
-| direction + leg + direction:leg + subject                                                                                     |    0.0026778|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |    0.0011877|
+| stimulation + subject                                                                                                         |  140.7016745|
+| stimulation + direction + subject                                                                                             |   31.9921772|
+| stimulation + leg + subject                                                                                                   |   17.3236347|
+| stimulation + direction + stimulation:direction + subject                                                                     |    6.5545851|
+| stimulation + direction + leg + subject                                                                                       |    3.8457859|
+| stimulation + leg + stimulation:leg + subject                                                                                 |    2.0193681|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |    0.8305891|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |    0.4294926|
+| stimulation + direction + leg + direction:leg + subject                                                                       |    0.4156005|
+| direction + subject                                                                                                           |    0.2125874|
+| leg + subject                                                                                                                 |    0.1158398|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |    0.0874716|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    0.0840447|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |    0.0477419|
+| direction + leg + subject                                                                                                     |    0.0247468|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |    0.0104507|
+| direction + leg + direction:leg + subject                                                                                     |    0.0026378|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |    0.0012261|
 
 Like for the saccade endpoint deviation data, models with stimulation as a factor receive some support, although to a less strong degree. In contrast to endpoint deviation though, here the classical analysis was (barely) non-significant, so there is a discrepancy between the Bayesian and Frequentist approaches.
 
 ``` r
 # Inclusion Bayes Factors
-inclusionBF(bfKanaiStdCenter, models = "matched")
+kable(inclusionBF(bfKanaiStdCenter, models = "matched"))
 ```
 
-    ##                      effect Bayes.factor
-    ## 1               stimulation  143.2340660
-    ## 2                 direction    0.2213517
-    ## 3     stimulation:direction    0.2020843
-    ## 4                       leg    0.1235159
-    ## 5           stimulation:leg    0.1180532
-    ## 6             direction:leg    0.1121996
-    ## 7 stimulation:direction:leg    0.1181513
+| effect                    |  Bayes.factor|
+|:--------------------------|-------------:|
+| stimulation               |   143.2933911|
+| direction                 |     0.2265120|
+| stimulation:direction     |     0.2060162|
+| leg                       |     0.1226891|
+| stimulation:leg           |     0.1153140|
+| direction:leg             |     0.1074102|
+| stimulation:direction:leg |     0.1173248|
 
 Again, especially considering the non-significant p-value, the support is quite strong.
 

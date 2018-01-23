@@ -18,6 +18,12 @@ Setup
 
 ``` r
 # Load some libraries
+library(here) # file paths
+```
+
+    ## here() starts at /Volumes/research$/reteig/sacc-tDCS
+
+``` r
 library(tidyverse) # importing, transforming, and visualizing data frames
 ```
 
@@ -36,7 +42,7 @@ library(tidyverse) # importing, transforming, and visualizing data frames
 ``` r
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
 sessionInfo()
 ```
@@ -58,6 +64,7 @@ sessionInfo()
     ## other attached packages:
     ## [1] knitr_1.15.1    dplyr_0.5.0     purrr_0.2.2     readr_1.1.0    
     ## [5] tidyr_0.6.1     tibble_1.3.0    ggplot2_2.2.1   tidyverse_1.1.1
+    ## [9] here_0.1       
     ## 
     ## loaded via a namespace (and not attached):
     ##  [1] Rcpp_0.12.10     cellranger_1.1.0 compiler_3.4.0   plyr_1.8.4      
@@ -84,7 +91,7 @@ Coordinates in native space
 These were determined for each subject's scan; see `neuronav_notes.md` for further info.
 
 ``` r
-dataFile <- file.path("data", "FEF_coords_native.csv")
+dataFile <- here("data", "FEF_coords_native.csv")
 nativeCoords <- read_csv2(dataFile)
 nativeCoords %>% 
   select(-folder, -scan) %>% # drop columns with folder and scan names
@@ -154,7 +161,7 @@ MNI coordinates
 Load in the MNI coordinates that were written to a `.csv` file by the shell script.
 
 ``` r
-dataFile <- file.path("data", "FEF_coords_MNI.csv")
+dataFile <- here("data", "FEF_coords_MNI.csv")
 mniCoords <- read_delim(dataFile, ";")
 mniCoords <- filter(mniCoords, !(subject %in% subs2exclude)) # exclude subjects
 mniCoords %>%
@@ -162,7 +169,34 @@ mniCoords %>%
   kable(.)
 ```
 
-subject MNI\_X MNI\_Y MNI\_Z -------- ------ ------ ------
+| subject |   MNI\_X|      MNI\_Y|   MNI\_Z|
+|:--------|--------:|-----------:|--------:|
+| S01     |  29.4081|    1.069700|  54.8724|
+| S02     |  33.0338|   -2.245090|  50.4239|
+| S03     |  30.5837|   -1.480360|  50.5881|
+| S04     |  25.7061|   -3.761730|  56.3648|
+| S05     |  29.7780|   -5.201110|  55.8046|
+| S06     |  29.7783|   -1.120820|  58.2622|
+| S07     |  38.1233|    2.975730|  45.9613|
+| S08     |  31.5014|    0.526375|  45.6200|
+| S09     |  28.5103|    3.632940|  51.2804|
+| S10     |  28.1080|   -1.933630|  50.7210|
+| S11     |  30.5811|   -3.787490|  51.9535|
+| S12     |  36.5129|   -0.386049|  46.7630|
+| S13     |  26.2263|   -1.069220|  54.7079|
+| S14     |  37.5005|   -1.588150|  52.5889|
+| S15     |  31.8188|   -8.357000|  58.9671|
+| S17     |  31.0229|   -5.121250|  54.3116|
+| S18     |  34.9669|    8.390570|  49.8188|
+| S19     |  28.0703|   -3.834910|  52.7607|
+| S20     |  41.2127|   -1.745790|  47.5514|
+| S24     |  37.3474|   -0.862753|  43.4371|
+| S26     |  34.3288|   -2.861210|  49.1761|
+| S27     |  27.6566|  -10.061100|  50.9743|
+| S29     |  30.3161|   -5.272910|  55.2661|
+| S30     |  26.8320|   -3.868670|  54.5619|
+| S32     |  29.0049|    4.888810|  49.1404|
+| S33     |  30.3099|   -3.897600|  50.9083|
 
 Calculate statistics over subjects:
 
@@ -174,7 +208,11 @@ mniCoords %>%
   kable(.)
 ```
 
-dimension average standard.deviation minimum maximum ---------- -------- ------------------- -------- --------
+| dimension |    average|  standard.deviation|   minimum|   maximum|
+|:----------|----------:|-------------------:|---------:|---------:|
+| MNI\_X    |  31.470735|            4.036810|   25.7061|  41.21270|
+| MNI\_Y    |  -1.806643|            3.931623|  -10.0611|   8.39057|
+| MNI\_Z    |  51.645608|            3.922225|   43.4371|  58.96710|
 
 Create spherical ROI for each coordinate
 ========================================
@@ -185,7 +223,7 @@ Exclude subjects
 Write a new \`.csv' file with MNI coordinates, without the coordinates from the excluded subjects.
 
 ``` r
-exclMNI <- file.path("data", "FEF_coords_MNI_excl.csv")
+exclMNI <- here("data", "FEF_coords_MNI_excl.csv")
 write_delim(mniCoords, exclMNI, delim = ";")
 Sys.setenv(exclMNI = exclMNI) # port variable with csv file name to bash
 ```

@@ -15,6 +15,12 @@ R notebook for analysis of saccade latency quantiles in the `sacc-tDCS` dataset.
 
 ``` r
 # Load some libraries
+library(here) # file paths
+```
+
+    ## here() starts at /Volumes/research$/reteig/sacc-tDCS
+
+``` r
 library(tidyverse) # ggplot2, tibble, tidyr, readr, purrr, and dplyr
 ```
 
@@ -34,7 +40,7 @@ library(tidyverse) # ggplot2, tibble, tidyr, readr, purrr, and dplyr
 library(rogme) # robust graphical methods (quantile estimation, shift function)
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
 sessionInfo()
 ```
@@ -54,9 +60,9 @@ sessionInfo()
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
     ## 
     ## other attached packages:
-    ## [1] knitr_1.15.1     rogme_0.1.0.9000 dplyr_0.5.0      purrr_0.2.2     
-    ## [5] readr_1.1.0      tidyr_0.6.1      tibble_1.3.0     ggplot2_2.2.1   
-    ## [9] tidyverse_1.1.1 
+    ##  [1] knitr_1.15.1     rogme_0.1.0.9000 dplyr_0.5.0      purrr_0.2.2     
+    ##  [5] readr_1.1.0      tidyr_0.6.1      tibble_1.3.0     ggplot2_2.2.1   
+    ##  [9] tidyverse_1.1.1  here_0.1        
     ## 
     ## loaded via a namespace (and not attached):
     ##  [1] Rcpp_0.12.10     cellranger_1.1.0 compiler_3.4.0   plyr_1.8.4      
@@ -73,7 +79,7 @@ sessionInfo()
 
 ``` r
 # Load the data frame
-dataFile <- file.path("data", "sacc-tDCS_data.csv")
+dataFile <- here("data", "sacc-tDCS_data.csv")
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
@@ -153,12 +159,12 @@ qData <- unnest(qData,shift) # unpack the list column to get the model results f
 This takes quite a while to compute with a large number of bootstrap samples, so write the data file to disk. The current and next code chunk are not evaluated by default! (`eval=FALSE`)
 
 ``` r
-write_csv(qData, file.path("data", "sacc-tDCS_quantiles.csv"))
+write_csv(qData, here("data", "sacc-tDCS_quantiles.csv"))
 ```
 
 ``` r
 subs2exclude <- subs2exclude <- c("S21","S25","S16","S22","S28") 
-qData <- read_csv(file.path("data", "sacc-tDCS_quantiles.csv")) %>%
+qData <- read_csv(here("data", "sacc-tDCS_quantiles.csv")) %>%
   filter(!(subject %in% subs2exclude)) %>% # exclude subjects
     mutate(leg = replace(leg, leg == "pre", "baseline"), # rename and reoder levels
          leg = replace(leg, leg == "post.1", "post-1"),
@@ -211,7 +217,7 @@ ggplot(filter(qStats, type == "lateral"), aes(anodal, difference)) +
    scale_y_continuous("anodal - cathodal deciles (ms)")
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Shift function lateral-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Shift function lateral-1.png" width="75%" style="display: block; margin: auto;" />
 
 It looks like the slowest saccades show the biggest difference for most conditions. Curiously, cathodal tDCS there leads to faster latencies. However, this pattern already seems to be present in the baseline.
 
@@ -227,7 +233,7 @@ ggplot(filter(qSig, type == "lateral", !is.na(significance)), aes(q, fill = sign
   scale_y_continuous("number of participants with significant difference", limits = c(0, length(unique(qSig$subject))), breaks = c(0,10,20,length(unique(qSig$subject))))
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Significance shift function lateral-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Significance shift function lateral-1.png" width="75%" style="display: block; margin: auto;" />
 
 This effect in the right tail seems to be driven by a relatively small number of participants, and a sizable number of participants also shows an anodal effect there... Further, if anyhting, the most significant differences are in the baseline block...
 
@@ -246,7 +252,7 @@ ggplot(filter(qStats, type == "center"), aes(anodal, difference)) +
    scale_y_continuous("anodal - cathodal deciles (ms)")
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Shift function center-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Shift function center-1.png" width="75%" style="display: block; margin: auto;" />
 
 There the pattern appears opposite: the greatest difference is in the fastest saccades. It makes sense that these would be most impacted for center saccades. They could be impulsive errors that are increased with stimulation (though again, cathodal leads to faster latencies, which is unexpected). But again, this pattern is present across the board.
 
@@ -260,7 +266,7 @@ ggplot(filter(qSig, type == "center", !is.na(significance)), aes(q, fill = signi
   scale_y_continuous("number of participants with significant difference", limits = c(0, length(unique(qSig$subject))), breaks = c(0,10,20,length(unique(qSig$subject))))
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Significance shift function center-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Significance shift function center-1.png" width="75%" style="display: block; margin: auto;" />
 
 The strongest effects are again significant in fewer subjects, and on the whole there is never an effect in one direction which is significant in more than half the sample.
 
@@ -285,7 +291,7 @@ ggplot(filter(qStats, leg == "baseline", type  == "lateral", direction == "left"
   ggtitle("Left lateral saccades during baseline")
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left baseline-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left baseline-1.png" width="75%" style="display: block; margin: auto;" />
 
 ### During tDCS
 
@@ -303,7 +309,7 @@ ggplot(filter(qStats, leg == "tDCS", type  == "lateral", direction == "left"), a
   ggtitle("Left lateral saccades during tDCS")
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left tDCS-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left tDCS-1.png" width="75%" style="display: block; margin: auto;" />
 
 ### After tDCS (0-15 min)
 
@@ -321,7 +327,7 @@ ggplot(filter(qStats, leg == "post-1", type  == "lateral", direction == "left"),
   ggtitle("Left lateral saccades post-tDCS (0-15 min)")
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left post-1-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left post-1-1.png" width="75%" style="display: block; margin: auto;" />
 
 ### After tDCS (15-30 min)
 
@@ -339,4 +345,4 @@ ggplot(filter(qStats, leg == "post-2", type  == "lateral", direction == "left"),
   ggtitle("Left lateral saccades post-tDCS (15-30 min)")
 ```
 
-<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left post-2-1.png" width="70%" style="display: block; margin: auto;" />
+<img src="RT_quantiles_files/figure-markdown_github/Shift lateral left post-2-1.png" width="75%" style="display: block; margin: auto;" />

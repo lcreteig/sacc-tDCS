@@ -25,7 +25,8 @@ library(BayesFactor) # Bayesian statistics
 library(broom) # transform model output into a data frame
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
+
 
 source(here("src", "lib", "InclusionBF.R"))
 
@@ -147,12 +148,13 @@ latencyMedian <- groupData %>%
 
 ### Full factorial plot
 
-```{r Full factorial plot}
+```{r Full factorial plot, fig.width = 9}
 # Plot out all the data
 fullPlot <- ggplot(latencyMedian, aes(interaction(block,leg), latency, color = stimulation, shape = stimulation)) +
   facet_grid(type ~ direction) +
   stat_summary(fun.y = mean, geom = "point", size = 3) +
-  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1)
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation), size = 1) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5))
 fullPlot
 ```
 
@@ -178,11 +180,12 @@ latencyMedianLeg <- groupData %>%
 
 Now make the same plot, but for the data collapsed over 3 blocks. Also draw the plot for each individual subject, so we can see which subjects drive the baseline difference, and in which direction the stimulation effect goes for each subject (if there is any).
 
-```{r Line plot for each subject, fig.height= 6}
+```{r Line plot for each subject, fig.width=8}
 kanaiSubsPlot <- ggplot(latencyMedianLeg, aes(leg, latency, color = stimulation, shape = type)) +         
   facet_wrap(~subject, ncol = 5) +
   stat_summary(fun.y = mean, geom = "point", size = 2) +
-  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation))
+  stat_summary(fun.y = mean, geom = "line", aes(group = stimulation)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5))
 kanaiSubsPlot
 ```
 
@@ -447,7 +450,9 @@ __Factors__:
 ```{r Omnibus ANOVA, results='asis'}
 modelOmni <- ezANOVA(data = data.frame(latencyMedianLeg), # Repeated over subjects; type 3 sums of squares (cf. SPSS)
                         dv = .(latency), wid = .(subject), within = .(stimulation, leg, type, direction), type = 3)
-kable(modelOmni)
+kable(modelOmni$ANOVA)
+kable(modelOmni$`Mauchly's Test for Sphericity`)
+kable(modelOmni$`Sphericity Corrections`)
 ```
 
 #### Main effect: type
@@ -522,7 +527,9 @@ modelKanai <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "l
 # modelKanai=aov(latency~stimulation*leg*direction + Error(subject/(stimulation*leg*direction)),data=latencyMedianBaselineLateral)
 # summary(modelKanai)
 
-kable(modelKanai)
+kable(modelKanai$ANOVA)
+kable(modelKanai$`Mauchly's Test for Sphericity`)
+kable(modelKanai$`Sphericity Corrections`)
 ```
 
 ##### Main effect of leg
@@ -604,7 +611,9 @@ __Factors__:
 ```{r Kanai ANOVA lateral session order, results='asis'}
 modelKanaiOrder <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "lateral")), dv = .(latency), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiOrder)
+kable(modelKanaiOrder$ANOVA)
+kable(modelKanaiOrder$`Mauchly's Test for Sphericity`)
+kable(modelKanaiOrder$`Sphericity Corrections`)
 ```
 
 ##### Interaction: session order by stimulation by direction
@@ -637,7 +646,9 @@ Repeat the same ANOVA, but now for center saccades (which Kanai did not have).
 modelKanaiCenter <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "center")),
                         dv = .(latency), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanaiCenter)
+kable(modelKanaiCenter$ANOVA)
+kable(modelKanaiCenter$`Mauchly's Test for Sphericity`)
+kable(modelKanaiCenter$`Sphericity Corrections`)
 ```
 
 ##### Main effect of direction
@@ -660,7 +671,9 @@ This seems to be a really tiny and variable effect, but apparently left saccades
 ```{r Kanai ANOVA center session order, results='asis'}
 modelKanaiCenterOrder <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "center")), dv = .(latency), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiCenterOrder)
+kable(modelKanaiCenterOrder$ANOVA)
+kable(modelKanaiCenterOrder$`Mauchly's Test for Sphericity`)
+kable(modelKanaiCenterOrder$`Sphericity Corrections`)
 ```
 
 ###### Interaction: session order by direction
@@ -701,17 +714,17 @@ The winning model is the one with just a main effect of LEG, with a Bayes factor
 
 The conventional interpretation for Bayes Factors is the following:
 
-* $BF_{10}$ < 0.1: strong evidence for H0
-* 0.1 < $BF_{10}$ < .33: moderate evidence for H0
-* 0.333 < $BF_{10}$ < 1: anecdotal evidence for H0
+* BF~10~ < 0.1: strong evidence for H0
+* 0.1 < BF~10~ < .33: moderate evidence for H0
+* 0.333 < BF~10~ < 1: anecdotal evidence for H0
 
-* $BF_{10}$ = 1: equivalent evidence for H0 and H1
+* BF~10~ = 1: equivalent evidence for H0 and H1
 
-* 1 $BF_{10}$ < 3: anecdotal evidence for H1
-* 3 < $BF_{10}$ < 10: moderate evidence for H1
-* $BF_{10}$ > 10: strong evidence H1 
+* 1 BF~10~ < 3: anecdotal evidence for H1
+* 3 < BF~10~ < 10: moderate evidence for H1
+* BF~10~ > 10: strong evidence H1 
 
-So to switch between expressing the Bayes Factor as evidence for H1 ($BF_{10}$) or H0 ($BF_{01}$), you simply invert it (divide by 1).
+So to switch between expressing the Bayes Factor as evidence for H1 (BF~10~) or H0 (BF~01~), you simply invert it (divide by 1).
 
 We can compute the evidence for a particular effect by comparing this winning model with the best-fitting model that does _not_ contain the effect. We can compute the evidence for _absence_ of a particular effect by comparing the winning model with the best-fitting model that _does_ contain the effect.
 
@@ -756,7 +769,7 @@ kable(inclusionBF(bfKanaiLateral))
 
 Doing the analysis this way, we also find strong evidence against most of these effects; particularly the interactions.
 
-My preferred approach is the inclusion Bayes factor across matched models. The evidence is qualitatively similar, but less strong, probably because we aren't including as many poorly fitting models in the model comparison (which have a very large $BF_{10}$ and therefore a lot of effect on the composite Bayes Factor):
+My preferred approach is the inclusion Bayes factor across matched models. The evidence is qualitatively similar, but less strong, probably because we aren't including as many poorly fitting models in the model comparison (which have a very large BF~10~ and therefore a lot of effect on the composite Bayes Factor):
 
 ```{r Inclusion BF matched models}
 kable(inclusionBF(bfKanaiLateral, models = "matched"))

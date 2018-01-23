@@ -22,7 +22,7 @@ library(here) # file paths
 library(tidyverse) # importing, transforming, and visualizing data frames
 library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6, fig.asp = 0.618, out.width = "70%", fig.align = "center")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
 sessionInfo()
 ```
@@ -67,7 +67,7 @@ kable(head(groupData))
 
 ### Histograms for each subject 
 
-```{r Histogram per subject, fig.height = 6}
+```{r Histogram per subject, fig.width = 10}
 histType <- ggplot(groupData, aes(latency, fill = type)) +
   facet_wrap(~subject, ncol = 5, scales = "free_y") +
   geom_histogram(binwidth = 5, color = "grey50", size = .2) +
@@ -95,7 +95,7 @@ dens
 ```
 
 ### Session effects in each subject
-```{r Density: anodal vs. cathodal baseline per subject, fig.height = 6}
+```{r Density: anodal vs. cathodal baseline per subject, fig.width = 10}
 denstDCS <- ggplot(groupData[groupData$leg == 'pre' & groupData$type == "lateral", ], aes(latency, color = stimulation)) +
   facet_wrap(~subject, ncol = 5, scales ="free_y") +
   geom_density() +
@@ -145,7 +145,7 @@ groupData <- mutate(groupData, outlier = "non.outlier", # fill vector for all tr
 
 ### Plot latencies of outlier trials per subject
 
-```{r Plot outlier trials per subject, fig.height = 6}
+```{r Plot outlier trials per subject, fig.width = 10}
 outlierPlotTrials <- ggplot(groupData[!(groupData$outlier %in% c("none", "non.outlier")), ], aes(interaction(stimulation,leg,block,trial), latency, color = outlier, shape = type)) +
   facet_wrap(~subject, ncol = 5, scales = "free_y") +
   geom_point() +
@@ -178,7 +178,7 @@ kable(outlierTable, caption = "Number of outlier saccades per subject")
 
 ### Plot outlier counts per subject and type
 
-```{r Plot outlier counts per subject and type}
+```{r Plot outlier counts per subject and type, fig.width = 7}
 max_n <- nrow(filter(groupData, subject == "S01", type == "center")) # max amount of saccades in experiment
 
 ggplot(filter(outlierCount, outlier != "non.outlier"), aes(subject, outlier_count, fill = outlier)) +
@@ -224,7 +224,7 @@ trialCount <- groupData %>%
   group_by(subject,stimulation,leg,direction,type) %>%
   summarise(saccades = n()) %>% # count how many there are per subject per condition
   arrange(saccades) # sort ascending
-trialCount
+kable(head(trialCount))
 ```
 
 ### List candidates for rejection
@@ -256,7 +256,8 @@ n_total <- nrow(filter(groupData, !(subject %in% subs2exclude)))  # total amount
 outlierCount %>%
   filter(!(subject %in% subs2exclude), !(outlier %in% c("non.outlier", "none"))) %>%
   group_by(outlier) %>%
-  summarise(percentage = sum(outlier_count) / n_total *100)
+  summarise(percentage = sum(outlier_count) / n_total *100) %>%
+  kable(.)
 ```
 
 
@@ -272,7 +273,7 @@ outliersPerCondition <- groupData %>%
   group_by(stimulation,leg,type,direction) %>%
   mutate(mad.median.rule = (abs(latency - median(latency)) / mad(latency))) %>% # deviation from the median, standardized by the MAD
   filter(mad.median.rule > 2.24) # MAD-median rule
-outliersPerCondition
+kable(head(outliersPerCondition))
 ```
 
 These are all the subject-condition combinations for which the MAD-median rule is violated. If we were to reject subjects with one more more violation, we would have to remove `r length(unique(outliersPerCondition$subject))` subjects.

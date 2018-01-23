@@ -346,7 +346,9 @@ __Factors__:
 modelKanai <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")),
                         dv = .(deviation.end), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanai)
+kable(modelKanai$ANOVA)
+kable(modelKanai$`Mauchly's Test for Sphericity`)
+kable(modelKanai$`Sphericity Corrections`)
 ```
 
 ##### With session order
@@ -363,7 +365,9 @@ devDataBase %>%
 ```{r Kanai ANOVA lateral deviation session order, results='asis'}
 modelKanaiOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")), dv = .(deviation.end), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiOrder)
+kable(modelKanaiOrder$ANOVA)
+kable(modelKanaiOrder$`Mauchly's Test for Sphericity`)
+kable(modelKanaiOrder$`Sphericity Corrections`)
 ```
 
 #### ANOVA matching Kanai et al. (2012) - center saccades {.tabset .tabset-fade}
@@ -376,7 +380,9 @@ Repeat the same ANOVA, but now discard the lateral and keep only center saccades
 modelKanaiCenter <- ezANOVA(data = data.frame(filter(devDataBase, type == "center")),
                         dv = .(deviation.end), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanaiCenter)
+kable(modelKanaiCenter$ANOVA)
+kable(modelKanaiCenter$`Mauchly's Test for Sphericity`)
+kable(modelKanaiCenter$`Sphericity Corrections`)
 ```
 
 ###### Main effect of stimulation
@@ -430,7 +436,9 @@ The accuracy of leftward saccades is improved for left saccades in the final hal
 ```{r Kanai ANOVA center session order, results='asis'}
 modelKanaiCenterOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "center")), dv = .(deviation.end), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiCenterOrder)
+kable(modelKanaiCenterOrder$ANOVA)
+kable(modelKanaiCenterOrder$`Mauchly's Test for Sphericity`)
+kable(modelKanaiCenterOrder$`Sphericity Corrections`)
 ```
 
 There are some significant effects, but they do not interact with session order.
@@ -455,7 +463,7 @@ kable(select(extractBF(bfKanaiLateral), bf)) # show only the Bayes factors in a 
 Two models fare better than the null model: (1) a main effect of stimulation, and (2) a main effect of both stimulation and direction. 
 
 ```{r Inclusion BF matched models - lateral saccades}
-inclusionBF(bfKanaiLateral, models = "matched")
+kable(inclusionBF(bfKanaiLateral, models = "matched"))
 ```
 
 There is moderate evidence for inclusion of an effect of stimulation, even though the classical analysis does not reach significance.
@@ -474,7 +482,7 @@ kable(select(extractBF(bfKanaiCenter), bf)) # show only the Bayes factors in a t
 All the models with a main effect of stimulation are strongly supported.
 
 ```{r Inclusion BF matched models - center saccades}
-inclusionBF(bfKanaiCenter, models = "matched")
+kable(inclusionBF(bfKanaiCenter, models = "matched"))
 ```
 
 Overwhelming evidence for inclusion of a main effect of stimulation, which is in accord with the highly significant p-value.
@@ -688,7 +696,9 @@ __Factors__:
 modelKanaiStd <- ezANOVA(data = data.frame(filter(stdDataBase, type == "lateral")),
                         dv = .(std.deviation.x), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanaiStd)
+kable(modelKanaiStd$ANOVA)
+kable(modelKanaiStd$`Mauchly's Test for Sphericity`)
+kable(modelKanaiStd$`Sphericity Corrections`)
 ```
 
 ##### With session order
@@ -696,7 +706,9 @@ kable(modelKanaiStd)
 ```{r Kanai ANOVA lateral variability session order, results='asis'}
 modelKanaiStdOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "lateral")), dv = .(std.deviation.x), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiStdOrder)
+kable(modelKanaiStdOrder$ANOVA)
+kable(modelKanaiStdOrder$`Mauchly's Test for Sphericity`)
+kable(modelKanaiStdOrder$`Sphericity Corrections`)
 ```
 
 The interaction with session order, stimulation, and direction is significant. However, the stimulation:direction interaction was not significant in the ANOVA without the session order factor, so we should interpret this with caution. In addition, an interaction of session order and stimulation could just as well reflect a main effect of session (1 vs. 2): there's no way to distinguish between these possibilities.
@@ -710,7 +722,9 @@ The interaction with session order, stimulation, and direction is significant. H
 modelKanaiStdCenter <- ezANOVA(data = data.frame(filter(stdDataBase, type == "center")),
                         dv = .(std.deviation.x), wid = .(subject), within = .(stimulation,leg,direction), type = 3)
 
-kable(modelKanaiStdCenter)
+kable(modelKanaiStdCenter$ANOVA)
+kable(modelKanaiStdCenter$`Mauchly's Test for Sphericity`)
+kable(modelKanaiStdCenter$`Sphericity Corrections`)
 ```
 
 ##### Main effect of stimulation
@@ -735,7 +749,9 @@ This resembles the difference found for the saccade endpoint deviation, except h
 ```{r Kanai ANOVA center variability session order, results='asis'}
 modelKanaiStdCenterOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "center")), dv = .(std.deviation.x), 
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
-kable(modelKanaiStdCenterOrder)
+kable(modelKanaiStdCenterOrder$ANOVA)
+kable(modelKanaiStdCenterOrder$`Mauchly's Test for Sphericity`)
+kable(modelKanaiStdCenterOrder$`Sphericity Corrections`)
 ```
 
 Here the effect does just reach significance, but there's no interaction with session order.
@@ -757,7 +773,7 @@ kable(select(extractBF(bfKanaiStd), bf)) # show only the Bayes factors in a tabl
 
 ```{r Inclusion BF matched models - variability lateral saccades}
 # Inclusion Bayes Factors
-inclusionBF(bfKanaiStd, models = "matched")
+kable(inclusionBF(bfKanaiStd, models = "matched"))
 ```
 
 Across the board, there is only marginal support for an effect of stimulation. For the interaction between stimulation and direction, the BF approaches moderate evidence for the null. 
@@ -777,7 +793,7 @@ Like for the saccade endpoint deviation data, models with stimulation as a facto
 
 ```{r Inclusion BF matched models - variability center saccades}
 # Inclusion Bayes Factors
-inclusionBF(bfKanaiStdCenter, models = "matched")
+kable(inclusionBF(bfKanaiStdCenter, models = "matched"))
 ```
 
 Again, especially considering the non-significant p-value, the support is quite strong.
