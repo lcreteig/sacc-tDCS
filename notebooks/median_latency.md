@@ -26,7 +26,7 @@ R notebook for analyses of median saccade latency in the `sacc-tDCS` dataset. Pr
 library(here) # file paths
 ```
 
-    ## here() starts at /Volumes/research$/reteig/sacc-tDCS
+    ## here() starts at /Volumes/psychology$/Researchers/reteig/sacc-tDCS
 
 ``` r
 library(tidyverse) # importing, transforming, and visualizing data frames
@@ -380,7 +380,7 @@ All differences between anodal & cathodal seem to be &lt; 5 ms. Any differences 
 
 #### Anodal session
 
-Let's look at the same plot for individual subjects, to see whether there are any consistent patterns or huge outliers there.
+Let's look at the same plot for individual subjects, to see whether there are any consistent patterns or huge outliers there
 
 ``` r
 kanaiPlotSubsAnodal <- ggplot(latencyMedianLeg[latencyMedianLeg$stimulation == "anodal", ], aes(leg, latency)) +
@@ -588,6 +588,26 @@ kanaiPlotBaseSubsCathodal
 <img src="median_latency_files/figure-markdown_github/Line plot from baseline per subject - cathodal-1.png" width="75%" style="display: block; margin: auto;" />
 
 All of this is split pretty much 50-50, hence the average difference hovering around 0.
+
+### Contralateral saccades in the anodal session
+
+[Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) specifically found an effect of *anodal* tDCS on the latency changes in *contralateral* (here: left) *lateral* saccades. Let's examine the raw numbers here:
+
+``` r
+latencyMedianBaseline %>%
+  filter(type == "lateral", stimulation == "anodal", direction == "left") %>%
+  group_by(leg) %>%
+  summarise_at(vars(latency), funs(mean, sd)) %>%
+  kable(.)
+```
+
+| leg    |        mean|        sd|
+|:-------|-----------:|---------:|
+| tDCS   |  -0.1730769|  5.342176|
+| post.1 |  -0.6153846|  7.134855|
+| post.2 |   0.9615385|  9.651863|
+
+These changes are all &lt; 1 ms and highly variable, so it seems there's truly nothing there...
 
 Statistics
 ==========
@@ -1105,24 +1125,24 @@ kable(select(extractBF(bfKanaiLateral), bf)) # show only the Bayes factors in a 
 
 |                                                                                                                               |         bf|
 |-------------------------------------------------------------------------------------------------------------------------------|----------:|
-| leg + subject                                                                                                                 |  0.8369410|
-| stimulation + subject                                                                                                         |  0.7471023|
-| stimulation + leg + subject                                                                                                   |  0.6548069|
-| direction + subject                                                                                                           |  0.1329814|
-| direction + leg + subject                                                                                                     |  0.1156958|
-| stimulation + direction + subject                                                                                             |  0.0994426|
-| stimulation + direction + leg + subject                                                                                       |  0.0871115|
-| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0470574|
-| stimulation + direction + stimulation:direction + subject                                                                     |  0.0221274|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0198278|
-| direction + leg + direction:leg + subject                                                                                     |  0.0108875|
-| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0087366|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0063617|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0018489|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0013926|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0006423|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0001351|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000248|
+| leg + subject                                                                                                                 |  0.8373755|
+| stimulation + subject                                                                                                         |  0.7543401|
+| stimulation + leg + subject                                                                                                   |  0.6613588|
+| direction + subject                                                                                                           |  0.1341075|
+| direction + leg + subject                                                                                                     |  0.1131236|
+| stimulation + direction + subject                                                                                             |  0.0994817|
+| stimulation + direction + leg + subject                                                                                       |  0.0881157|
+| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0497159|
+| stimulation + direction + stimulation:direction + subject                                                                     |  0.0220471|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0190406|
+| direction + leg + direction:leg + subject                                                                                     |  0.0110009|
+| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0083913|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0064817|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0018660|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0014237|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0006089|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0001390|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000240|
 
 The winning model is the one with just a main effect of LEG, with a Bayes factor of 0.8. However, so even for this model there is less evidence than for the null model, which by definition has a Bayes Factor of 1.
 
@@ -1144,7 +1164,7 @@ We can compute the evidence for a particular effect by comparing this winning mo
 
 The evidence for the effect of LEG can be quantified by comparing the Bayes factors of the first and the 3rd model (because that is the first one that does *not* contain LEG as a factor): 1.3. This constitues only anocdotal evidence for the presence of a leg effect, even though it was significant in the classical ANOVA. But, given that the leg model itself is such a poor fit, in the Bayesian analysis this weak evidence is no surprise.
 
-The evidence for the *absence* of the STIMULATION by DIRECTION interaction can be quantified by comparing the Bayes factors of the first and the 9th model (because that is the first one that *does* contain the interaction): 37.8. This constitues strong evidence for the absence of the interaction.
+The evidence for the *absence* of the STIMULATION by DIRECTION interaction can be quantified by comparing the Bayes factors of the first and the 9th model (because that is the first one that *does* contain the interaction): 38. This constitues strong evidence for the absence of the interaction.
 
 #### Test against the full model
 
@@ -1158,20 +1178,20 @@ bfKanaiLateralFull
     ## Bayes factor top-down analysis
     ## --------------
     ## When effect is omitted from stimulation + direction + leg + stimulation:direction + stimulation:leg + direction:leg + stimulation:direction:leg + subject , BF is...
-    ## [1] Omit direction:leg:stimulation : 4.955423  <U+00B1>11.9%
-    ## [2] Omit direction:leg             : 8.543017  <U+00B1>11.68%
-    ## [3] Omit leg:stimulation           : 11.8334   <U+00B1>11.89%
-    ## [4] Omit direction:stimulation     : 3.805628  <U+00B1>11.64%
-    ## [5] Omit leg                       : 0.9760963 <U+00B1>12.17%
-    ## [6] Omit direction                 : 6.304331  <U+00B1>11.75%
-    ## [7] Omit stimulation               : 1.285336  <U+00B1>21.89%
+    ## [1] Omit direction:leg:stimulation : 6.225649 <U+00B1>22.8%
+    ## [2] Omit direction:leg             : 8.852696 <U+00B1>11.53%
+    ## [3] Omit leg:stimulation           : 13.13151 <U+00B1>12.08%
+    ## [4] Omit direction:stimulation     : 4.34322  <U+00B1>13.36%
+    ## [5] Omit leg                       : 0.990652 <U+00B1>11.53%
+    ## [6] Omit direction                 : 6.931476 <U+00B1>12.41%
+    ## [7] Omit stimulation               : 1.098024 <U+00B1>11.41%
     ## 
     ## Against denominator:
     ##   latency ~ stimulation + direction + leg + stimulation:direction + stimulation:leg + direction:leg + stimulation:direction:leg +     subject 
     ## ---
     ## Bayes factor type: BFlinearModel, JZS
 
-Removing the LEG effect from the model yields a higher Bayes Factor, so removing this effect actually improved the model, although only by a little bit. The evidence thus goes in the direction of the null; when expressed in favor of the alternative, the Bayes Factir becomes less than one: 1  0.976 `=` 1
+Removing the LEG effect from the model yields a higher Bayes Factor, so removing this effect actually improved the model, although only by a little bit. The evidence thus goes in the direction of the null; when expressed in favor of the alternative, the Bayes Factir becomes less than one: 1  0.991 `=` 1
 
 Similarly, removing the DIRECTION by STIMULATION effect improves the model, and this time a bit more: in the range of moderate evidence for the null.
 
@@ -1199,13 +1219,13 @@ kable(inclusionBF(bfKanaiLateral))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |     0.2890214|
-| direction                 |     0.0551289|
-| stimulation:direction     |     0.0262216|
-| leg                       |     0.3196411|
-| stimulation:leg           |     0.0322399|
-| direction:leg             |     0.0127990|
-| stimulation:direction:leg |     0.0001179|
+| stimulation               |     0.2919431|
+| direction                 |     0.0546996|
+| stimulation:direction     |     0.0256381|
+| leg                       |     0.3195961|
+| stimulation:leg           |     0.0337361|
+| direction:leg             |     0.0126055|
+| stimulation:direction:leg |     0.0001136|
 
 Doing the analysis this way, we also find strong evidence against most of these effects; particularly the interactions.
 
@@ -1217,13 +1237,13 @@ kable(inclusionBF(bfKanaiLateral, models = "matched"))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |     0.7618390|
-| direction                 |     0.1343900|
-| stimulation:direction     |     0.2240872|
-| leg                       |     0.8564833|
-| stimulation:leg           |     0.0719756|
-| direction:leg             |     0.0965773|
-| stimulation:direction:leg |     0.1838927|
+| stimulation               |     0.7690789|
+| direction                 |     0.1336174|
+| stimulation:direction     |     0.2192068|
+| leg                       |     0.8552410|
+| stimulation:leg           |     0.0749504|
+| direction:leg             |     0.0964401|
+| stimulation:direction:leg |     0.1729663|
 
 ### Linear mixed effects matching Kanai - center saccades
 
@@ -1238,24 +1258,24 @@ kable(select(extractBF(bfKanaiCenter), bf)) # show only the Bayes factors in a t
 
 |                                                                                                                               |           bf|
 |-------------------------------------------------------------------------------------------------------------------------------|------------:|
-| stimulation + direction + subject                                                                                             |  536.0919637|
-| stimulation + direction + stimulation:direction + subject                                                                     |  401.9954582|
-| stimulation + direction + leg + subject                                                                                       |   96.5673070|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |   71.4297259|
-| stimulation + subject                                                                                                         |   56.3933677|
-| stimulation + leg + subject                                                                                                   |    9.4872949|
-| stimulation + direction + leg + direction:leg + subject                                                                       |    9.0981205|
-| direction + subject                                                                                                           |    8.0433468|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    6.7501094|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |    6.4583019|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |    4.7668502|
-| direction + leg + subject                                                                                                     |    1.3128487|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |    0.7327462|
-| stimulation + leg + stimulation:leg + subject                                                                                 |    0.6264923|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |    0.4730413|
-| leg + subject                                                                                                                 |    0.1575411|
-| direction + leg + direction:leg + subject                                                                                     |    0.1387820|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |    0.0654546|
+| stimulation + direction + subject                                                                                             |  531.5385141|
+| stimulation + direction + stimulation:direction + subject                                                                     |  422.1671290|
+| stimulation + direction + leg + subject                                                                                       |   95.5529472|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |   84.8532397|
+| stimulation + subject                                                                                                         |   56.6710483|
+| stimulation + leg + subject                                                                                                   |    9.6936954|
+| stimulation + direction + leg + direction:leg + subject                                                                       |    9.2913109|
+| direction + subject                                                                                                           |    7.8392937|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    6.9774143|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |    6.5196772|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |    4.6432293|
+| direction + leg + subject                                                                                                     |    1.3119228|
+| stimulation + leg + stimulation:leg + subject                                                                                 |    0.6422942|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |    0.6079289|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |    0.4848639|
+| leg + subject                                                                                                                 |    0.1580902|
+| direction + leg + direction:leg + subject                                                                                     |    0.1267952|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |    0.0646275|
 
 Interestingly, there is a lot more evidence across the board, especially for the models that feature Stimulation and Direction.
 
@@ -1265,13 +1285,13 @@ kable(inclusionBF(bfKanaiCenter, models = "matched"))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |    66.4291778|
-| direction                 |     9.5836353|
-| stimulation:direction     |     0.7480027|
-| leg                       |     0.1783263|
-| stimulation:leg           |     0.0675387|
-| direction:leg             |     0.0952325|
-| stimulation:direction:leg |     0.1383697|
+| stimulation               |    67.3381235|
+| direction                 |     9.4294894|
+| stimulation:direction     |     0.8067094|
+| leg                       |     0.1879581|
+| stimulation:leg           |     0.0624998|
+| direction:leg             |     0.0906689|
+| stimulation:direction:leg |     0.1332900|
 
 There seems to be a mismatch with the classical ANOVA: An effect of stimulation receives strong support, whereas it was non-significant. The effect of direction was significant, but it is less strongly supported by the inclusion Bayes Factor (although the evidence still goes in the right direction).
 
@@ -1304,24 +1324,24 @@ kable(select(extractBF(bfKanaiCenterNoS01), bf)) # show only the Bayes factors i
 
 |                                                                                                                               |            bf|
 |-------------------------------------------------------------------------------------------------------------------------------|-------------:|
-| stimulation + direction + subject                                                                                             |  1414.9173286|
-| direction + subject                                                                                                           |   593.9260628|
-| stimulation + direction + leg + subject                                                                                       |   500.8782055|
-| stimulation + direction + stimulation:direction + subject                                                                     |   355.6182797|
-| direction + leg + subject                                                                                                     |   207.5273825|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |   129.1617435|
-| stimulation + direction + leg + direction:leg + subject                                                                       |    66.2674131|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |    34.6189068|
-| direction + leg + direction:leg + subject                                                                                     |    24.8226424|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    15.0123673|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |     8.7836953|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |     4.5161916|
-| stimulation + subject                                                                                                         |     2.0143682|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |     1.0355578|
-| stimulation + leg + subject                                                                                                   |     0.6306025|
-| leg + subject                                                                                                                 |     0.2998792|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |     0.1608650|
-| stimulation + leg + stimulation:leg + subject                                                                                 |     0.0414637|
+| stimulation + direction + subject                                                                                             |  1384.2334397|
+| direction + subject                                                                                                           |   584.4450091|
+| stimulation + direction + leg + subject                                                                                       |   506.4962434|
+| stimulation + direction + stimulation:direction + subject                                                                     |   338.2594659|
+| direction + leg + subject                                                                                                     |   203.9596495|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |   141.4386590|
+| stimulation + direction + leg + direction:leg + subject                                                                       |    61.6457645|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |    33.3214299|
+| direction + leg + direction:leg + subject                                                                                     |    25.4907335|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    15.1142041|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |     9.5604865|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |     8.1674075|
+| stimulation + subject                                                                                                         |     1.9857978|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |     1.0083926|
+| stimulation + leg + subject                                                                                                   |     0.6289967|
+| leg + subject                                                                                                                 |     0.3026847|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |     0.1636766|
+| stimulation + leg + stimulation:leg + subject                                                                                 |     0.0425897|
 
 ``` r
 kable(inclusionBF(bfKanaiCenterNoS01, models = "matched"))
@@ -1329,13 +1349,13 @@ kable(inclusionBF(bfKanaiCenterNoS01, models = "matched"))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |     2.3982184|
-| direction                 |   690.3290091|
-| stimulation:direction     |     0.2521335|
-| leg                       |     0.3541737|
-| stimulation:leg           |     0.0688191|
-| direction:leg             |     0.1267400|
-| stimulation:direction:leg |     0.1553414|
+| stimulation               |     2.3981782|
+| direction                 |   684.9516731|
+| stimulation:direction     |     0.2525930|
+| leg                       |     0.3692010|
+| stimulation:leg           |     0.0718304|
+| direction:leg             |     0.1262835|
+| stimulation:direction:leg |     0.1623144|
 
 This completely abolishes the strong support for Stimulation, and greatly enhances the support for Direction, bringing the Bayesian and the classical ANOVAs more in line. At present it is unclear why the classical and Bayesian analyses differ in this regard. When simulating this case for normally distributed data, the Bayes Factors and p-values track each other nicely (see [discussion on JASP/BayesFactor forum](http://forum.cogsci.nl/index.php?p=/discussion/3596/large-bayes-factor-changes-with-exclusion-of-single-subject-bayesian-anova)). This suggests there must be some assumption that is not met in this particular dataset, which is causing the divergence between the analyses.
 

@@ -232,7 +232,7 @@ All differences between anodal & cathodal seem to be < 5 ms. Any differences tha
 
 #### Anodal session
 
-Let's look at the same plot for individual subjects, to see whether there are any consistent patterns or huge outliers there.
+Let's look at the same plot for individual subjects, to see whether there are any consistent patterns or huge outliers there
 
 ```{r Line plot per subject - anodal}
 kanaiPlotSubsAnodal <- ggplot(latencyMedianLeg[latencyMedianLeg$stimulation == "anodal", ], aes(leg, latency)) +
@@ -416,6 +416,20 @@ kanaiPlotBaseSubsCathodal
 ```
 
 All of this is split pretty much 50-50, hence the average difference hovering around 0.
+
+### Contralateral saccades in the anodal session
+
+[Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) specifically found an effect of _anodal_ tDCS on the latency changes in _contralateral_ (here: left) _lateral_ saccades. Let's examine the raw numbers here:
+
+```{r Anodal left lateral saccades}
+latencyMedianBaseline %>%
+  filter(type == "lateral", stimulation == "anodal", direction == "left") %>%
+  group_by(leg) %>%
+  summarise_at(vars(latency), funs(mean, sd)) %>%
+  kable(.)
+```
+
+These changes are all < 1 ms and highly variable, so it seems there's truly nothing there...
 
 # Statistics
 

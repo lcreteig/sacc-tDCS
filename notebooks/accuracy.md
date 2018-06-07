@@ -36,7 +36,7 @@ R notebook for inspection of data and analyses of saccade end point deviation an
 library(here) # file paths
 ```
 
-    ## here() starts at /Volumes/research$/reteig/sacc-tDCS
+    ## here() starts at /Volumes/psychology$/Researchers/reteig/sacc-tDCS
 
 ``` r
 library(tidyverse) # importing, transforming, and visualizing data frames
@@ -435,6 +435,31 @@ devData %>%
 
 Indeed, in the center-left condition the baseline difference is significant, and it's at trend in the center-right condition.
 
+For the center conditions, let's look at the raw data from Time Periods after the baseline block, to see if there are also differnences between anodal and cathodal there:
+
+``` r
+devData %>%
+  filter(leg != "baseline", type == "center") %>%
+  group_by(stimulation,direction,leg) %>% 
+  summarise(mean = mean(deviation.end)) %>%
+  kable(.)            
+```
+
+| stimulation | direction | leg    |       mean|
+|:------------|:----------|:-------|----------:|
+| anodal      | left      | tDCS   |  0.9149277|
+| anodal      | left      | post.1 |  0.8752206|
+| anodal      | left      | post.2 |  0.8978057|
+| anodal      | right     | tDCS   |  0.7192357|
+| anodal      | right     | post.1 |  0.7110237|
+| anodal      | right     | post.2 |  0.7465372|
+| cathodal    | left      | tDCS   |  0.9129682|
+| cathodal    | left      | post.1 |  0.8395323|
+| cathodal    | left      | post.2 |  0.8357657|
+| cathodal    | right     | tDCS   |  0.7227287|
+| cathodal    | right     | post.1 |  0.7062460|
+| cathodal    | right     | post.2 |  0.7483820|
+
 ### Baseline subtracted
 
 ``` r
@@ -771,24 +796,24 @@ kable(select(extractBF(bfKanaiLateral), bf)) # show only the Bayes factors in a 
 
 |                                                                                                                               |         bf|
 |-------------------------------------------------------------------------------------------------------------------------------|----------:|
-| stimulation + subject                                                                                                         |  6.3642726|
-| stimulation + direction + subject                                                                                             |  2.8399145|
-| stimulation + direction + stimulation:direction + subject                                                                     |  0.5499363|
-| direction + subject                                                                                                           |  0.4404612|
-| stimulation + leg + subject                                                                                                   |  0.3677395|
-| stimulation + direction + leg + subject                                                                                       |  0.1659268|
-| leg + subject                                                                                                                 |  0.0538981|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0299974|
-| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0292944|
-| direction + leg + subject                                                                                                     |  0.0243664|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0141287|
-| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0104664|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0026945|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0021618|
-| direction + leg + direction:leg + subject                                                                                     |  0.0015586|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0008993|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0001764|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000205|
+| stimulation + subject                                                                                                         |  6.2416865|
+| stimulation + direction + subject                                                                                             |  2.8566492|
+| stimulation + direction + stimulation:direction + subject                                                                     |  0.6001539|
+| direction + subject                                                                                                           |  0.4334826|
+| stimulation + leg + subject                                                                                                   |  0.3486978|
+| stimulation + direction + leg + subject                                                                                       |  0.1571442|
+| leg + subject                                                                                                                 |  0.0535717|
+| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0310261|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0298282|
+| direction + leg + subject                                                                                                     |  0.0234612|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0138528|
+| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0105852|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0026459|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0020252|
+| direction + leg + direction:leg + subject                                                                                     |  0.0015971|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0009203|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0001738|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000196|
 
 Two models fare better than the null model: (1) a main effect of stimulation, and (2) a main effect of both stimulation and direction.
 
@@ -798,13 +823,13 @@ kable(inclusionBF(bfKanaiLateral, models = "matched"))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |     6.4121688|
-| direction                 |     0.4458997|
-| stimulation:direction     |     0.1929732|
-| leg                       |     0.0573427|
-| stimulation:leg           |     0.0818914|
-| direction:leg             |     0.0643676|
-| stimulation:direction:leg |     0.1161846|
+| stimulation               |     6.3584968|
+| direction                 |     0.4540193|
+| stimulation:direction     |     0.2088829|
+| leg                       |     0.0550399|
+| stimulation:leg           |     0.0886751|
+| direction:leg             |     0.0674274|
+| stimulation:direction:leg |     0.1126269|
 
 There is moderate evidence for inclusion of an effect of stimulation, even though the classical analysis does not reach significance.
 
@@ -821,24 +846,24 @@ kable(select(extractBF(bfKanaiCenter), bf)) # show only the Bayes factors in a t
 
 |                                                                                                                               |            bf|
 |-------------------------------------------------------------------------------------------------------------------------------|-------------:|
-| stimulation + subject                                                                                                         |  4.084821e+04|
-| stimulation + direction + stimulation:direction + subject                                                                     |  1.703212e+04|
-| stimulation + direction + subject                                                                                             |  1.063972e+04|
-| stimulation + leg + subject                                                                                                   |  4.202821e+03|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |  1.762731e+03|
-| stimulation + direction + leg + subject                                                                                       |  1.079042e+03|
-| stimulation + leg + stimulation:leg + subject                                                                                 |  3.647316e+02|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  3.521635e+02|
-| stimulation + direction + leg + direction:leg + subject                                                                       |  2.126847e+02|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  1.312202e+02|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |  8.493246e+01|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  2.706365e+01|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  1.633230e+01|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  3.700570e+00|
-| direction + subject                                                                                                           |  2.393791e-01|
-| leg + subject                                                                                                                 |  9.380680e-02|
-| direction + leg + subject                                                                                                     |  2.317930e-02|
-| direction + leg + direction:leg + subject                                                                                     |  4.075600e-03|
+| stimulation + subject                                                                                                         |  4.285100e+04|
+| stimulation + direction + stimulation:direction + subject                                                                     |  1.622411e+04|
+| stimulation + direction + subject                                                                                             |  1.056109e+04|
+| stimulation + leg + subject                                                                                                   |  4.280965e+03|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |  1.706650e+03|
+| stimulation + direction + leg + subject                                                                                       |  1.160948e+03|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  3.414395e+02|
+| stimulation + leg + stimulation:leg + subject                                                                                 |  3.283972e+02|
+| stimulation + direction + leg + direction:leg + subject                                                                       |  2.126453e+02|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  1.377537e+02|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |  8.473529e+01|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  2.743428e+01|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  1.654773e+01|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  4.321108e+00|
+| direction + subject                                                                                                           |  2.407299e-01|
+| leg + subject                                                                                                                 |  9.377530e-02|
+| direction + leg + subject                                                                                                     |  2.258900e-02|
+| direction + leg + direction:leg + subject                                                                                     |  4.051000e-03|
 
 All the models with a main effect of stimulation are strongly supported.
 
@@ -848,13 +873,13 @@ kable(inclusionBF(bfKanaiCenter, models = "matched"))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |  4.188530e+04|
-| direction                 |  2.599025e-01|
-| stimulation:direction     |  1.604402e+00|
-| leg                       |  1.028105e-01|
-| stimulation:leg           |  8.204020e-02|
-| direction:leg             |  1.989073e-01|
-| stimulation:direction:leg |  1.367358e-01|
+| stimulation               |  4.339482e+04|
+| direction                 |  2.487711e-01|
+| stimulation:direction     |  1.531858e+00|
+| leg                       |  1.026557e-01|
+| stimulation:leg           |  7.722910e-02|
+| direction:leg             |  1.935436e-01|
+| stimulation:direction:leg |  1.575076e-01|
 
 Overwhelming evidence for inclusion of a main effect of stimulation, which is in accord with the highly significant p-value.
 
@@ -1334,24 +1359,24 @@ kable(select(extractBF(bfKanaiStd), bf)) # show only the Bayes factors in a tabl
 
 |                                                                                                                               |         bf|
 |-------------------------------------------------------------------------------------------------------------------------------|----------:|
-| stimulation + subject                                                                                                         |  1.6364316|
-| stimulation + direction + subject                                                                                             |  0.2469168|
-| direction + subject                                                                                                           |  0.1500116|
-| stimulation + leg + subject                                                                                                   |  0.0684145|
-| stimulation + direction + stimulation:direction + subject                                                                     |  0.0459231|
-| leg + subject                                                                                                                 |  0.0420189|
-| stimulation + direction + leg + subject                                                                                       |  0.0103679|
-| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0074625|
-| direction + leg + subject                                                                                                     |  0.0065961|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0018949|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0010750|
-| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0009494|
-| direction + leg + direction:leg + subject                                                                                     |  0.0005850|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0002060|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0001810|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0001116|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0000189|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000023|
+| stimulation + subject                                                                                                         |  1.6317997|
+| stimulation + direction + subject                                                                                             |  0.2495507|
+| direction + subject                                                                                                           |  0.1503062|
+| stimulation + leg + subject                                                                                                   |  0.0702417|
+| stimulation + direction + stimulation:direction + subject                                                                     |  0.0458128|
+| leg + subject                                                                                                                 |  0.0422665|
+| stimulation + direction + leg + subject                                                                                       |  0.0103480|
+| stimulation + leg + stimulation:leg + subject                                                                                 |  0.0071816|
+| direction + leg + subject                                                                                                     |  0.0062474|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |  0.0019306|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |  0.0010848|
+| stimulation + direction + leg + direction:leg + subject                                                                       |  0.0009663|
+| direction + leg + direction:leg + subject                                                                                     |  0.0005795|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |  0.0002014|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |  0.0001911|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |  0.0001009|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |  0.0000183|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |  0.0000022|
 
 ``` r
 # Inclusion Bayes Factors
@@ -1360,13 +1385,13 @@ kable(inclusionBF(bfKanaiStd, models = "matched"))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |     1.6369755|
-| direction                 |     0.1506602|
-| stimulation:direction     |     0.1858909|
-| leg                       |     0.0419878|
-| stimulation:leg           |     0.1084736|
-| direction:leg             |     0.0916570|
-| stimulation:direction:leg |     0.1199970|
+| stimulation               |     1.6365741|
+| direction                 |     0.1517495|
+| stimulation:direction     |     0.1837589|
+| leg                       |     0.0425786|
+| stimulation:leg           |     0.1026196|
+| direction:leg             |     0.0936780|
+| stimulation:direction:leg |     0.1226685|
 
 Across the board, there is only marginal support for an effect of stimulation. For the interaction between stimulation and direction, the BF approaches moderate evidence for the null.
 
@@ -1383,24 +1408,24 @@ kable(select(extractBF(bfKanaiStdCenter), bf)) # show only the Bayes factors in 
 
 |                                                                                                                               |           bf|
 |-------------------------------------------------------------------------------------------------------------------------------|------------:|
-| stimulation + subject                                                                                                         |  140.7016745|
-| stimulation + direction + subject                                                                                             |   31.9921772|
-| stimulation + leg + subject                                                                                                   |   17.3236347|
-| stimulation + direction + stimulation:direction + subject                                                                     |    6.5545851|
-| stimulation + direction + leg + subject                                                                                       |    3.8457859|
-| stimulation + leg + stimulation:leg + subject                                                                                 |    2.0193681|
-| stimulation + direction + stimulation:direction + leg + subject                                                               |    0.8305891|
-| stimulation + direction + leg + stimulation:leg + subject                                                                     |    0.4294926|
-| stimulation + direction + leg + direction:leg + subject                                                                       |    0.4156005|
-| direction + subject                                                                                                           |    0.2125874|
-| leg + subject                                                                                                                 |    0.1158398|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |    0.0874716|
-| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    0.0840447|
-| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |    0.0477419|
-| direction + leg + subject                                                                                                     |    0.0247468|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |    0.0104507|
-| direction + leg + direction:leg + subject                                                                                     |    0.0026378|
-| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |    0.0012261|
+| stimulation + subject                                                                                                         |  141.0609737|
+| stimulation + direction + subject                                                                                             |   31.1712566|
+| stimulation + leg + subject                                                                                                   |   17.4869119|
+| stimulation + direction + stimulation:direction + subject                                                                     |    6.3301735|
+| stimulation + direction + leg + subject                                                                                       |    4.0031721|
+| stimulation + leg + stimulation:leg + subject                                                                                 |    1.9236231|
+| stimulation + direction + stimulation:direction + leg + subject                                                               |    0.7699638|
+| stimulation + direction + leg + stimulation:leg + subject                                                                     |    0.4308984|
+| stimulation + direction + leg + direction:leg + subject                                                                       |    0.4142523|
+| direction + subject                                                                                                           |    0.2141829|
+| leg + subject                                                                                                                 |    0.1146379|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + subject                                             |    0.0942839|
+| stimulation + direction + stimulation:direction + leg + direction:leg + subject                                               |    0.0848693|
+| stimulation + direction + leg + stimulation:leg + direction:leg + subject                                                     |    0.0466272|
+| direction + leg + subject                                                                                                     |    0.0256621|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + subject                             |    0.0097372|
+| direction + leg + direction:leg + subject                                                                                     |    0.0026770|
+| stimulation + direction + stimulation:direction + leg + stimulation:leg + direction:leg + stimulation:direction:leg + subject |    0.0013008|
 
 Like for the saccade endpoint deviation data, models with stimulation as a factor receive some support, although to a less strong degree. In contrast to endpoint deviation though, here the classical analysis was (barely) non-significant, so there is a discrepancy between the Bayesian and Frequentist approaches.
 
@@ -1411,13 +1436,13 @@ kable(inclusionBF(bfKanaiStdCenter, models = "matched"))
 
 | effect                    |  Bayes.factor|
 |:--------------------------|-------------:|
-| stimulation               |   143.2933911|
-| direction                 |     0.2265120|
-| stimulation:direction     |     0.2060162|
-| leg                       |     0.1226891|
-| stimulation:leg           |     0.1153140|
-| direction:leg             |     0.1074102|
-| stimulation:direction:leg |     0.1173248|
+| stimulation               |   143.0462036|
+| direction                 |     0.2218332|
+| stimulation:direction     |     0.2021013|
+| leg                       |     0.1246010|
+| stimulation:leg           |     0.1100730|
+| direction:leg             |     0.1048394|
+| stimulation:direction:leg |     0.1335922|
 
 Again, especially considering the non-significant p-value, the support is quite strong.
 

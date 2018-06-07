@@ -295,6 +295,16 @@ devData %>%
 
 Indeed, in the center-left condition the baseline difference is significant, and it's at trend in the center-right condition.
 
+For the center conditions, let's look at the raw data from Time Periods after the baseline block, to see if there are also differnences between anodal and cathodal there:
+
+```{r time periods after baseline}
+devData %>%
+  filter(leg != "baseline", type == "center") %>%
+  group_by(stimulation,direction,leg) %>% 
+  summarise(mean = mean(deviation.end)) %>%
+  kable(.)            
+```
+
 ### Baseline subtracted
 
 ```{r Line plot from baseline - deviation}
