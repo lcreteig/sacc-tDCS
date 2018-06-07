@@ -2,8 +2,9 @@
 
 %% Prepare master file for session B
 clear all
-rootFolder = fullfile('/Volumes','students$','reteig students','FEF-tDCS','data','S27','session_B_orig');
-load(fullfile(rootFolder,'sacc-tDCS_S27_B_main.mat'));
+rootFolder = 'FILL IN PATH HERE';
+sessionFolder = fullfile(rootFolder,'data','S27','session_B_orig');
+load(fullfile(sessionFolder,'sacc-tDCS_S27_B_main.mat'));
 timeStampsAll = timeStamps;
 dataAll = data;
 
@@ -17,7 +18,7 @@ newBlock = 1;
 folderName = 'pre_block1';
 fileName = 'sacc-tDCS_S27_B_practice.mat';
 
-[timeStampsAll,dataAll] = replaceData(leg,origBlock,newBlock,rootFolder,folderName,fileName,timeStampsAll,dataAll);
+[timeStampsAll,dataAll] = replaceData(leg,origBlock,newBlock,sessionFolder,folderName,fileName,timeStampsAll,dataAll);
 
 %% Save file for session B
 timeStamps = timeStampsAll;
@@ -26,8 +27,8 @@ save(fullfile('/Volumes','students$','reteig students','FEF-tDCS','data','S27','
 
 %% Prepare master file for session K
 clear all
-rootFolder = fullfile('/Volumes','students$','reteig students','FEF-tDCS','data','S27','session_K_orig');
-load(fullfile(rootFolder,'sacc-tDCS_S27_K_main.mat'));
+sessionFolder = fullfile(rootFolder,'data','S27','session_K_orig');
+load(fullfile(sessionFolder,'sacc-tDCS_S27_K_main.mat'));
 timeStampsAll = timeStamps;
 dataAll = data;
 
@@ -43,14 +44,14 @@ newBlock = iBlock;
 folderName = 'pre-tDCS';
 fileName = 'sacc-tDCS_S27_K_main_2017-06-16_12-53-16_leg_3_block_1_trial_1.mat';
 
-[timeStampsAll,dataAll] = replaceData(leg,origBlock,newBlock,rootFolder,folderName,fileName,timeStampsAll,dataAll);
+[timeStampsAll,dataAll] = replaceData(leg,origBlock,newBlock,sessionFolder,folderName,fileName,timeStampsAll,dataAll);
     end
 end
 
 %% Save file for session K
 timeStamps = timeStampsAll;
 data = dataAll;
-save(fullfile('/Volumes','students$','reteig students','FEF-tDCS','data','S27','sacc-tDCS_S27_K_main.mat'),'timeStamps','data','xp');
+save(fullfile(rootFolder, 'data','S27','sacc-tDCS_S27_K_main.mat'),'timeStamps','data','xp');
 
 %%
 function [timeStampsAll,dataAll] = replaceData(leg,origBlock,newBlock,rootFolder,folderName,fileName,timeStampsAll,dataAll)

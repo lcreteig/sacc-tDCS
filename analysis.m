@@ -4,15 +4,13 @@ microSaccCrit = 1.5; % saccades with smaller amplitude are considered microsacca
 %% I/O
 
 if ismac % if we're working on a mac
-    driveLetter = '/Volumes/research$/'; % set appropriate file prefix
     converterName = 'edf2asc-mac'; % name of the utility that converts files from .edf (European Data Format) to .asc (ASCII plain text)
 elseif ispc % if we're working on a pc
-    driveLetter = 'Y:\'; % assume BigBrother is mapped to the Z drive
     converterName = 'edf2asc.exe';
 end
 
-dataDir = fullfile(driveLetter, 'reteig', 'sacc-tDCS', 'data', filesep); % directory where data is stored
-srcDir = fullfile(driveLetter, 'reteig', 'sacc-tDCS', 'src', filesep); % directory where code is located
+dataDir = fullfile(pwd, 'data', filesep); % directory where data is stored
+srcDir = fullfile(pwd, 'src', filesep); % directory where code is located
 addpath(genpath(srcDir)); % add the scripts in this directory to Matlab's path
 converterPath = fullfile(srcDir, 'bin', converterName);
 converterInput = '-ns'; % optional flag to .edf file converter; '-ns' means Not to include Samples but only events to keep the file size down
@@ -26,7 +24,7 @@ tDCScodes = {'C', 'I'; 'H', 'A'; 'B', 'K'}; % in subject 1-10, setting 'C' on th
 % In subject 16 and onwards, 'B' was mapped to anodal; for cathodal or 'K' the wires were reversed 
 legs = {'pre', 'tDCS', 'post'};
 
-fid = fopen(fullfile(dataDir, ['sacc-tDCS_data' '.csv']),'w'); % open text file for writing
+fid = fopen(fullfile(dataDir, ['sacc-tDCS_data_TESTRELPATH' '.csv']),'w'); % open text file for writing
 % print column headers
 fprintf(fid, '%s,', 'subject');
 fprintf(fid, '%s,', 'stimulation');
