@@ -1,0 +1,1430 @@
+---
+title: "No evidence that frontal eye field tDCS affects latency or accuracy of prosaccades"
+author: "Leon Reteig, Tomas Knapen, Richard Ridderinkhof, Heleen Slagter"
+output:
+  github_document:
+    toc: true
+    toc_depth: 3
+  html_notebook:
+    code_folding: hide
+    highlight: pygments
+    toc: true
+    toc_float: true
+---
+
+```{r setup}
+# Load some libraries
+library(here) # file paths
+library(tidyverse) # importing, transforming, and visualizing data frames
+library(stringr) # manipulating strings
+library(broom) # # transform model output into a data frame
+library(cowplot) # formatting plots
+library(knitr) # R notebook output
+library(ez) # classical ANOVA
+library(BayesFactor) # Bayesian statistics
+library(rogme) # shift functions
+
+# set default output and figure options
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
+
+source(here("src", "lib", "InclusionBF.R"))
+print(sessionInfo())
+```
+
+```{r Make plot theme}
+base_font_size <- 8
+mm_to_pt <- 7 * 0.35 # so geom_text size is same as axis text
+base_font_family <- "Helvetica"
+base_line_size <- .25
+theme_custom <- theme_cowplot(font_size = base_font_size, font_family = base_font_family, line_size = base_line_size)
+theme_set(theme_custom)
+```
+
+# Group analyses 
+
+## Load data
+
+All (meta)data are stored as `.csv` files in the `/data` folder.
+
+### Eye tracking data
+
+Here we load the `.csv` file with the processed eye tracking data, which was created in MATLAB. To recreate it from the raw data, run the `analysis.m` script. This scripts calls the `processEDF.m` function to parse the raw eye tracking data.
+
+```{r Load eye tracking data}
+# Load eye tracking data into data frame
+dataFile <- here("data", "sacc-tDCS_data.csv")
+groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
+  stimulation = col_factor(c("anodal","cathodal")),
+  leg = col_factor(c("pre","tDCS","post")),
+  type = col_factor(c("lateral","center")),
+  direction = col_factor(c("left","right")) 
+))
+```
+
+```{r Show eye tracking data frame}
+kable(head(groupData))
+```
+
+* __subject__: subject ID
+* __stimulation__: Whether data are from the `anodal` or `cathodal` session
+* __leg__: Whether data are before (`pre`), during (`tDCS`), or after (`post`) tDCS
+* __block__: After each block participant had a brief break and tracker was recalibrated
+* __trial__: trial number within a block
+* __type__:
+    * `lateral` - fixation in center of display, saccade made towards the periphery
+    * `center` - fixation in periphery, saccade made back towards the center of the display
+* __direction__: `left` for saccades towards the left of current fixation position; `right` for saccades to the right
+* __deviation.start__ : distance (in visual angle) from saccade start point to fixation
+* __deviation.end.x__: distance (in visual angle) from x-coordinate of saccade end point to x-coordinate of target location
+* __deviation.end.y__: same for y-coordinate
+* __amplitude__: distance (in visual angle) between saccade start and end point
+* __latency__: time (in ms) from target onset to start of saccade
+* __drift.x__: distance (in visual angle) between x-coordinate of average fixation position during the break to x-coordinate of fixation stimulus. This stimulus was displayed at each break in the task, so this data can be used as an estimate of offsets to do drift correction.
+* __drift.y__: same for y-coordinate
+
+### Metadata
+
+#### Session info
+
+```{r Load session info data}
+# Load eye tracking data into data frame
+dataFile <- here("data", "session_info.csv")
+sessionData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
+  session = col_factor(c("first","second")),
+  stimulation = col_factor(c("anodal","cathodal"))
+))
+```
+
+```{r Show session info data frame, results='asis'}
+kable(head(sessionData))
+```
+
+* __subject__: subject ID
+* __session__: Whether data are from the `first`) or `second` session
+* __stimulation__: Whether data are from the `anodal` or `cathodal` session
+* __date__: YY/MM/DD date the session took place
+* __day__: day of the week the session took place
+* __time__: time of day the session took place
+
+#### Subject info
+
+```{r Load subject info data}
+# Load eye tracking data into data frame
+dataFile <- here("data", "subject_info.csv")
+subjectData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
+  session.order = col_factor(c("first.anodal", "first.cathodal"))
+))
+```
+
+```{r Show subject info data frame, results='asis'}
+kable(head(subjectData))
+```
+
+* __subject__: subject ID
+* __session.order__: Whether subject had anodal stimulation in the first session (`first.anodal`) or cathodal stimulation in the first session (`first.cathodal`)
+* __gender__
+* __age__: in years
+* __dominant.eye__: result of eye dominance test
+
+## Preprocess eye data
+
+_See the `inspection.nb.html` notebook for more explanation and exploration of preprocessing, outlier saccades and subject exclusion_
+
+### Reject outlier saccades
+
+```{r Outlier criteria}
+tooFast <- 50
+tooSlow <- 400
+badFix <- 1.8
+badSacc <- 8
+```
+
+Criteria for outliers:
+
+* Discard fast saccades, with a latency of `r tooFast` ms or less
+* Discard slow saccades, saccades with a latency of `r tooSlow` ms or more
+* Discard inaccurate fixations, with saccade starting point more than `r badFix` degrees or more away from fixation
+* Discard faulty saccades, with x-coordinate of saccade end point `r badSacc` degree or more away from the target
+
+```{r Mark saccades as outliers}
+# Mark outliers
+groupData <- mutate(groupData, outlier = "non.outlier", # fill vector for all saccades
+                    outlier = ifelse(latency < tooFast, "fast", outlier), # mark too fast saccades as "fast"
+                    outlier = ifelse(latency > tooSlow, "slow", outlier), # mark too slow saccades as "slow"
+                    outlier = ifelse(deviation.start > badFix, "fixation", outlier), # mark bad fixations as "fixation"
+                    outlier = ifelse(deviation.end.x > badSacc, "saccade", outlier), # mark inaccurate saccades as "saccade"
+                    outlier = ifelse(is.na(latency), "none", outlier) # mark absence of saccade as "none"
+                    )
+```
+
+```{r Remove outlier saccades from data}
+preproc <- filter(groupData, outlier == "non.outlier")
+```
+
+### Exclude participants
+
+* S21 and S25 were tested < 48h apart
+* S16, S22 and S28 have fewer than 50 saccades per condition after trial rejection
+
+```{r List of subjects to exclude}
+subs2exclude <- c("S21","S25","S16","S22","S28")
+```
+
+```{r Remove excluded participants from data}
+preproc <- filter(preproc, !(subject %in% subs2exclude))
+```
+
+### Collapse data across 15 minute intervals
+
+Cut the post-block into two so we have four 15-minute intervals: one before, one during, and two after stimulation.
+
+```{r Cut into 15-minute intervals}
+preproc <- preproc %>%
+  mutate(leg = as.character(leg), # cannot edit leg if it's still a factor
+         leg = replace(leg, leg == "post" & block <= 3, "post.1"),
+         leg = replace(leg, block > 3, "post.2"),
+         leg = factor(leg, levels = c("pre", "tDCS", "post.1", "post.2")) # refactor and order levels
+         )
+```
+
+## Subject and session descriptives
+
+### Sample demographics
+
+For S23, no eye data was collected because eye tracker could not be calibrated, so here we don't include their subject/session data.
+
+__Gender of remaining participants:__
+
+```{r subject gender}
+subjectData %>%
+  filter(!(subject %in% c(subs2exclude, "S23"))) %>% # remove rows with these subject
+  group_by(gender) %>% # for each gender
+  summarise(count = n_distinct(subject)) %>%
+  kable(.)# count number of subjects
+```
+
+__Age:__
+
+```{r subject age}
+subjectData %>%
+  filter(!(subject %in% c(subs2exclude, "S23"))) %>%
+  summarise_at(vars(age), funs(mean, min, max, sd), na.rm = TRUE) %>% # apply summary functions to age column
+  kable(.)
+```
+
+### tDCS session order
+
+```{r session order}
+sessionData %>%
+  filter(!(subject %in% c(subs2exclude, "S23"))) %>%
+  group_by(session, stimulation) %>%
+  summarise(count = n_distinct(subject)) %>% 
+  kable(.)
+```
+
+### Saccade counts
+
+Average number of saccades per type after rejection:
+
+```{r valid saccades per cell}
+preproc %>%
+  group_by(subject,stimulation,leg,direction,type) %>% # for each cell
+  summarise(saccades = n()) %>% # count how many saccacdes there are left
+  group_by(type) %>% 
+  summarise_at(vars(saccades), funs(mean, min, max, sd)) %>% # compute summary statistics per type
+  kable(.)
+```
+
+Percentage of outlier saccades per type out of all sacccades:
+
+```{r proportion of outlier types}
+n_total <- nrow(filter(groupData, !(subject %in% subs2exclude)))  # total amount of saccades across all included sessions/subjects
+
+groupData %>%
+  filter(!(subject %in% subs2exclude), !(outlier %in% c("non.outlier", "none"))) %>%
+  group_by(subject,stimulation,leg,direction,type,outlier) %>%
+  summarize(outlier_count = n()) %>% # for each condition and subject, count how many (non)outliers there are
+  group_by(outlier) %>% # for each outlier type
+  summarise(percentage = sum(outlier_count) / n_total *100) %>% # calculate percentage
+  kable(.)
+```
+
+## Saccade latency
+
+_See the `median_latency.nb.html` notebook for more explanation and exploration of the median saccade latency data_
+
+Compute the median for each 3 blocks
+
+```{r Compute median latency over blocks}
+latencyMedianLeg <- preproc %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  summarise(baseline = median(latency[leg == "pre"]), # take average of 3 blocks, make new column
+            tDCS = median(latency[leg == "tDCS"]),
+            post.1 = median(latency[leg == "post.1"]),
+            post.2 = median(latency[leg == "post.2"])) %>%
+  gather(leg,latency,baseline,tDCS,post.1,post.2) %>% # gather new columns to use as factor
+  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+Make a separate data frame where the median baseline latency is subtracted from subsequent blocks
+
+```{r Subtract baseline latency}
+latencyMedianBaseline <- latencyMedianLeg %>%
+  group_by(subject,stimulation,direction,type) %>% # for each condition, subtract baseline scores and make new columns
+  summarise(baseline = latency[leg == "baseline"] - latency[leg == "baseline"],
+           tDCS = latency[leg == "tDCS"] - latency[leg == "baseline"],
+           post.1 = latency[leg == "post.1"] - latency[leg == "baseline"],
+           post.2 = latency[leg == "post.2"] - latency[leg == "baseline"]) %>%
+  gather(leg, latency.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+### Figure 4
+
+```{r Create baseline latency plot labels}
+baselineLabelLatency <- latencyMedianLeg %>%
+  group_by(stimulation,direction,type,leg) %>%
+  filter(leg == "baseline") %>%
+  summarise(latency.baseline = round(mean(latency)))
+```
+
+Plot median _lateral saccade_ latency per participant
+
+```{r Median latency lateral saccades}
+plot_sub_latency_lateral <- ggplot(filter(latencyMedianLeg, type == "lateral"), aes(leg, latency)) +
+  facet_grid(stimulation ~ direction) +
+  geom_line(aes(group = subject, color = subject), alpha = 0.5) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), linetype = direction), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point", aes(shape = stimulation)) +
+  guides(colour = FALSE) +
+  scale_fill_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous("median latency (ms)", breaks = seq(100,200,20), limits = c(90,220)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank(), legend.position = "none") +
+  ggtitle("Lateral saccades")
+```
+
+Plot median _center saccade_ latency per participant
+
+```{r Median latency center saccades}
+plot_sub_latency_center <- ggplot(filter(latencyMedianLeg, type == "center"), aes(leg, latency)) +
+  facet_grid(stimulation ~ direction) +
+  geom_line(aes(group = subject, color = subject), alpha = 0.5) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), linetype = direction), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point", aes(shape = stimulation)) +
+  scale_fill_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous("median latency (ms)", breaks = seq(100,200,20), limits = c(90,220)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank(), legend.position = "none") +
+  ggtitle("Center saccades")
+```
+
+Plot group mean _lateral saccade_ latency as change from baseline
+
+```{r Group mean latency lateral saccades}
+plot_group_latency_lateral <- ggplot(filter(latencyMedianBaseline, type == "lateral"), aes(leg, latency.baseline)) +
+  geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
+  geom_text(data = subset(baselineLabelLatency, type=="lateral"), aes(y = c(2,1,4,3), label=latency.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
+  scale_colour_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous("latency change from baseline (ms)", breaks = seq(-8,8,2)) +
+  coord_cartesian(ylim = c(-8,8)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank())
+```
+
+Plot group mean _center saccade_ latency as change from baseline
+
+```{r Group mean latency center saccades}
+plot_group_latency_center <- ggplot(filter(latencyMedianBaseline, type == "center"), aes(leg, latency.baseline)) +
+  geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
+  geom_text(data = subset(baselineLabelLatency, type=="center"), aes(y = c(2,1,3,4), label=latency.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
+  scale_colour_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_discrete(labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous("latency change from baseline (ms)", breaks = seq(-8,8,2)) +
+  coord_cartesian(ylim = c(-8,8)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank())
+```
+
+Combine all the plots:
+
+```{r Figure 4}
+legend_fig4 <- get_legend(plot_group_latency_lateral)
+figure_4 <- plot_grid(
+  plot_sub_latency_lateral, plot_sub_latency_center,
+  plot_group_latency_lateral + theme(legend.position = "none"),
+  plot_group_latency_center + theme(legend.position = "none"), rel_heights = c(1,.75))
+figure_4 <- plot_grid(figure_4,legend_fig4,rel_widths = c(1,1/10))
+figure_4
+```
+
+Save the plot:
+
+```{r Save figure 4, eval=FALSE}
+ggsave("fig/figure_4.pdf", plot = figure_4, width = 180, height = 112.5, units = "mm")
+ggsave("fig/figure_4.png", plot = figure_4, width = 180, height = 112.5, units = "mm")
+```
+
+### Statistics
+
+#### Contralateral saccades in the anodal session
+
+Means and SDs for effect of _anodal_ tDCS on the latency changes in _contralateral_ (here: left) _lateral_ saccades, as this is what [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045) specifically found:
+
+```{r Anodal left lateral saccades}
+latencyMedianBaseline %>%
+  filter(type == "lateral", stimulation == "anodal", direction == "left", leg != "baseline") %>%
+  group_by(leg) %>%
+  summarise_at(vars(latency.baseline), funs(mean, sd)) %>%
+  kable(.)
+```
+
+#### Baseline tests 
+
+```{r t-tests of baseline difference - latency}
+latencyMedianLeg %>%
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>% # for each of these 4 pairs
+  nest() %>% # create a separate data frame of all remaining columns. These data frames are stored in a list-column named "data"
+  mutate(stats = map(data, ~t.test(formula = latency~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
+  mutate(tidy_model = map(stats, tidy)) %>% # force the four test outputs to also be data frames in a list column ("tidy_model")
+  unnest(tidy_model, .drop = TRUE) %>% # unpack the list-column with results, drop the list-column we used to organize the data
+  kable(.)
+```
+
+#### Lateral saccades {.tabset .tabset-fade}
+
+##### Classical ANOVA
+
+Repeated measures ANOVA matching [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+__Data__: Baseline subtracted, lateral saccades
+
+__Dependent measure__: saccade latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+Prepare data: 
+
+```{r test data median latency lateral}
+medianLatencyLateralStats <- latencyMedianBaseline %>%
+  ungroup() %>%
+  filter(leg != "baseline", type == "lateral") %>%
+  select(-type) %>%
+  mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) %>%
+  mutate(subject = factor(subject))
+```
+
+```{r rmANOVA median latency lateral, results='asis'}
+aovMedianLatencyLateral <- ezANOVA(data = data.frame(medianLatencyLateralStats), dv = latency.baseline, wid = subject, within = .(stimulation,leg,direction), type = 3)
+
+kable(aovMedianLatencyLateral$ANOVA)
+kable(aovMedianLatencyLateral$`Mauchly's Test for Sphericity`)
+kable(aovMedianLatencyLateral$`Sphericity Corrections`)
+```
+
+##### Bayesian ANOVA
+
+Same design as the classical ANOVA
+
+Bayes factors agains the null model:
+
+```{r Bayesian ANOVA median latency lateral}
+bfMedianLatencyLateral = anovaBF(latency.baseline~stimulation*leg*direction+subject, data = data.frame(medianLatencyLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMedianLatencyLateral = sort(bfMedianLatencyLateral, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+```{r}
+kable(select(extractBF(bfMedianLatencyLateral), bf)) # show only the Bayes factors in a table
+```
+
+Inclusion Bayes factor across matched models:
+
+```{r inclusion BF ANOVA median latency lateral}
+kable(inclusionBF(bfMedianLatencyLateral, models = "matched"))
+```
+
+#### Center saccades {.tabset .tabset-fade}
+
+##### Classical ANOVA
+
+Repeated measures ANOVA matching [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+__Data__: Baseline subtracted, center saccades
+
+__Dependent measure__: saccade latency
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+Prepare data: 
+
+```{r test data median latency center}
+medianLatencyCenterStats <- latencyMedianBaseline %>%
+  ungroup() %>%
+  filter(leg != "baseline", type == "center") %>%
+  select(-type) %>%
+  mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) %>%
+  mutate(subject = factor(subject))
+```
+
+```{r rmANOVA median latency center, results='asis'}
+aovMedianLatencyCenter <- ezANOVA(data = data.frame(medianLatencyCenterStats), dv = latency.baseline, wid = subject, within = .(stimulation,leg,direction), type = 3)
+
+kable(aovMedianLatencyCenter$ANOVA)
+kable(aovMedianLatencyCenter$`Mauchly's Test for Sphericity`)
+kable(aovMedianLatencyCenter$`Sphericity Corrections`)
+```
+
+##### Bayesian ANOVA
+
+Same design as the classical ANOVA
+
+Bayes factors agains the null model:
+
+```{r Bayesian ANOVA median latency center}
+bfMedianLatencyCenter = anovaBF(latency.baseline~stimulation*leg*direction+subject, data = data.frame(medianLatencyCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMedianLatencyCenter = sort(bfMedianLatencyCenter, decreasing = TRUE) # sort such that winning model is at the top
+
+kable(select(extractBF(bfMedianLatencyCenter), bf)) # show only the Bayes factors in a table
+```
+
+```{r}
+kable(select(extractBF(bfMedianLatencyCenter), bf)) # show only the Bayes factors in a table
+```
+
+Inclusion Bayes factor across matched models:
+
+```{r inclusion BF ANOVA median latency center}
+kable(inclusionBF(bfMedianLatencyCenter, models = "matched"))
+```
+
+###### Without S01
+
+```{r BF ANOVA median latency center - without S01}
+medianLatencyCenterNoS01 <- medianLatencyCenterStats %>%
+  filter(subject != "S01") %>%
+  mutate(subject = factor(subject))
+
+bfMedianLatencyCenterNoS01 = anovaBF(latency.baseline~stimulation*leg*direction+subject, data = data.frame(medianLatencyCenterNoS01), whichModels="withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) # compute Bayes Factors
+bfKanaiCenterNoS01 <- sort(bfMedianLatencyCenterNoS01, decreasing = TRUE) # sort such that winning model is at the top
+kable(select(extractBF(bfMedianLatencyCenterNoS01), bf)) # show only the Bayes factors in a table
+kable(inclusionBF(bfMedianLatencyCenterNoS01, models = "matched"))
+```
+
+##### Follow-up tests
+
+###### Main effect of stimulation
+
+Follow-up One-sample t-test:
+
+```{r Classical follow-up test - latency}
+medianLatencyCenterStats %>%
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(latency = mean(latency.baseline)) %>% # average over all other variables (df is now still grouped per stimulation)
+  summarise_if(is.numeric, funs(list(tidy(t.test(.))))) %>%  # run one-sample t-test for each stimulation condition, return tidy data frames
+  unnest() %>% # unpack the list-column with data frame for each test
+  kable(.)
+```
+
+Follow-up Bayesian one-sample t-test:
+
+```{r Bayesian follow-up test - latency}
+medianLatencyCenterStats %>%
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(latency = mean(latency.baseline)) %>% # average over all other variables
+  spread(stimulation, latency) %>% # make separate columns with test data
+  summarise_if(is.numeric, funs(extractBF(ttestBF(.), onlybf = TRUE))) %>% # run Bayesian t-test on each column, keeping only the BF
+  gather(stimulation,BF,anodal,cathodal) %>% # make row for each stimulation condition
+  kable(.)
+```
+
+## Saccade endpoint deviation
+
+_See the `accuracy.nb.html` notebook for more explanation and exploration of the saccade endpoint deviation data_
+
+Calculate endpoint deviation for each trial (Euclidian distance from target, defined by x- and y-coordinate deviations)
+
+```{r Calculate end point deviation}
+# Calculate end point deviation
+accData <- preproc %>%
+  group_by(subject,stimulation,leg,block,trial,direction,type) %>%
+  summarise(deviation.end = sqrt(deviation.end.x^2 + deviation.end.y^2))
+```
+
+Compute the mean for each 3 blocks
+
+```{r Compute mean deviation over blocks}
+accMeanLeg <- accData %>%
+  group_by(subject,stimulation,direction,type) %>% 
+  summarise(baseline = mean(deviation.end[leg == "pre"]), # take average of 3 blocks, make new column
+            tDCS = mean(deviation.end[leg == "tDCS"]),
+            post.1 = mean(deviation.end[leg == "post.1"]),
+            post.2 = mean(deviation.end[leg == "post.2"])) %>%
+  gather(leg,deviation.end,baseline,tDCS,post.1,post.2) %>% # gather new columns to use as factor
+  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+Make a separate data frame where the mean deviation is subtracted from subsequent blocks
+
+```{r Subtract baseline deviation}
+accMeanBaseline <- accMeanLeg %>%
+  group_by(subject,stimulation,direction,type) %>% # for each condition, subtract baseline scores and make new columns
+  summarise(baseline = deviation.end[leg == "baseline"] - deviation.end[leg == "baseline"],
+           tDCS = deviation.end[leg == "tDCS"] - deviation.end[leg == "baseline"],
+           post.1 = deviation.end[leg == "post.1"] - deviation.end[leg == "baseline"],
+           post.2 = deviation.end[leg == "post.2"] - deviation.end[leg == "baseline"]) %>%
+  gather(leg, deviation.end.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+### Figure 6
+
+```{r Create baseline deviation plot labels}
+baselineLabelAcc <- accMeanLeg %>%
+  group_by(stimulation,direction,type,leg) %>%
+  filter(leg == "baseline") %>%
+  summarise(deviation.end.baseline = round(mean(deviation.end), digits = 2))
+```
+
+Plot mean _lateral saccade_ deviation per participant
+
+```{r Mean deviation lateral saccades}
+plot_sub_acc_lateral <- ggplot(filter(accMeanLeg, type == "lateral"), aes(leg, deviation.end)) +
+  facet_grid(stimulation ~ direction) +
+  geom_line(aes(group = subject, color = subject), alpha = 0.5) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), linetype = direction), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point", aes(shape = stimulation)) +
+  guides(colour = FALSE) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous(expression("mean deviation " ( degree)), breaks = seq(0.5,2,0.5), limits = c(0.3,2.2)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank(), legend.position = "none") +
+  ggtitle("Lateral saccades")
+```
+
+Plot mean _center saccade_ deviation per participant
+
+```{r Mean deviation center saccades}
+plot_sub_acc_center <- ggplot(filter(accMeanLeg, type == "center"), aes(leg, deviation.end)) +
+  facet_grid(stimulation ~ direction) +
+  geom_line(aes(group = subject, color = subject), alpha = 0.5) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), linetype = direction), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point", aes(shape = stimulation)) +
+  guides(colour = FALSE) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous(expression("mean deviation " ( degree)), breaks = seq(0.5,2,0.5), limits = c(0.3,2.2)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank(), legend.position = "none") +
+  ggtitle("Center saccades")
+```
+
+Plot group mean _lateral saccade_ deviation as change from baseline
+
+```{r Group mean deviation lateral saccades}
+plot_group_acc_lateral <- ggplot(filter(accMeanBaseline, type == "lateral"), aes(leg, deviation.end.baseline)) +
+  geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
+  geom_text(data = subset(baselineLabelAcc, type=="lateral"), aes(y = c(.05,.025,.1,.075), label=deviation.end.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
+  scale_colour_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous(expression("deviation change from baseline " ( degree)), breaks = seq(-.2,.2,.1)) +
+  coord_cartesian(ylim = c(-.22,.22)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank())
+```
+
+Plot group mean _center saccade_ deviation as change from baseline
+
+```{r Group mean deviation center saccades}
+plot_group_acc_center <- ggplot(filter(accMeanBaseline, type == "center"), aes(leg, deviation.end.baseline)) +
+  geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
+  geom_text(data = subset(baselineLabelAcc, type=="center"), aes(y = c(.05,.025,.1,.075), label=deviation.end.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
+  scale_colour_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous(expression("deviation change from baseline " ( degree)), breaks = seq(-.2,.2,.1)) +
+  coord_cartesian(ylim = c(-.22,.22)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank())
+```
+
+Combine all the plots:
+
+```{r Figure 6}
+legend_fig6 <- get_legend(plot_group_acc_lateral)
+figure_6 <- plot_grid(
+  plot_sub_acc_lateral, plot_sub_acc_center,
+  plot_group_acc_lateral + theme(legend.position = "none"),
+  plot_group_acc_center + theme(legend.position = "none"), rel_heights = c(1,.75))
+figure_6 <- plot_grid(figure_6,legend_fig6,rel_widths = c(1,1/10))
+figure_6
+```
+
+Save the plot:
+
+```{r Save figure 6, eval=FALSE}
+ggsave("fig/figure_6.pdf", plot = figure_6, width = 180, height = 112.5, units = "mm")
+ggsave("fig/figure_6.png", plot = figure_6, width = 180, height = 112.5, units = "mm")
+```
+
+### Statistics
+
+#### Baseline tests
+
+```{r t-tests of baseline difference - deviation}
+accMeanLeg %>%
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>% 
+  nest() %>% 
+  mutate(stats = map(data, ~t.test(formula = deviation.end~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
+  mutate(tidy_model = map(stats, tidy)) %>%
+  unnest(tidy_model, .drop = TRUE) %>% 
+  kable(.)
+```
+
+#### Differences after baseline
+
+Because there might be a significant baseline difference for center saccades, also print the numerical values for the blocks after, to see whether they continue to differ
+
+```{r time periods after baseline}
+accMeanLeg %>%
+  filter(leg != "baseline", type == "center") %>%
+  group_by(stimulation,direction,leg) %>% 
+  summarise(mean = mean(deviation.end)) %>%
+  kable(.)            
+```
+
+#### Lateral saccades {.tabset .tabset-fade}
+
+##### Classical ANOVAs
+
+Repeated measures ANOVA matching [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+__Data__: Baseline subtracted, lateral saccades
+
+__Dependent measure__: saccade endpoint deviation
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+Prepare data: 
+
+```{r test data mean deviation lateral}
+meanAccLateralStats <- accMeanBaseline %>%
+  ungroup() %>%
+  filter(leg != "baseline", type == "lateral") %>%
+  select(-type) %>%
+  mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) %>%
+  mutate(subject = factor(subject))
+```
+
+```{r rmANOVA mean deviation lateral, results='asis'}
+aovMeanAccLateral <- ezANOVA(data = data.frame(meanAccLateralStats), dv = deviation.end.baseline, wid = subject, within = .(stimulation,leg,direction), type = 3)
+
+kable(aovMeanAccLateral$ANOVA)
+kable(aovMeanAccLateral$`Mauchly's Test for Sphericity`)
+kable(aovMeanAccLateral$`Sphericity Corrections`)
+```
+
+##### Bayesian ANOVA 
+
+Same design as the classical ANOVA (without order effect)
+
+Bayes factors agains the null model:
+
+```{r Bayesian ANOVA mean deviation lateral}
+bfMeanAccLateral = anovaBF(deviation.end.baseline~stimulation*leg*direction+subject, data = data.frame(meanAccLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanAccLateral = sort(bfMeanAccLateral, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+```{r}
+kable(select(extractBF(bfMeanAccLateral), bf)) # show only the Bayes factors in a table
+```
+
+Inclusion Bayes factor across matched models:
+
+```{r inclusion BF ANOVA mean deviation lateral}
+kable(inclusionBF(bfMeanAccLateral, models = "matched"))
+```
+
+#### Center saccades {.tabset .tabset-fade}
+
+##### Classical ANOVA
+
+Repeated measures ANOVA matching [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+__Data__: Baseline subtracted, center saccades
+
+__Dependent measure__: saccade endpoint deviation
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+Prepare data: 
+
+```{r test data mean deviation center}
+meanAccCenterStats <- accMeanBaseline %>%
+  ungroup() %>%
+  filter(leg != "baseline", type == "center") %>%
+  select(-type) %>%
+  mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) %>%
+  mutate(subject = factor(subject))
+```
+
+```{r rmANOVA mean deviation center, results='asis'}
+aovMeanAccCenter <- ezANOVA(data = data.frame(meanAccCenterStats), dv = deviation.end.baseline, wid = subject, within = .(stimulation,leg,direction), type = 3)
+
+kable(aovMeanAccCenter$ANOVA)
+kable(aovMeanAccCenter$`Mauchly's Test for Sphericity`)
+kable(aovMeanAccCenter$`Sphericity Corrections`)
+```
+
+##### Bayesian ANOVA 
+
+Same design as the classical ANOVA
+
+Bayes factors agains the null model:
+
+```{r Bayesian ANOVA mean deviation center}
+bfMeanAccCenter = anovaBF(deviation.end.baseline~stimulation*leg*direction+subject, data = data.frame(meanAccCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanAccCenter = sort(bfMeanAccCenter, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+```{r}
+kable(select(extractBF(bfMeanAccCenter), bf)) # show only the Bayes factors in a table
+```
+
+Inclusion Bayes factor across matched models:
+
+```{r inclusion BF ANOVA mean deviation center}
+kable(inclusionBF(bfMeanAccCenter, models = "matched"))
+```
+
+##### Follow-up tests
+
+###### Main effect of stimulation
+
+Follow-up One-sample t-test:
+
+```{r Classical follow-up test - deviation}
+meanAccCenterStats %>%
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation = mean(deviation.end.baseline)) %>% # average over all other variables (df is now still grouped per stimulation)
+  summarise_if(is.numeric, funs(list(tidy(t.test(.))))) %>%  # run one-sample t-test for each stimulation condition, return tidy data frames
+  unnest() %>% # unpack the list-column with data frame for each test
+  kable(.)
+```
+
+Follow-up Bayesian one-sample t-test:
+
+```{r Bayesian follow-up test - deviation}
+meanAccCenterStats %>%
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(deviation = mean(deviation.end.baseline)) %>% # average over all other variables
+  spread(stimulation, deviation) %>% # make separate columns with test data
+  summarise_if(is.numeric, funs(extractBF(ttestBF(.), onlybf = TRUE))) %>% # run Bayesian t-test on each column, keeping only the BF
+  gather(stimulation,BF,anodal,cathodal) %>% # make row for each stimulation condition
+  kable(.)
+```
+
+## Saccade endpoint variability
+
+_See the `accuracy.nb.html` notebook for more explanation and exploration of the saccade endpoint variability data_
+
+Calculate endpoint variability, as standard deviation of the horizontal component (x-coordinate) of saccades
+
+```{r calculate standard deviation}
+varMeanLeg <- preproc %>%
+  group_by(subject,stimulation,leg,direction,type) %>% 
+  summarise(std.deviation.x = sd(deviation.end.x)) %>% # standard deviation
+  ungroup() %>%
+  mutate(leg = as.character(leg), # edit leg factor to match other data frames
+         leg = replace(leg, leg == "pre", "baseline"),
+         leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))
+         )
+```
+
+Make a separate data frame where the mean variability is subtracted from subsequent blocks
+
+```{r Subtract baseline variability}
+varMeanBaseline <- varMeanLeg %>%
+  group_by(subject,stimulation,direction,type) %>% # for each condition, subtract baseline scores and make new columns
+  summarise(baseline = std.deviation.x[leg == "baseline"] - std.deviation.x[leg == "baseline"],
+           tDCS = std.deviation.x[leg == "tDCS"] - std.deviation.x[leg == "baseline"],
+           post.1 = std.deviation.x[leg == "post.1"] - std.deviation.x[leg == "baseline"],
+           post.2 = std.deviation.x[leg == "post.2"] - std.deviation.x[leg == "baseline"]) %>%
+  gather(leg, std.deviation.x.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
+```
+
+### Figure 7
+
+```{r Create baseline variability plot labels}
+baselineLabelVar <- varMeanLeg %>%
+  group_by(stimulation,direction,type,leg) %>%
+  filter(leg == "baseline") %>%
+  summarise(std.deviation.x.baseline = round(mean(std.deviation.x), digits = 2))
+```
+
+Plot mean _lateral saccade_ variability per participant
+
+```{r Mean variability lateral saccades}
+plot_sub_var_lateral <- ggplot(filter(varMeanLeg, type == "lateral"), aes(leg, std.deviation.x)) +
+  facet_grid(stimulation ~ direction) +
+  geom_line(aes(group = subject, color = subject), alpha = 0.5) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), linetype = direction), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point", aes(shape = stimulation)) +
+  guides(colour = FALSE) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous(expression("standard deviation " ( degree)), breaks = seq(0.5,2,0.5), limits = c(0,2)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank(), legend.position = "none") +
+  ggtitle("Lateral saccades")
+```
+
+Plot mean _center saccade_ variability per participant
+
+```{r Mean variability center saccades}
+plot_sub_var_center <- ggplot(filter(varMeanLeg, type == "center"), aes(leg, std.deviation.x)) +
+  facet_grid(stimulation ~ direction) +
+  geom_line(aes(group = subject, color = subject), alpha = 0.5) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), linetype = direction), geom = "line") +
+  stat_summary(fun.y = mean, geom = "point", aes(shape = stimulation)) +
+  guides(colour = FALSE) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous(expression("standard deviation " ( degree)), breaks = seq(0.5,2,0.5), limits = c(0,2)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank(), legend.position = "none") +
+  ggtitle("Center saccades")
+```
+
+Plot group mean _lateral saccade_ variability as change from baseline
+
+```{r Group mean variability lateral saccades}
+plot_group_var_lateral <- ggplot(filter(varMeanBaseline, type == "lateral"), aes(leg, std.deviation.x.baseline)) +
+  geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
+  geom_text(data = subset(baselineLabelVar, type=="lateral"), aes(y = c(.05,.025,.1,.075), label=(std.deviation.x.baseline), color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_colour_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_y_continuous(expression("SD change from baseline " ( degree)), breaks = seq(-.2,.2,.1)) +
+  coord_cartesian(ylim = c(-.2,.2)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank())
+```
+
+Plot group mean _center saccade_ variability as change from baseline
+
+```{r Group mean variability center saccades}
+plot_group_var_center <- ggplot(filter(varMeanBaseline, type == "center"), aes(leg, std.deviation.x.baseline)) +
+  geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
+  geom_text(data = subset(baselineLabelVar, type=="center"), aes(y = c(.05,.025,.1,.075), label=(std.deviation.x.baseline), color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
+  scale_colour_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_discrete("time", labels = c("baseline", "tDCS", "post-1", "post-2")) +
+  scale_y_continuous(expression("SD change from baseline " ( degree)), breaks = seq(-.2,.2,.1)) +
+  coord_cartesian(ylim = c(-.2,.2)) +
+  theme(axis.text.x = element_text(angle = 22, vjust = .5), axis.title.x = element_blank())
+```
+
+Combine all the plots:
+
+```{r Figure 7}
+legend_fig7 <- get_legend(plot_group_acc_lateral)
+figure_7 <- plot_grid(
+  plot_sub_var_lateral, plot_sub_var_center,
+  plot_group_var_lateral + theme(legend.position = "none"),
+  plot_group_var_center + theme(legend.position = "none"), rel_heights = c(1,.75))
+figure_7 <- plot_grid(figure_7,legend_fig7,rel_widths = c(1,1/10))
+figure_7
+```
+
+Save the plot:
+
+```{r Save figure 7, eval=FALSE}
+ggsave("fig/figure_7.pdf", plot = figure_7, width = 180, height = 112.5, units = "mm")
+ggsave("fig/figure_7.png", plot = figure_7, width = 180, height = 112.5, units = "mm")
+```
+
+### Statistics 
+
+#### Baseline tests 
+
+```{r t-tests of baseline difference - variability}
+varMeanLeg %>%
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>% 
+  nest() %>% 
+  mutate(stats = map(data, ~t.test(formula = std.deviation.x~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
+  mutate(tidy_model = map(stats, tidy)) %>%
+  unnest(tidy_model, .drop = TRUE) %>% 
+  kable(.)
+```
+
+#### Lateral saccades {.tabset .tabset-fade}
+
+##### Classical ANOVA
+
+Repeated measures ANOVA matching [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+__Data__: Baseline subtracted, lateral saccades
+
+__Dependent measure__: saccade endpoint variability (x-coordinate standard deviation)
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+Prepare data: 
+
+```{r test data mean variability lateral}
+meanVarLateralStats <- varMeanBaseline %>%
+  ungroup() %>%
+  filter(leg != "baseline", type == "lateral") %>%
+  select(-type) %>%
+  mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) %>%
+  mutate(subject = factor(subject))
+```
+
+```{r rmANOVA mean variability lateral, results='asis'}
+aovMeanVarLateral <- ezANOVA(data = data.frame(meanVarLateralStats), dv = std.deviation.x.baseline, wid = subject, within = .(stimulation,leg,direction), type = 3)
+
+kable(aovMeanVarLateral$ANOVA)
+kable(aovMeanVarLateral$`Mauchly's Test for Sphericity`)
+kable(aovMeanVarLateral$`Sphericity Corrections`)
+```
+
+##### Bayesian ANOVA
+
+Same design as the classical ANOVA
+
+Bayes factors agains the null model:
+
+```{r Bayesian ANOVA mean variability lateral}
+bfMeanVarLateral = anovaBF(std.deviation.x.baseline~stimulation*leg*direction+subject, data = data.frame(meanVarLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanVarLateral = sort(bfMeanVarLateral, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+```{r}
+kable(select(extractBF(bfMeanVarLateral), bf)) # show only the Bayes factors in a table
+```
+
+Inclusion Bayes factor across matched models:
+
+```{r inclusion BF ANOVA mean variability lateral}
+kable(inclusionBF(bfMeanVarLateral, models = "matched"))
+```
+
+#### Center saccades {.tabset .tabset-fade}
+
+##### Classical ANOVA
+
+Repeated measures ANOVA matching [Kanai et al. (2012)](http://dx.doi.org/10.3389/fpsyt.2012.00045).
+
+__Data__: Baseline subtracted, center saccades
+
+__Dependent measure__: saccade endpoint variability (x-coordinate standard deviation)
+
+__Factors__:
+
+* STIMULATION (anodal vs. cathodal)
+* LEG (tDCS, post.1, post.2)
+* DIRECTION (left vs. right)
+
+Prepare data: 
+
+```{r test data mean variability center}
+meanVarCenterStats <- varMeanBaseline %>%
+  ungroup() %>%
+  filter(leg != "baseline", type == "center") %>%
+  select(-type) %>%
+  mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) %>%
+  mutate(subject = factor(subject))
+```
+
+```{r rmANOVA mean variability center, results='asis'}
+aovMeanVarCenter <- ezANOVA(data = data.frame(meanVarCenterStats), dv = std.deviation.x.baseline, wid = subject, within = .(stimulation,leg,direction), type = 3)
+
+kable(aovMeanVarCenter$ANOVA)
+kable(aovMeanVarCenter$`Mauchly's Test for Sphericity`)
+kable(aovMeanVarCenter$`Sphericity Corrections`)
+```
+
+##### Bayesian ANOVA
+
+Same design as the classical ANOVA
+
+Bayes factors agains the null model:
+
+```{r Bayesian ANOVA mean variability center}
+bfMeanVarCenter = anovaBF(std.deviation.x.baseline~stimulation*leg*direction+subject, data = data.frame(meanVarCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanVarCenter = sort(bfMeanVarCenter, decreasing = TRUE) # sort such that winning model is at the top
+```
+
+```{r}
+kable(select(extractBF(bfMeanVarCenter), bf)) # show only the Bayes factors in a table
+```
+
+Inclusion Bayes factor across matched models:
+
+```{r inclusion BF ANOVA mean variability center}
+kable(inclusionBF(bfMeanVarCenter, models = "matched"))
+```
+
+##### Follow-up tests
+
+###### Main effect of stimulation
+
+Follow-up One-sample t-test:
+
+```{r Classical follow-up test - variability}
+meanVarCenterStats %>%
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(std.deviation.x. = mean(std.deviation.x.baseline)) %>% # average over all other variables (df is now still grouped per stimulation)
+  summarise_if(is.numeric, funs(list(tidy(t.test(.))))) %>%  # run one-sample t-test for each stimulation condition, return tidy data frames
+  unnest() %>% # unpack the list-column with data frame for each test
+  kable(.)
+```
+
+Follow-up Bayesian one-sample t-test:
+
+```{r Bayesian follow-up test - variability}
+meanVarCenterStats %>%
+  group_by(stimulation,subject) %>% # for each session and subject
+  summarise(std.deviation.x = mean(std.deviation.x.baseline)) %>% # average over all other variables
+  spread(stimulation, std.deviation.x) %>% # make separate columns with test data
+  summarise_if(is.numeric, funs(extractBF(ttestBF(.), onlybf = TRUE))) %>% # run Bayesian t-test on each column, keeping only the BF
+  gather(stimulation,BF,anodal,cathodal) %>% # make row for each stimulation condition
+  kable(.)
+```
+
+# Quantile analysis
+
+_See the `RT_quantiles.nb.html` notebook for more explanation and exploration of the saccade latency distribution data_
+
+Estimate quantiles and compute shift function: 
+
+```{r Quantiles and shift function, eval=FALSE}
+qData <- groupData %>%
+  filter(!is.na(latency)) %>% # discard missing saccades
+  group_by(subject,leg,type,direction) %>% # for each condition
+  nest(stimulation,latency) %>% # make a list_column "data" out of the stimulation and latency columns. Now, each group has its own data frame consisting of the stimulation and latency columns for that group
+  mutate(shift = purrr::map(data, ~ shiftdhd_pbci(., formula = latency ~ stimulation, nboot = 2000))) # for each group, estimate quantiles and compute shift function, and store as a list column in "shift"
+
+qData <- unnest(qData,shift) # unpack the list column to get the model results for each group in the original data frame
+
+# Alternatively, instead of "nest ...", "mutate ..." and "unnest ...", you can call shiftdhd through dplyr::do (but this is basically depreated in favor of purrr:map)
+# do(shiftdhd(.[,c("stimulation","latency")], formula = latency ~ stimulation, nboot = 100)) # estimate quantiles and compute shift function
+```
+
+Note that this takes quite a while to compute with a large number of bootstrap samples, so we will load the result from disk in the next code chunk. By default, the chunk above will not run becuase of the `eval=FALSE` statement; remove this to execute it and compute the result from scratch.
+
+```{r Load quantile data}
+qData <- read_csv(here("data", "sacc-tDCS_quantiles.csv")) %>%
+  filter(!(subject %in% subs2exclude)) %>% # exclude subjects
+    mutate(leg = replace(leg, leg == "pre", "baseline"), # rename and reoder levels
+         leg = replace(leg, leg == "post.1", "post-1"),
+         leg = replace(leg, leg == "post.2", "post-2"),
+         leg = factor(leg, levels = c("baseline", "tDCS", "post-1", "post-2")))
+  
+```
+
+```{r Average anodal deciles}
+qStats <- qData %>%
+  group_by(subject,leg,type,direction) %>%
+  mutate(deco = c(seq(1,5),seq(4,1))) %>% # add code of deciles to data frame
+  group_by(leg,type,direction,q) %>% 
+  mutate(anodal = mean(anodal)) %>% # mean of "anodal" quantiles OVER subjects
+  group_by(leg,type,direction) %>% 
+  mutate(anodal_median = median(anodal)) # median for plotting
+```
+
+For each quantile, count which subjects show significant effects, and in which direction
+
+```{r Count significance of deciles}
+qSig <- qData %>%
+  group_by(subject,leg,type,direction,q) %>%
+  mutate(significance = NA,
+         # If (anodal - cathodal) quantile difference is positive, latency for anodal > latency for cathodal
+         significance = replace(significance, p_value < p_crit & difference > 0, "cathodal.faster"),
+         # If (anodal - cathodal) quantile difference is negative, latency for anodal < latency for cathodal
+         significance = replace(significance, p_value < p_crit & difference < 0, "anodal.faster")
+  )
+```
+
+## Figure 5
+
+Shift functions for _lateral saccades_
+
+```{r Shift function lateral}
+plot_shift_lateral <- ggplot(filter(qStats, type == "lateral"), aes(anodal, difference)) +
+   facet_grid(leg ~ direction) +
+   geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+   geom_vline(aes(xintercept = anodal_median), linetype = "dashed", alpha = 0.5) +
+   stat_summary(fun.data = mean_cl_normal, geom = "linerange", colour = "black", size = 0.5) +
+   stat_summary(fun.y = mean, geom = "line", size = 1, colour = "grey50", alpha = 0.5) +
+   stat_summary(fun.y = mean, geom = "point", aes(fill = deco), size = 2, colour = "black", shape = 21) +
+   scale_fill_gradient(low = "white", high = "grey30", guide = FALSE) +
+   scale_x_continuous("anodal deciles (ms)", limits = c(80,200), breaks = seq(100,200,25)) +
+   scale_y_continuous("anodal - cathodal deciles (ms)")
+```
+
+Number of subjects with signifcant difference per quantile for lateral saccades
+
+```{r Significance shift function lateral}
+plot_sig_lateral <- ggplot(filter(qSig, type == "lateral", !is.na(significance)), aes(q, fill = significance)) +
+  facet_grid(leg ~ direction) +
+  geom_bar(position = "stack") +
+  stat_bin(binwidth = .1, geom = "text", size = mm_to_pt, aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_continuous("decile", breaks = seq(0.1,0.9,0.1), labels = seq(1,9,1)) +
+  scale_y_continuous("number of participants with significant difference", limits = c(0, length(unique(qSig$subject))), breaks = c(0,10,20,length(unique(qSig$subject))))
+```
+
+Shift functions for _center saccades_
+
+```{r Shift function center}
+plot_shift_center <- ggplot(filter(qStats, type == "center"), aes(anodal, difference)) +
+   facet_grid(leg ~ direction) +
+   geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+   geom_vline(aes(xintercept = anodal_median), linetype = "dashed", alpha = 0.5) +
+   stat_summary(fun.data = mean_cl_normal, geom = "linerange", colour = "black", size = 0.5) +
+   stat_summary(fun.y = mean, geom = "line", size = 1, colour = "grey50", alpha = 0.5) +
+   stat_summary(fun.y = mean, geom = "point", aes(fill = deco), size = 2, colour = "black", shape = 21) +
+   scale_fill_gradient(low = "white", high = "grey30", guide = FALSE) +
+   scale_x_continuous("anodal deciles (ms)", limits = c(80,200), breaks = seq(100,200,25)) +
+   scale_y_continuous("anodal - cathodal deciles (ms)")
+```
+
+
+Number of subjects with signifcant difference per quantile for lateral saccades
+
+```{r Significance shift function center}
+plot_sig_center <- ggplot(filter(qSig, type == "center", !is.na(significance)), aes(q, fill = significance)) +
+  facet_grid(leg ~ direction) +
+  geom_bar(position = "stack") +
+  stat_bin(binwidth = .1, geom = "text", size = mm_to_pt, aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = c("#F25F5C", "#4B93B1")) +
+  scale_x_continuous("decile", breaks = seq(0.1,0.9,0.1), labels = seq(1,9,1)) +
+  scale_y_continuous("number of participants with significant difference", limits = c(0, length(unique(qSig$subject))), breaks = c(0,10,20,length(unique(qSig$subject))))
+```
+
+```{r Figure 5, fig.width = 8}
+figure_5_lateral <- plot_grid(plot_shift_lateral, plot_sig_lateral + theme(legend.position = "none"), rel_widths = c(1.33,1)) # top row
+figure_5_center <- plot_grid(plot_shift_center,plot_sig_center + theme(legend.position = "none"), rel_widths = c(1.33,1)) # bottom row
+
+#title objects
+title_lateral <- ggdraw() + draw_label("Lateral saccades", fontface = 'bold', size = base_font_size)
+title_center <- ggdraw() + draw_label("Center saccades", fontface = 'bold', size = base_font_size)
+
+#combine with titles
+figure_5_lateral <- plot_grid(title_lateral, figure_5_lateral, ncol = 1, rel_heights = c(0.05, 1))
+figure_5_center <- plot_grid(title_center, figure_5_center, ncol = 1, rel_heights = c(0.05, 1))
+figure_5 <- plot_grid(figure_5_lateral, figure_5_center, nrow = 2)
+figure_5
+```
+
+Save the plot:
+
+```{r Save figure 5, eval=FALSE}
+ggsave("fig/figure_5.pdf", plot = figure_5, width = 180, height = 180, units = "mm")
+ggsave("fig/figure_5.png", plot = figure_5, width = 180, height = 180 , units = "mm")
+```
+
+# Supplementary results
+
+## tDCS adverse effect questionnaire
+
+_See the `questionnaires.nb.html` notebook for more explanation and exploration of the questionnaire data_
+
+```{r Load tDCS sensations data}
+# Load the data frame
+dataFile <- here("data", "tdcs_sensations.csv")
+sensData <- read_csv2(dataFile, col_types = cols(
+  session = col_factor(c("first","second")),
+  stimulation = col_factor(c("anodal","cathodal"))
+))
+kable(head(sensData)) # show data frame
+```
+
+Participants were asked to which degree the following sensations were present during stimulation: _tingling_, _itching sensation_, _burning sensation_, _pain_, _headache_, _fatigue_, _dizziness_ and _nausea_. Each was rated on a scale from 0-4:
+
+0. none
+1. a little
+2. moderate
+3. strong
+4. very strong
+
+They also rated their confidence _that the sensations were caused by the stimulation_ on a scale from 0-4 (columns starting with `conf.`):
+
+0. n/a (meaning they rated the sensation a 0 on the previous scale)
+1. unlikely
+2. possibly
+3. likely
+4. very likely
+
+__Factors__:
+
+* _subject_: subject ID (`S01`, `S02`, etc)
+* _session_: Whether data are from the `first` or `second` session
+* _stimulation_: Whether data are from the `anodal` or `cathodal` session
+
+Calculate how many anodal and cathodal sessions were rated:
+
+```{r Tally cases}
+idxComplete <- rowSums(is.na(sensData)) != ncol(sensData) - 3 # rows that do not have all NAs (except the 3 factor columns)
+# calculate number of questionnaires completed per stimulation type
+nAnodal <- sum(sensData$stimulation == "anodal" & idxComplete) 
+nCathodal <- sum(sensData$stimulation == "cathodal" & idxComplete)
+```
+
+### Figure S1
+
+Prepare the sensation intensity and confidence ratings.
+
+```{r Make long form data frame}
+# Make long form data frame of sensation intensity
+ratings <- sensData %>%
+  select(everything(), -contains("conf"), -felt.more) %>% # drop other columns
+  gather(sensation, rating, itching:nausea) # make long form
+
+# Make long form data frame of sensation confidence
+confidence <- sensData %>%
+  select(contains("conf"), subject, session, stimulation) %>% 
+  gather(sensation, confidence, conf.itching:conf.nausea) %>%
+  mutate(sensation = str_replace(sensation, "conf.", "")) # get rid of "conf." prefix so it matches the sensation intensity tibble
+
+# Join the two data frames
+sensDataLong <- dplyr::full_join(ratings,confidence)
+```
+
+Make plot of sensation distribution:
+
+```{r plot tDCS sensation distributions}
+plot_sensation <- ggplot(sensDataLong, aes(rating, fill = stimulation)) +
+    facet_wrap(~sensation, nrow = 1) +
+    geom_bar(position = "stack") +
+    stat_bin(binwidth = 1, geom = "text", size = mm_to_pt, aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+    scale_fill_manual(values = c("#F25F5C", "#4B93B1")) +
+    xlim(0.5,4.5) + # exclude "0" ratings that were not present
+    ylim(0,35) + # bound plot at max number of ratings
+    ylab("number of sessions") +
+  ggtitle("Sensation intensity")
+```
+
+Make plot of confidence distribution:
+
+```{r plot tDCS confidence distributions}
+plot_confidence <- ggplot(sensDataLong, aes(confidence, fill = stimulation)) +
+    facet_wrap(~sensation, nrow = 1) +
+    geom_bar(position = "stack") +
+    stat_bin(binwidth = 1, geom = "text", size = mm_to_pt, aes(label = ..count..), position = position_stack(vjust = 0.5)) +
+    scale_fill_manual(values = c("#F25F5C", "#4B93B1")) +
+    xlim(0.5,4.5) +
+    ylim(0,35) +
+    xlab("ratings") +
+    ylab("number of sessions") +
+    ggtitle("Confidence")
+```
+
+Put together and show plot:
+
+```{r tDCS AE plot, fig.height = 5} 
+legend_S1 <- get_legend(plot_sensation)
+figure_S1 <- plot_grid(
+  plot_sensation + theme(legend.position = "none"),
+  plot_confidence + theme(legend.position = "none"),
+  nrow = 2)
+figure_S1 <- plot_grid(figure_S1,legend_S1, rel_widths = c(1,1/10))
+figure_S1
+```
+
+Save the plot:
+
+```{r Save figure S1, eval=FALSE}
+ggsave("fig/figure_S1.pdf", plot = figure_S1, width = 180, height = 112.5, units = "mm")
+ggsave("fig/figure_S1.png", plot = figure_S1, width = 180, height = 112.5, units = "mm")
+```
+
+### Statistics
+
+Mann-Whitney U tests for difference in sensation intensity ratings between anodal and cathodal sessions.
+
+```{r Test sensations anodal vs. cathodal, results='asis'}
+sensationList <- c("itching", "tingling", "burning", "pain", "headache", "fatigue", "dizziness", "nausea")
+senseTests <- data.frame(sensation = sensationList, p.value = NA) # initialize results data frame
+for (item in sensationList) {
+  testData <- sensData[[item]] # extract column with test dat
+  tmp <- wilcox.test(testData[sensData$stimulation == "anodal"], testData[sensData$stimulation == "cathodal"])
+  senseTests$p.value[senseTests$sensation %in% item] <- tmp$p.value # put p-value in row of results data frame
+}
+kable(senseTests)
+```
+
+Note that the p-value for "nausea" is undefined because it was never reported (i.e. all ranks are tied at 0).
+
+## Frontal eye field coordinates
+
+_See the `frontal_eye_field.nb.html` notebook for more explanation and exploration of the frontal eye field coordinate data_
+
+### Native space
+
+These were determined for each subject's scan; see `neuronav_notes.md` for further info.
+
+```{r Show native coords, results='asis'}
+dataFile <- here("data", "FEF_coords_native.csv")
+nativeCoords <- read_csv2(dataFile)
+nativeCoords %>% 
+  select(-folder, -scan) %>% # drop columns with folder and scan names
+  filter(!(subject %in% subs2exclude)) %>% # drop rows with excluded subjects
+  kable(.)
+```
+
+### MNI space (Table S1)
+
+Load in the coordinates that were transformed to MNI space.
+
+#### Table S1
+
+```{r show MNI coords, results='asis'}
+dataFile <- here("data", "FEF_coords_MNI.csv")
+mniCoords <- read_delim(dataFile, ";")
+mniCoords <- filter(mniCoords, !(subject %in% subs2exclude)) # exclude subjects
+mniCoords %>%
+  select(-folder, -scan) %>% # drop columns with folder and scan names
+  kable(.)
+```
+
+#### Descriptives
+
+Calculate descriptive statistics over subjects:
+
+```{r Descriptives of MNI coordinates, results='asis'}
+mniCoords %>%
+  gather(dimension, coord, MNI_X:MNI_Z) %>%
+  group_by(dimension) %>%
+  summarise_at(vars(coord), funs(mean, min, max, sd)) %>% 
+  kable(.)
+```
