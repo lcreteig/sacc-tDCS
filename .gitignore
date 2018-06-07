@@ -30,14 +30,11 @@ Thumbs.db
 
 # Folders
 # (for some folders, don't ignore plain text)
+bf_explore/*
 data/*
-doc/**
-!doc/**/*.csv
-!doc/**/*.md
-neuronav/**
-!neuronav/**/*.csv
-!neuronav/**/*.md
+doc/*
 fig/*
 IRB/*
 misc/*
+neuronav/*
 paper/*
