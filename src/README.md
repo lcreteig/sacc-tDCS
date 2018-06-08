@@ -2,12 +2,12 @@
 
 Functions or scripts particular to this project:
 
-* `fixS18.m`: Quick MATLAB script to fix the raw data files for S18. `See data/S18/raw/notes/S18_notes.md` for details.
-* `fixS27.m`: Quick MATLAB script to fix the raw data files for S27. `See data/S27/raw/notes/S27_notes.md` for details.
-* `mni_coords.sh`: BASH shell script that computes MNI coordinates for the frontal eye field coordinates in native space. Loads `data/FEF_coords_native.csv` and creates `data/FEF_coords_MNI.csv`. Called in the `notebooks/frontal_eye_field.Rmd` R notebook.
-* `fef_rois.sh`: BASH shell script that creates regions of interest for the frontal eye field of each participant in MNI space. Was originally used for visualizing frontal eye field location, but now deprecated in favor of `plot_coords.m` Called in the `notebooks/frontal_eye_field.Rmd` R notebook.
-* `plot_coords.m` MATLAB script and function (latter retrieved from <https://github.com/rordenlab/spmScripts/blob/master/nii_coord2spheres.m>) to visualize MNI frontal eye field coordinates of each participant with [Surf Ice](https://www.nitrc.org/projects/surfice/) software. Loads `data/FEF_coords_MNI_excl.csv` and creates `data/FEF.node`.
-* `processASC.m`: MATLAB function that extracts saccade measures from the `.asc` files (Eyelink event data; see `data/README.md`). Called in the main `analysis.m` script.
+* `fixS18.m`: Quick MATLAB script to fix the raw data files for S18.
+* `fixS27.m`: Quick MATLAB script to fix the raw data files for S27.
+* `mni_coords.sh`: BASH shell script that computes MNI coordinates for the frontal eye field coordinates in native space. Called in the `notebooks/frontal_eye_field.md` R notebook.
+* `fef_rois.sh`: BASH shell script that creates regions of interest for the frontal eye field of each participant in MNI space. Was originally used for visualizing frontal eye field location, but now deprecated in favor of `plot_coords.m`. Called in the `notebooks/frontal_eye_field.md` R notebook.
+* `plot_coords.m` MATLAB script and function (latter retrieved from <https://github.com/rordenlab/spmScripts/blob/master/nii_coord2spheres.m>) to visualize MNI frontal eye field coordinates of each participant with [Surf Ice](https://www.nitrc.org/projects/surfice/) software.
+* `processASC.m`: MATLAB function that extracts saccade measures from the `.asc` files. Called in the main `analysis.m` script.
 
 # `/bin`
 
