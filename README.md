@@ -1,5 +1,3 @@
-In this study we examined whether electrical brain stimulation of the frontal eye field can influence reaction time and accuracy of human eye movements.
-
 * __Project title__: No evidence that frontal eye field tDCS affects latency or accuracy of prosaccades.
 * __Project code__: sacc-tDCS
 * __Authors__: Reteig, L.C., Knapen T., Roelofs, F.J.F.W., Ridderinkhof, K.R., & Slagter, H.A.
