@@ -62,11 +62,11 @@ library(broom) # # transform model output into a data frame
 library(cowplot) # formatting plots
 ```
 
-    ## 
+    ##
     ## Attaching package: 'cowplot'
 
     ## The following object is masked from 'package:ggplot2':
-    ## 
+    ##
     ##     ggsave
 
 ``` r
@@ -79,16 +79,16 @@ library(BayesFactor) # Bayesian statistics
 
     ## Loading required package: Matrix
 
-    ## 
+    ##
     ## Attaching package: 'Matrix'
 
     ## The following object is masked from 'package:tidyr':
-    ## 
+    ##
     ##     expand
 
     ## ************
     ## Welcome to BayesFactor 0.9.12-2. If you have questions, please contact Richard Morey (richarddmorey@gmail.com).
-    ## 
+    ##
     ## Type BFManual() to open the manual.
     ## ************
 
@@ -105,17 +105,17 @@ print(sessionInfo())
     ## R version 3.4.0 (2017-04-21)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
     ## Running under: OS X El Capitan 10.11.6
-    ## 
+    ##
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
     ## LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
-    ## 
+    ##
     ## locale:
     ## [1] C
-    ## 
+    ##
     ## attached base packages:
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
-    ## 
+    ##
     ## other attached packages:
     ##  [1] rogme_0.1.0.9000     BayesFactor_0.9.12-2 Matrix_1.2-9        
     ##  [4] coda_0.19-1          ez_4.4-0             knitr_1.15.1        
@@ -123,7 +123,7 @@ print(sessionInfo())
     ## [10] dplyr_0.5.0          purrr_0.2.2          readr_1.1.0         
     ## [13] tidyr_0.6.1          tibble_1.3.0         ggplot2_2.2.1       
     ## [16] tidyverse_1.1.1      here_0.1            
-    ## 
+    ##
     ## loaded via a namespace (and not attached):
     ##  [1] gtools_3.5.0       pbapply_1.3-2      reshape2_1.4.2    
     ##  [4] splines_3.4.0      haven_1.0.0        lattice_0.20-35   
@@ -173,7 +173,7 @@ groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, 
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
   type = col_factor(c("lateral","center")),
-  direction = col_factor(c("left","right")) 
+  direction = col_factor(c("left","right"))
 ))
 ```
 
@@ -372,7 +372,7 @@ subjectData %>%
 sessionData %>%
   filter(!(subject %in% c(subs2exclude, "S23"))) %>%
   group_by(session, stimulation) %>%
-  summarise(count = n_distinct(subject)) %>% 
+  summarise(count = n_distinct(subject)) %>%
   kable(.)
 ```
 
@@ -391,7 +391,7 @@ Average number of saccades per type after rejection:
 preproc %>%
   group_by(subject,stimulation,leg,direction,type) %>% # for each cell
   summarise(saccades = n()) %>% # count how many saccacdes there are left
-  group_by(type) %>% 
+  group_by(type) %>%
   summarise_at(vars(saccades), funs(mean, min, max, sd)) %>% # compute summary statistics per type
   kable(.)
 ```
@@ -431,7 +431,7 @@ Compute the median for each 3 blocks
 
 ``` r
 latencyMedianLeg <- preproc %>%
-  group_by(subject,stimulation,direction,type) %>% 
+  group_by(subject,stimulation,direction,type) %>%
   summarise(baseline = median(latency[leg == "pre"]), # take average of 3 blocks, make new column
             tDCS = median(latency[leg == "tDCS"]),
             post.1 = median(latency[leg == "post.1"]),
@@ -449,7 +449,7 @@ latencyMedianBaseline <- latencyMedianLeg %>%
            tDCS = latency[leg == "tDCS"] - latency[leg == "baseline"],
            post.1 = latency[leg == "post.1"] - latency[leg == "baseline"],
            post.2 = latency[leg == "post.2"] - latency[leg == "baseline"]) %>%
-  gather(leg, latency.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  gather(leg, latency.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor
   mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
@@ -498,7 +498,7 @@ Plot group mean *lateral saccade* latency as change from baseline
 ``` r
 plot_group_latency_lateral <- ggplot(filter(latencyMedianBaseline, type == "lateral"), aes(leg, latency.baseline)) +
   geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
-  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) +
   stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
   stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
   geom_text(data = subset(baselineLabelLatency, type=="lateral"), aes(y = c(2,1,4,3), label=latency.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
@@ -514,7 +514,7 @@ Plot group mean *center saccade* latency as change from baseline
 ``` r
 plot_group_latency_center <- ggplot(filter(latencyMedianBaseline, type == "center"), aes(leg, latency.baseline)) +
   geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
-  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) +
   stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
   stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
   geom_text(data = subset(baselineLabelLatency, type=="center"), aes(y = c(2,1,3,4), label=latency.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
@@ -537,7 +537,7 @@ figure_4 <- plot_grid(figure_4,legend_fig4,rel_widths = c(1,1/10))
 figure_4
 ```
 
-<img src="sacc-tDCS_outline_files/figure-markdown_github/Figure 4-1.png" width="75%" style="display: block; margin: auto;" />
+<img src="sacc-tDCS_files/figure-markdown_github/Figure 4-1.png" width="75%" style="display: block; margin: auto;" />
 
 Save the plot:
 
@@ -658,7 +658,7 @@ Same design as the classical ANOVA
 Bayes factors agains the null model:
 
 ``` r
-bfMedianLatencyLateral = anovaBF(latency.baseline~stimulation*leg*direction+subject, data = data.frame(medianLatencyLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMedianLatencyLateral = anovaBF(latency.baseline~stimulation*leg*direction+subject, data = data.frame(medianLatencyLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000)
 bfMedianLatencyLateral = sort(bfMedianLatencyLateral, decreasing = TRUE) # sort such that winning model is at the top
 ```
 
@@ -775,7 +775,7 @@ Same design as the classical ANOVA
 Bayes factors agains the null model:
 
 ``` r
-bfMedianLatencyCenter = anovaBF(latency.baseline~stimulation*leg*direction+subject, data = data.frame(medianLatencyCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMedianLatencyCenter = anovaBF(latency.baseline~stimulation*leg*direction+subject, data = data.frame(medianLatencyCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000)
 bfMedianLatencyCenter = sort(bfMedianLatencyCenter, decreasing = TRUE) # sort such that winning model is at the top
 
 kable(select(extractBF(bfMedianLatencyCenter), bf)) # show only the Bayes factors in a table
@@ -945,7 +945,7 @@ Compute the mean for each 3 blocks
 
 ``` r
 accMeanLeg <- accData %>%
-  group_by(subject,stimulation,direction,type) %>% 
+  group_by(subject,stimulation,direction,type) %>%
   summarise(baseline = mean(deviation.end[leg == "pre"]), # take average of 3 blocks, make new column
             tDCS = mean(deviation.end[leg == "tDCS"]),
             post.1 = mean(deviation.end[leg == "post.1"]),
@@ -963,7 +963,7 @@ accMeanBaseline <- accMeanLeg %>%
            tDCS = deviation.end[leg == "tDCS"] - deviation.end[leg == "baseline"],
            post.1 = deviation.end[leg == "post.1"] - deviation.end[leg == "baseline"],
            post.2 = deviation.end[leg == "post.2"] - deviation.end[leg == "baseline"]) %>%
-  gather(leg, deviation.end.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  gather(leg, deviation.end.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor
   mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
@@ -1011,7 +1011,7 @@ Plot group mean *lateral saccade* deviation as change from baseline
 ``` r
 plot_group_acc_lateral <- ggplot(filter(accMeanBaseline, type == "lateral"), aes(leg, deviation.end.baseline)) +
   geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
-  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) +
   stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
   stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
   geom_text(data = subset(baselineLabelAcc, type=="lateral"), aes(y = c(.05,.025,.1,.075), label=deviation.end.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
@@ -1027,7 +1027,7 @@ Plot group mean *center saccade* deviation as change from baseline
 ``` r
 plot_group_acc_center <- ggplot(filter(accMeanBaseline, type == "center"), aes(leg, deviation.end.baseline)) +
   geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
-  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) +
   stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
   stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
   geom_text(data = subset(baselineLabelAcc, type=="center"), aes(y = c(.05,.025,.1,.075), label=deviation.end.baseline, color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
@@ -1050,7 +1050,7 @@ figure_6 <- plot_grid(figure_6,legend_fig6,rel_widths = c(1,1/10))
 figure_6
 ```
 
-<img src="sacc-tDCS_outline_files/figure-markdown_github/Figure 6-1.png" width="75%" style="display: block; margin: auto;" />
+<img src="sacc-tDCS_files/figure-markdown_github/Figure 6-1.png" width="75%" style="display: block; margin: auto;" />
 
 Save the plot:
 
@@ -1066,11 +1066,11 @@ ggsave("fig/figure_6.png", plot = figure_6, width = 180, height = 112.5, units =
 ``` r
 accMeanLeg %>%
   filter(leg == "baseline") %>%
-  group_by(direction,type) %>% 
-  nest() %>% 
+  group_by(direction,type) %>%
+  nest() %>%
   mutate(stats = map(data, ~t.test(formula = deviation.end~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
   mutate(tidy_model = map(stats, tidy)) %>%
-  unnest(tidy_model, .drop = TRUE) %>% 
+  unnest(tidy_model, .drop = TRUE) %>%
   kable(.)
 ```
 
@@ -1088,7 +1088,7 @@ Because there might be a significant baseline difference for center saccades, al
 ``` r
 accMeanLeg %>%
   filter(leg != "baseline", type == "center") %>%
-  group_by(stimulation,direction,leg) %>% 
+  group_by(stimulation,direction,leg) %>%
   summarise(mean = mean(deviation.end)) %>%
   kable(.)            
 ```
@@ -1180,7 +1180,7 @@ Same design as the classical ANOVA (without order effect)
 Bayes factors agains the null model:
 
 ``` r
-bfMeanAccLateral = anovaBF(deviation.end.baseline~stimulation*leg*direction+subject, data = data.frame(meanAccLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanAccLateral = anovaBF(deviation.end.baseline~stimulation*leg*direction+subject, data = data.frame(meanAccLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000)
 bfMeanAccLateral = sort(bfMeanAccLateral, decreasing = TRUE) # sort such that winning model is at the top
 ```
 
@@ -1297,7 +1297,7 @@ Same design as the classical ANOVA
 Bayes factors agains the null model:
 
 ``` r
-bfMeanAccCenter = anovaBF(deviation.end.baseline~stimulation*leg*direction+subject, data = data.frame(meanAccCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanAccCenter = anovaBF(deviation.end.baseline~stimulation*leg*direction+subject, data = data.frame(meanAccCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000)
 bfMeanAccCenter = sort(bfMeanAccCenter, decreasing = TRUE) # sort such that winning model is at the top
 ```
 
@@ -1388,7 +1388,7 @@ Calculate endpoint variability, as standard deviation of the horizontal componen
 
 ``` r
 varMeanLeg <- preproc %>%
-  group_by(subject,stimulation,leg,direction,type) %>% 
+  group_by(subject,stimulation,leg,direction,type) %>%
   summarise(std.deviation.x = sd(deviation.end.x)) %>% # standard deviation
   ungroup() %>%
   mutate(leg = as.character(leg), # edit leg factor to match other data frames
@@ -1406,7 +1406,7 @@ varMeanBaseline <- varMeanLeg %>%
            tDCS = std.deviation.x[leg == "tDCS"] - std.deviation.x[leg == "baseline"],
            post.1 = std.deviation.x[leg == "post.1"] - std.deviation.x[leg == "baseline"],
            post.2 = std.deviation.x[leg == "post.2"] - std.deviation.x[leg == "baseline"]) %>%
-  gather(leg, std.deviation.x.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  gather(leg, std.deviation.x.baseline, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor
   mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
@@ -1454,7 +1454,7 @@ Plot group mean *lateral saccade* variability as change from baseline
 ``` r
 plot_group_var_lateral <- ggplot(filter(varMeanBaseline, type == "lateral"), aes(leg, std.deviation.x.baseline)) +
   geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
-  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) +
   stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
   stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
   geom_text(data = subset(baselineLabelVar, type=="lateral"), aes(y = c(.05,.025,.1,.075), label=(std.deviation.x.baseline), color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
@@ -1470,7 +1470,7 @@ Plot group mean *center saccade* variability as change from baseline
 ``` r
 plot_group_var_center <- ggplot(filter(varMeanBaseline, type == "center"), aes(leg, std.deviation.x.baseline)) +
   geom_hline(yintercept = 0, linetype = "dashed", size = base_line_size) +
-  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) + 
+  stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "line", position = position_dodge(width = 0.5), size = .75) +
   stat_summary(fun.data = mean_cl_normal, aes(group = interaction(stimulation, direction), color = stimulation, linetype = direction), geom = "linerange", position = position_dodge(width = 0.5), show.legend = FALSE) +
   stat_summary(fun.y = mean, aes(group = interaction(stimulation, direction), color = stimulation, shape = stimulation), geom = "point", position = position_dodge(width = 0.5), size = 2) +
   geom_text(data = subset(baselineLabelVar, type=="center"), aes(y = c(.05,.025,.1,.075), label=(std.deviation.x.baseline), color = stimulation), position = position_dodge(width = 0.5), size = mm_to_pt) +
@@ -1493,7 +1493,7 @@ figure_7 <- plot_grid(figure_7,legend_fig7,rel_widths = c(1,1/10))
 figure_7
 ```
 
-<img src="sacc-tDCS_outline_files/figure-markdown_github/Figure 7-1.png" width="75%" style="display: block; margin: auto;" />
+<img src="sacc-tDCS_files/figure-markdown_github/Figure 7-1.png" width="75%" style="display: block; margin: auto;" />
 
 Save the plot:
 
@@ -1509,11 +1509,11 @@ ggsave("fig/figure_7.png", plot = figure_7, width = 180, height = 112.5, units =
 ``` r
 varMeanLeg %>%
   filter(leg == "baseline") %>%
-  group_by(direction,type) %>% 
-  nest() %>% 
+  group_by(direction,type) %>%
+  nest() %>%
   mutate(stats = map(data, ~t.test(formula = std.deviation.x~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
   mutate(tidy_model = map(stats, tidy)) %>%
-  unnest(tidy_model, .drop = TRUE) %>% 
+  unnest(tidy_model, .drop = TRUE) %>%
   kable(.)
 ```
 
@@ -1596,7 +1596,7 @@ Same design as the classical ANOVA
 Bayes factors agains the null model:
 
 ``` r
-bfMeanVarLateral = anovaBF(std.deviation.x.baseline~stimulation*leg*direction+subject, data = data.frame(meanVarLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanVarLateral = anovaBF(std.deviation.x.baseline~stimulation*leg*direction+subject, data = data.frame(meanVarLateralStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000)
 bfMeanVarLateral = sort(bfMeanVarLateral, decreasing = TRUE) # sort such that winning model is at the top
 ```
 
@@ -1713,7 +1713,7 @@ Same design as the classical ANOVA
 Bayes factors agains the null model:
 
 ``` r
-bfMeanVarCenter = anovaBF(std.deviation.x.baseline~stimulation*leg*direction+subject, data = data.frame(meanVarCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000) 
+bfMeanVarCenter = anovaBF(std.deviation.x.baseline~stimulation*leg*direction+subject, data = data.frame(meanVarCenterStats), whichModels = "withmain", whichRandom = "subject", progress = FALSE, iterations = 100000)
 bfMeanVarCenter = sort(bfMeanVarCenter, decreasing = TRUE) # sort such that winning model is at the top
 ```
 
@@ -1830,9 +1830,9 @@ qData <- read_csv(here("data", "sacc-tDCS_quantiles.csv")) %>%
 qStats <- qData %>%
   group_by(subject,leg,type,direction) %>%
   mutate(deco = c(seq(1,5),seq(4,1))) %>% # add code of deciles to data frame
-  group_by(leg,type,direction,q) %>% 
+  group_by(leg,type,direction,q) %>%
   mutate(anodal = mean(anodal)) %>% # mean of "anodal" quantiles OVER subjects
-  group_by(leg,type,direction) %>% 
+  group_by(leg,type,direction) %>%
   mutate(anodal_median = median(anodal)) # median for plotting
 ```
 
@@ -1921,7 +1921,7 @@ figure_5 <- plot_grid(figure_5_lateral, figure_5_center, nrow = 2)
 figure_5
 ```
 
-<img src="sacc-tDCS_outline_files/figure-markdown_github/Figure 5-1.png" width="75%" style="display: block; margin: auto;" />
+<img src="sacc-tDCS_files/figure-markdown_github/Figure 5-1.png" width="75%" style="display: block; margin: auto;" />
 
 Save the plot:
 
@@ -1984,7 +1984,7 @@ Calculate how many anodal and cathodal sessions were rated:
 ``` r
 idxComplete <- rowSums(is.na(sensData)) != ncol(sensData) - 3 # rows that do not have all NAs (except the 3 factor columns)
 # calculate number of questionnaires completed per stimulation type
-nAnodal <- sum(sensData$stimulation == "anodal" & idxComplete) 
+nAnodal <- sum(sensData$stimulation == "anodal" & idxComplete)
 nCathodal <- sum(sensData$stimulation == "cathodal" & idxComplete)
 ```
 
@@ -2000,7 +2000,7 @@ ratings <- sensData %>%
 
 # Make long form data frame of sensation confidence
 confidence <- sensData %>%
-  select(contains("conf"), subject, session, stimulation) %>% 
+  select(contains("conf"), subject, session, stimulation) %>%
   gather(sensation, confidence, conf.itching:conf.nausea) %>%
   mutate(sensation = str_replace(sensation, "conf.", "")) # get rid of "conf." prefix so it matches the sensation intensity tibble
 
@@ -2049,7 +2049,7 @@ figure_S1 <- plot_grid(figure_S1,legend_S1, rel_widths = c(1,1/10))
 figure_S1
 ```
 
-<img src="sacc-tDCS_outline_files/figure-markdown_github/tDCS AE plot-1.png" width="75%" style="display: block; margin: auto;" />
+<img src="sacc-tDCS_files/figure-markdown_github/tDCS AE plot-1.png" width="75%" style="display: block; margin: auto;" />
 
 Save the plot:
 
@@ -2098,7 +2098,7 @@ These were determined for each subject's scan; see `neuronav_notes.md` for furth
 ``` r
 dataFile <- here("data", "FEF_coords_native.csv")
 nativeCoords <- read_csv2(dataFile)
-nativeCoords %>% 
+nativeCoords %>%
   select(-folder, -scan) %>% # drop columns with folder and scan names
   filter(!(subject %in% subs2exclude)) %>% # drop rows with excluded subjects
   kable(.)
@@ -2185,7 +2185,7 @@ Calculate descriptive statistics over subjects:
 mniCoords %>%
   gather(dimension, coord, MNI_X:MNI_Z) %>%
   group_by(dimension) %>%
-  summarise_at(vars(coord), funs(mean, min, max, sd)) %>% 
+  summarise_at(vars(coord), funs(mean, min, max, sd)) %>%
   kable(.)
 ```
 
