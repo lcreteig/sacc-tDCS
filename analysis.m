@@ -24,7 +24,7 @@ tDCScodes = {'C', 'I'; 'H', 'A'; 'B', 'K'}; % in subject 1-10, setting 'C' on th
 % In subject 16 and onwards, 'B' was mapped to anodal; for cathodal or 'K' the wires were reversed 
 legs = {'pre', 'tDCS', 'post'};
 
-fid = fopen(fullfile(dataDir, ['sacc-tDCS_data_TESTRELPATH' '.csv']),'w'); % open text file for writing
+fid = fopen(fullfile(dataDir, ['sacc-tDCS_data' '.csv']),'w'); % open text file for writing
 % print column headers
 fprintf(fid, '%s,', 'subject');
 fprintf(fid, '%s,', 'stimulation');
@@ -80,7 +80,7 @@ for iSub = subjects % loop over first subject
                 
                 %% Parse the text file and extract saccade measures
                 
-                saccData = processEDF(ASCfile,MATfile,iLeg{:},iBlock,microSaccCrit);
+                saccData = processASC(ASCfile,MATfile,iLeg{:},iBlock,microSaccCrit);
                 
                 % initialize cells for saccade info
                 saccType = cell(length(saccData.lateral),1);

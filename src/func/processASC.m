@@ -1,8 +1,8 @@
-function saccData = processEDF(ASCfile,MATfile,leg,block,microSaccCrit)
-% PROCESSEDF: Convert Eyelink Data Files to ascii text (if not done
-% already) and parse to extract saccade measures.
+function saccData = processASC(ASCfile,MATfile,leg,block,microSaccCrit)
+% PROCESSEDF: Extract saccade measures from Eyelink Data Files that were 
+% converted to ascii text
 %
-% Usage: saccData = processEDF(EDFfile,MATfile,leg,block,microSaccCrit)
+% Usage: saccData = processEDF(ASCfile,MATfile,leg,block,microSaccCrit)
 %
 % Inputs:
 %
