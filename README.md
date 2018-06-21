@@ -8,9 +8,9 @@
 
 Please see this project's [page on the Open Science Framework](https://osf.io/8jpv9/). All the other files from this project can be obtained from there, along with much more (and more detailed) information then in this README.
 
-__Print__: bioRxiv - [bioRxiv / self-archive link]
+__Print__: [bioRxiv](https://doi.org/10.1101/351304) 
 
-__Data__: figshare - [figshare link]
+__Data__: [figshare](https://doi.org/10.21942/uva.6462770)
 
 # Contents of this repository
 
