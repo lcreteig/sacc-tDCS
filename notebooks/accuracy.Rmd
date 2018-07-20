@@ -29,7 +29,7 @@ library(knitr) # R markdown output (html, pdf, etc.)
 # set default output and figure options
 knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.asp = 0.618, out.width = "75%", fig.align = "center")
 
-source(here("src", "lib", "InclusionBF.R"))
+source(here("src", "lib", "inclusionBF.R"))
 
 sessionInfo()
 ```
