@@ -160,7 +160,7 @@ Group analyses
 Load data
 ---------
 
-All (meta)data are stored as `.csv` files in the `/data` folder.
+All (meta)data are stored as `.csv` files on [figshare](https://doi.org/10.21942/uva.6462770).
 
 ### Eye tracking data
 
@@ -168,7 +168,8 @@ Here we load the `.csv` file with the processed eye tracking data, which was cre
 
 ``` r
 # Load eye tracking data into data frame
-dataFile <- here("data", "sacc-tDCS_data.csv")
+# dataFile <- here("data", "sacc-tDCS_data.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887022"
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
@@ -213,7 +214,8 @@ kable(head(groupData))
 
 ``` r
 # Load eye tracking data into data frame
-dataFile <- here("data", "session_info.csv")
+# dataFile <- here("data", "session_info.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887001"
 sessionData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal"))
@@ -244,7 +246,8 @@ kable(head(sessionData))
 
 ``` r
 # Load eye tracking data into data frame
-dataFile <- here("data", "subject_info.csv")
+# dataFile <- here("data", "subject_info.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887004"
 subjectData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
   session.order = col_factor(c("first.anodal", "first.cathodal"))
 ))
@@ -1818,7 +1821,8 @@ qData <- unnest(qData,shift) # unpack the list column to get the model results f
 Note that this takes quite a while to compute with a large number of bootstrap samples, so we will load the result from disk in the next code chunk. By default, the chunk above will not run becuase of the `eval=FALSE` statement; remove this to execute it and compute the result from scratch.
 
 ``` r
-qData <- read_csv(here("data", "sacc-tDCS_quantiles.csv")) %>%
+# qData <- read_csv(here("data", "sacc-tDCS_quantiles.csv")) %>% # data stored locally
+qData <- read_csv("https://ndownloader.figshare.com/files/11887025") %>%
   filter(!(subject %in% subs2exclude)) %>% # exclude subjects
     mutate(leg = replace(leg, leg == "pre", "baseline"), # rename and reoder levels
          leg = replace(leg, leg == "post.1", "post-1"),
@@ -1940,7 +1944,8 @@ tDCS adverse effect questionnaire
 
 ``` r
 # Load the data frame
-dataFile <- here("data", "tdcs_sensations.csv")
+# dataFile <- here("data", "tdcs_sensations.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887013"
 sensData <- read_csv2(dataFile, col_types = cols(
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal"))
@@ -2096,11 +2101,12 @@ Frontal eye field coordinates
 These were determined for each subject's scan; see `neuronav_notes.md` for further info.
 
 ``` r
-dataFile <- here("data", "FEF_coords_native.csv")
-nativeCoords <- read_csv2(dataFile)
-nativeCoords %>%
-  select(-folder, -scan) %>% # drop columns with folder and scan names
-  filter(!(subject %in% subs2exclude)) %>% # drop rows with excluded subjects
+# dataFile <- here("data", "FEF_coords.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887019"
+fefCoords <- read_csv(dataFile)
+fefCoords %>%
+  select(subject, starts_with('native')) %>% # drop other columns
+  filter(!(subject %in% subs2exclude)) %>%
   kable(.)
 ```
 
@@ -2140,11 +2146,9 @@ Load in the coordinates that were transformed to MNI space.
 #### Table S1
 
 ``` r
-dataFile <- here("data", "FEF_coords_MNI.csv")
-mniCoords <- read_delim(dataFile, ";")
-mniCoords <- filter(mniCoords, !(subject %in% subs2exclude)) # exclude subjects
-mniCoords %>%
-  select(-folder, -scan) %>% # drop columns with folder and scan names
+fefCoords %>%
+  select(subject, starts_with('mni')) %>%
+  filter(!(subject %in% subs2exclude)) %>%
   kable(.)
 ```
 
@@ -2182,7 +2186,8 @@ mniCoords %>%
 Calculate descriptive statistics over subjects:
 
 ``` r
-mniCoords %>%
+fefCoords %>%
+  filter(!(subject %in% subs2exclude)) %>%
   gather(dimension, coord, MNI_X:MNI_Z) %>%
   group_by(dimension) %>%
   summarise_at(vars(coord), funs(mean, min, max, sd)) %>%

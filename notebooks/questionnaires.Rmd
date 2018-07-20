@@ -38,7 +38,8 @@ As most participants were native Dutch speakers, we also used a [Dutch language 
 
 ```{r Load PANAS data}
 # Load the data frame
-dataFile <- here("data", "PANAS.csv")
+# dataFile <- here("data", "PANAS.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887007"
 panasData <- read_csv2(dataFile, col_types = cols( # read in data; make columns into factors
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal")),
@@ -161,7 +162,8 @@ After each session, subjects also completed a custom questionnaire probing tDCS 
 
 ```{r Load tDCS sensations data}
 # Load the data frame
-dataFile <- here("data", "tdcs_sensations.csv")
+# dataFile <- here("data", "tdcs_sensations.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887013"
 sensData <- read_csv2(dataFile, col_types = cols(
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal"))

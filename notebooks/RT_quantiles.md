@@ -48,43 +48,44 @@ sessionInfo()
     ## R version 3.4.0 (2017-04-21)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
     ## Running under: OS X El Capitan 10.11.6
-    ## 
+    ##
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
     ## LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
-    ## 
+    ##
     ## locale:
     ## [1] C
-    ## 
+    ##
     ## attached base packages:
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
-    ## 
+    ##
     ## other attached packages:
     ##  [1] knitr_1.15.1     rogme_0.1.0.9000 dplyr_0.5.0      purrr_0.2.2     
     ##  [5] readr_1.1.0      tidyr_0.6.1      tibble_1.3.0     ggplot2_2.2.1   
     ##  [9] tidyverse_1.1.1  here_0.1        
-    ## 
+    ##
     ## loaded via a namespace (and not attached):
     ##  [1] Rcpp_0.12.10     cellranger_1.1.0 compiler_3.4.0   plyr_1.8.4      
-    ##  [5] forcats_0.2.0    tools_3.4.0      digest_0.6.12    lubridate_1.6.0 
+    ##  [5] forcats_0.2.0    tools_3.4.0      digest_0.6.12    lubridate_1.6.0
     ##  [9] jsonlite_1.4     evaluate_0.10    nlme_3.1-131     gtable_0.2.0    
     ## [13] lattice_0.20-35  psych_1.7.3.21   DBI_0.6-1        yaml_2.1.14     
     ## [17] parallel_3.4.0   haven_1.0.0      xml2_1.1.1       stringr_1.2.0   
     ## [21] httr_1.2.1       hms_0.3          rprojroot_1.2    grid_3.4.0      
     ## [25] R6_2.2.0         readxl_1.0.0     foreign_0.8-67   rmarkdown_1.5   
-    ## [29] modelr_0.1.0     reshape2_1.4.2   magrittr_1.5     backports_1.0.5 
+    ## [29] modelr_0.1.0     reshape2_1.4.2   magrittr_1.5     backports_1.0.5
     ## [33] scales_0.4.1     htmltools_0.3.6  rvest_0.3.2      assertthat_0.2.0
     ## [37] mnormt_1.5-5     colorspace_1.3-2 stringi_1.1.5    lazyeval_0.2.0  
     ## [41] munsell_0.4.3    broom_0.4.2
 
 ``` r
 # Load the data frame
-dataFile <- here("data", "sacc-tDCS_data.csv")
+# dataFile <- here("data", "session_info.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887001"
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
   type = col_factor(c("lateral","center")),
-  direction = col_factor(c("left","right")) 
+  direction = col_factor(c("left","right"))
 ))
 ```
 
@@ -163,8 +164,9 @@ write_csv(qData, here("data", "sacc-tDCS_quantiles.csv"))
 ```
 
 ``` r
-subs2exclude <- subs2exclude <- c("S21","S25","S16","S22","S28") 
-qData <- read_csv(here("data", "sacc-tDCS_quantiles.csv")) %>%
+subs2exclude <- subs2exclude <- c("S21","S25","S16","S22","S28")
+# qData <- read_csv(here("data", "sacc-tDCS_quantiles.csv")) %>% # data stored locally
+qData <- read_csv("https://ndownloader.figshare.com/files/11887025") %>%
   filter(!(subject %in% subs2exclude)) %>% # exclude subjects
     mutate(leg = replace(leg, leg == "pre", "baseline"), # rename and reoder levels
          leg = replace(leg, leg == "post.1", "post-1"),
@@ -181,9 +183,9 @@ Add decile codes and anodal medians to data frame, for plotting:
 qStats <- qData %>%
   group_by(subject,leg,type,direction) %>%
   mutate(deco = c(seq(1,5),seq(4,1))) %>% # add code of deciles to data frame
-  group_by(leg,type,direction,q) %>% 
+  group_by(leg,type,direction,q) %>%
   mutate(anodal = mean(anodal)) %>% # mean of "anodal" quantiles OVER subjects
-  group_by(leg,type,direction) %>% 
+  group_by(leg,type,direction) %>%
   mutate(anodal_median = median(anodal)) # median for plotting
 ```
 

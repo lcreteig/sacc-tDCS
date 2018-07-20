@@ -53,16 +53,16 @@ library(BayesFactor) # Bayesian statistics
 
     ## Loading required package: Matrix
 
-    ## 
+    ##
     ## Attaching package: 'Matrix'
 
     ## The following object is masked from 'package:tidyr':
-    ## 
+    ##
     ##     expand
 
     ## ************
     ## Welcome to BayesFactor 0.9.12-2. If you have questions, please contact Richard Morey (richarddmorey@gmail.com).
-    ## 
+    ##
     ## Type BFManual() to open the manual.
     ## ************
 
@@ -81,24 +81,24 @@ sessionInfo()
     ## R version 3.4.0 (2017-04-21)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
     ## Running under: OS X El Capitan 10.11.6
-    ## 
+    ##
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
     ## LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
-    ## 
+    ##
     ## locale:
     ## [1] C
-    ## 
+    ##
     ## attached base packages:
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
-    ## 
+    ##
     ## other attached packages:
     ##  [1] knitr_1.15.1         broom_0.4.2          BayesFactor_0.9.12-2
     ##  [4] Matrix_1.2-9         coda_0.19-1          ez_4.4-0            
     ##  [7] dplyr_0.5.0          purrr_0.2.2          readr_1.1.0         
     ## [10] tidyr_0.6.1          tibble_1.3.0         ggplot2_2.2.1       
     ## [13] tidyverse_1.1.1      here_0.1            
-    ## 
+    ##
     ## loaded via a namespace (and not attached):
     ##  [1] gtools_3.5.0       pbapply_1.3-2      reshape2_1.4.2    
     ##  [4] splines_3.4.0      haven_1.0.0        lattice_0.20-35   
@@ -130,12 +130,13 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ``` r
 # Load the data frame
-dataFile <- here("data", "sacc-tDCS_data.csv")
+# dataFile <- here("data", "sacc-tDCS_data.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887022"
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
   type = col_factor(c("lateral","center")),
-  direction = col_factor(c("left","right")) 
+  direction = col_factor(c("left","right"))
 ))
 ```
 
@@ -171,7 +172,8 @@ kable(head(groupData))
 
 ``` r
 # Load eye tracking data into data frame
-dataFile <- here("data", "subject_info.csv")
+# dataFile <- here("data", "subject_info.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887004"
 subjectData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
   session.order = col_factor(c("first.anodal", "first.cathodal"))
 ))
@@ -281,7 +283,7 @@ The above plot also shows a lot of variability, so it might be best to average o
 ``` r
 # Compute median per leg
 latencyMedianLeg <- groupData %>%
-  group_by(subject,stimulation,direction,type) %>% 
+  group_by(subject,stimulation,direction,type) %>%
   summarise(baseline = median(latency[leg == "pre"]), # take average of 3 blocks, make new column
             tDCS = median(latency[leg == "tDCS"]),
             post.1 = median(latency[leg == "post" & block <= 3]),
@@ -312,11 +314,11 @@ There are a couple of subjects that show large differences in the baseline alrea
 Let's look at the size of the baseline difference per subject.
 
 ``` r
-baselineDiff <- latencyMedianLeg %>% 
+baselineDiff <- latencyMedianLeg %>%
   filter(leg == "baseline") %>% # keep only baseline data
   spread(stimulation, latency) %>% # make separate columns for anodal and cathodal
   mutate(latency.diff = anodal - cathodal) %>% # subtract the difference
-  group_by(subject) %>% 
+  group_by(subject) %>%
   summarise(latency.diff = mean(latency.diff))# keep the average difference per subject
 
 kable(baselineDiff, caption = 'Difference between baseline saccade latencies in anodal and cathodal session')
@@ -420,10 +422,10 @@ Baseline differences (while small here) are not informative and could obscure re
 ``` r
 latencyMedianBaseline <- latencyMedianLeg %>%
   group_by(subject,stimulation,direction,type) %>% # for each condition, subtract baseline scores and make new columns
-  summarise(tDCS = latency[leg == "tDCS"] - latency[leg == "baseline"], 
+  summarise(tDCS = latency[leg == "tDCS"] - latency[leg == "baseline"],
            post.1 = latency[leg == "post.1"] - latency[leg == "baseline"],
            post.2 = latency[leg == "post.2"] - latency[leg == "baseline"]) %>%
-  gather(leg, latency, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+  gather(leg, latency, tDCS, post.1, post.2)  %>% # gather new columns to use as factor
   mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
@@ -565,7 +567,7 @@ kanaiPlotBaseSubsAnodal <- ggplot(latencyMedianBaseline[latencyMedianBaseline$st
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_line(aes(group=subject,color=subject)) +
   stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
-  stat_summary(fun.y = mean, geom = "point") + 
+  stat_summary(fun.y = mean, geom = "point") +
   ggtitle("Anodal difference from baseline")
 kanaiPlotBaseSubsAnodal
 ```
@@ -580,7 +582,7 @@ kanaiPlotBaseSubsCathodal <- ggplot(latencyMedianBaseline[latencyMedianBaseline$
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_line(aes(group=subject,color=subject)) +
   stat_summary(fun.y = mean, aes(group = stimulation), geom = "line") +
-  stat_summary(fun.y = mean, geom = "point") + 
+  stat_summary(fun.y = mean, geom = "point") +
   ggtitle("Cathodal difference from baseline")
 kanaiPlotBaseSubsCathodal
 ```
@@ -895,7 +897,7 @@ latencyMedianBaseline %>%
 -   SESSION ORDER (first anodal vs. first cathodal)
 
 ``` r
-modelKanaiOrder <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "lateral")), dv = .(latency), 
+modelKanaiOrder <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "lateral")), dv = .(latency),
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
 kable(modelKanaiOrder$ANOVA)
 ```
@@ -1033,7 +1035,7 @@ This seems to be a really tiny and variable effect, but apparently left saccades
 #### With session order
 
 ``` r
-modelKanaiCenterOrder <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "center")), dv = .(latency), 
+modelKanaiCenterOrder <- ezANOVA(data = data.frame(filter(latencyMedianBaseline, type == "center")), dv = .(latency),
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
 kable(modelKanaiCenterOrder$ANOVA)
 ```
@@ -1185,9 +1187,9 @@ bfKanaiLateralFull
     ## [5] Omit leg                       : 0.990652 <U+00B1>11.53%
     ## [6] Omit direction                 : 6.931476 <U+00B1>12.41%
     ## [7] Omit stimulation               : 1.098024 <U+00B1>11.41%
-    ## 
+    ##
     ## Against denominator:
-    ##   latency ~ stimulation + direction + leg + stimulation:direction + stimulation:leg + direction:leg + stimulation:direction:leg +     subject 
+    ##   latency ~ stimulation + direction + leg + stimulation:direction + stimulation:leg + direction:leg + stimulation:direction:leg +     subject
     ## ---
     ## Bayes factor type: BFlinearModel, JZS
 

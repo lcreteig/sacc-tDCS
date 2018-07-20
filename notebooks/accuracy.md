@@ -64,16 +64,16 @@ library(BayesFactor) # Bayesian statistics
 
     ## Loading required package: Matrix
 
-    ## 
+    ##
     ## Attaching package: 'Matrix'
 
     ## The following object is masked from 'package:tidyr':
-    ## 
+    ##
     ##     expand
 
     ## ************
     ## Welcome to BayesFactor 0.9.12-2. If you have questions, please contact Richard Morey (richarddmorey@gmail.com).
-    ## 
+    ##
     ## Type BFManual() to open the manual.
     ## ************
 
@@ -91,24 +91,24 @@ sessionInfo()
     ## R version 3.4.0 (2017-04-21)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
     ## Running under: OS X El Capitan 10.11.6
-    ## 
+    ##
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
     ## LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
-    ## 
+    ##
     ## locale:
     ## [1] C
-    ## 
+    ##
     ## attached base packages:
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
-    ## 
+    ##
     ## other attached packages:
     ##  [1] knitr_1.15.1         broom_0.4.2          BayesFactor_0.9.12-2
     ##  [4] Matrix_1.2-9         coda_0.19-1          ez_4.4-0            
     ##  [7] forcats_0.2.0        dplyr_0.5.0          purrr_0.2.2         
     ## [10] readr_1.1.0          tidyr_0.6.1          tibble_1.3.0        
     ## [13] ggplot2_2.2.1        tidyverse_1.1.1      here_0.1            
-    ## 
+    ##
     ## loaded via a namespace (and not attached):
     ##  [1] gtools_3.5.0       pbapply_1.3-2      reshape2_1.4.2    
     ##  [4] splines_3.4.0      haven_1.0.0        lattice_0.20-35   
@@ -140,12 +140,13 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ``` r
 # Load the data frame
-dataFile <- here("data", "sacc-tDCS_data.csv")
+# dataFile <- here("data", "sacc-tDCS_data.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887022"
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
   type = col_factor(c("lateral","center")),
-  direction = col_factor(c("left","right")) 
+  direction = col_factor(c("left","right"))
 ))
 ```
 
@@ -184,7 +185,8 @@ Subject metadata
 
 ``` r
 # Load eye tracking data into data frame
-dataFile <- here("data", "subject_info.csv")
+# dataFile <- here("data", "subject_info.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887004"
 subjectData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
   session.order = col_factor(c("first.anodal", "first.cathodal"))
 ))
@@ -291,12 +293,12 @@ Average over three blocks:
 
 ``` r
 devData <- devData %>%
-  group_by(subject,stimulation,direction,type) %>% 
+  group_by(subject,stimulation,direction,type) %>%
   summarise(baseline = mean(deviation.end[leg == "pre"]), # take average of 3 blocks, make new column
             tDCS = mean(deviation.end[leg == "tDCS"]),
             post.1 = mean(deviation.end[leg == "post.1"]),
             post.2 = mean(deviation.end[leg == "post.2"])) %>%
-gather(leg, deviation.end, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor 
+gather(leg, deviation.end, baseline, tDCS, post.1, post.2)  %>% # gather new columns to use as factor
 mutate(leg = factor(leg, levels = c("baseline", "tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
@@ -305,12 +307,12 @@ Subtract the baseline from each average:
 ``` r
 # Subtract baseline
 devDataBase <- devData %>%
-  group_by(subject,stimulation,direction,type) %>% 
+  group_by(subject,stimulation,direction,type) %>%
   # subtract baseline block from others, make new column
-  summarise(tDCS = deviation.end[leg == "tDCS"] - deviation.end[leg == "baseline"], 
+  summarise(tDCS = deviation.end[leg == "tDCS"] - deviation.end[leg == "baseline"],
             post.1 = deviation.end[leg == "post.1"] - deviation.end[leg == "baseline"],
             post.2 = deviation.end[leg == "post.2"] - deviation.end[leg == "baseline"]) %>%
-gather(leg, deviation.end, tDCS, post.1, post.2) %>% # gather new columns to use as factor 
+gather(leg, deviation.end, tDCS, post.1, post.2) %>% # gather new columns to use as factor
 mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
@@ -366,12 +368,12 @@ Scatterplot and correlation of baseline data in the two sessions:
 
 ``` r
 baselineCorrDev <- devData %>%
-  filter(leg == "baseline") %>% 
-  group_by(direction,type) %>% 
-  spread(stimulation,deviation.end) %>% 
-  nest() %>% 
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>%
+  spread(stimulation,deviation.end) %>%
+  nest() %>%
   mutate(stats = map(data, ~cor.test(formula = ~ anodal + cathodal, data =.))) %>% # run correlation test on baselines from each condition
-  mutate(tidy_model = map(stats, tidy)) %>% 
+  mutate(tidy_model = map(stats, tidy)) %>%
   unnest(tidy_model, .drop = TRUE)
 ```
 
@@ -418,11 +420,11 @@ The baseline differences are not so extreme, except for the center (left) condit
 ``` r
 devData %>%
   filter(leg == "baseline") %>%
-  group_by(direction,type) %>% 
-  nest() %>% 
+  group_by(direction,type) %>%
+  nest() %>%
   mutate(stats = map(data, ~t.test(formula = deviation.end~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
   mutate(tidy_model = map(stats, tidy)) %>%
-  unnest(tidy_model, .drop = TRUE) %>% 
+  unnest(tidy_model, .drop = TRUE) %>%
   kable(.)
 ```
 
@@ -440,7 +442,7 @@ For the center conditions, let's look at the raw data from Time Periods after th
 ``` r
 devData %>%
   filter(leg != "baseline", type == "center") %>%
-  group_by(stimulation,direction,leg) %>% 
+  group_by(stimulation,direction,leg) %>%
   summarise(mean = mean(deviation.end)) %>%
   kable(.)            
 ```
@@ -566,7 +568,7 @@ devDataBase %>%
 | first.cathodal |     12|
 
 ``` r
-modelKanaiOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")), dv = .(deviation.end), 
+modelKanaiOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "lateral")), dv = .(deviation.end),
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
 kable(modelKanaiOrder$ANOVA)
 ```
@@ -722,7 +724,7 @@ The accuracy of leftward saccades is improved for left saccades in the final hal
 ##### With session order
 
 ``` r
-modelKanaiCenterOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "center")), dv = .(deviation.end), 
+modelKanaiCenterOrder <- ezANOVA(data = data.frame(filter(devDataBase, type == "center")), dv = .(deviation.end),
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
 kable(modelKanaiCenterOrder$ANOVA)
 ```
@@ -886,7 +888,7 @@ Overwhelming evidence for inclusion of a main effect of stimulation, which is in
 Bayesian one-sample t-tests:
 
 ``` r
-devDataBase %>% 
+devDataBase %>%
   filter(type == "center") %>% # keep only center saccades
   group_by(stimulation,subject) %>% # for each session and subject
   summarise(deviation.end = mean(deviation.end)) %>% # average over all other variables
@@ -915,7 +917,7 @@ Kanai et al. (2012) operationalized variability as the standard deviation of the
 
 ``` r
 stdData <- groupData %>%
-  group_by(subject,stimulation,leg,direction,type) %>% 
+  group_by(subject,stimulation,leg,direction,type) %>%
   summarise(std.deviation.x = sd(deviation.end.x))
 ```
 
@@ -946,12 +948,12 @@ Subtract the baseline from each average:
 ``` r
 # Subtract baseline
 stdDataBase <- stdData %>%
-  group_by(subject,stimulation,direction,type) %>% 
+  group_by(subject,stimulation,direction,type) %>%
   # subtract baseline block from others, make new column
-  summarise(tDCS = std.deviation.x[leg == "tDCS"] - std.deviation.x[leg == "baseline"], 
+  summarise(tDCS = std.deviation.x[leg == "tDCS"] - std.deviation.x[leg == "baseline"],
             post.1 = std.deviation.x[leg == "post.1"] - std.deviation.x[leg == "baseline"],
             post.2 = std.deviation.x[leg == "post.2"] - std.deviation.x[leg == "baseline"]) %>%
-gather(leg, std.deviation.x, tDCS, post.1, post.2) %>% # gather new columns to use as factor 
+gather(leg, std.deviation.x, tDCS, post.1, post.2) %>% # gather new columns to use as factor
 mutate(leg = factor(leg, levels = c("tDCS", "post.1", "post.2"))) # reorder factor levels
 ```
 
@@ -1008,12 +1010,12 @@ Scatterplot and correlation of baseline data in the two sessions:
 
 ``` r
 baselineCorrStd <- stdData %>%
-  filter(leg == "baseline") %>% 
-  group_by(direction,type) %>% 
-  spread(stimulation,std.deviation.x) %>% 
-  nest() %>% 
+  filter(leg == "baseline") %>%
+  group_by(direction,type) %>%
+  spread(stimulation,std.deviation.x) %>%
+  nest() %>%
   mutate(stats = map(data, ~cor.test(formula = ~ anodal + cathodal, data =.))) %>% # run correlation test on baselines from each condition
-  mutate(tidy_model = map(stats, tidy)) %>% 
+  mutate(tidy_model = map(stats, tidy)) %>%
   unnest(tidy_model, .drop = TRUE)
 ```
 
@@ -1060,11 +1062,11 @@ The average baseline differences are small, but the spread is quite large.
 ``` r
 stdData %>%
   filter(leg == "baseline") %>%
-  group_by(direction,type) %>% 
-  nest() %>% 
+  group_by(direction,type) %>%
+  nest() %>%
   mutate(stats = map(data, ~t.test(formula = std.deviation.x~stimulation, paired = TRUE, data =.))) %>% # run t-test on the data frames
   mutate(tidy_model = map(stats, tidy)) %>%
-  unnest(tidy_model, .drop = TRUE) %>% 
+  unnest(tidy_model, .drop = TRUE) %>%
   kable(.)
 ```
 
@@ -1167,7 +1169,7 @@ kable(modelKanaiStd$`Sphericity Corrections`)
 ##### With session order
 
 ``` r
-modelKanaiStdOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "lateral")), dv = .(std.deviation.x), 
+modelKanaiStdOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "lateral")), dv = .(std.deviation.x),
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
 kable(modelKanaiStdOrder$ANOVA)
 ```
@@ -1287,7 +1289,7 @@ This resembles the difference found for the saccade endpoint deviation, except h
 ##### With session order
 
 ``` r
-modelKanaiStdCenterOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "center")), dv = .(std.deviation.x), 
+modelKanaiStdCenterOrder <- ezANOVA(data = data.frame(filter(stdDataBase, type == "center")), dv = .(std.deviation.x),
           wid = .(subject), within = .(stimulation,leg,direction),  between = session.order, type = 3)
 kable(modelKanaiStdCenterOrder$ANOVA)
 ```
@@ -1475,7 +1477,7 @@ stdDataBase %>%
   summarise(deviation.end = mean(std.deviation.x)) %>% # average over all other variables (df is now still grouped per stimulation)
   summarise_if(is.numeric, funs(list(tidy(t.test(.))))) %>%  # run one-sample t-test for each stimulation condition, return tidy data frames
   unnest() %>% # unpack the list-column with data frame for each test
-  kable(.) 
+  kable(.)
 ```
 
 | stimulation |    estimate|  statistic|    p.value|  parameter|    conf.low|  conf.high| method            | alternative |

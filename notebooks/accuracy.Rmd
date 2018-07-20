@@ -42,7 +42,8 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ```{r Load the data frame}
 # Load the data frame
-dataFile <- here("data", "sacc-tDCS_data.csv")
+# dataFile <- here("data", "sacc-tDCS_data.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887022"
 groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(
   stimulation = col_factor(c("anodal","cathodal")),
   leg = col_factor(c("pre","tDCS","post")),
@@ -76,7 +77,8 @@ kable(head(groupData))
 
 ```{r Load subject info data}
 # Load eye tracking data into data frame
-dataFile <- here("data", "subject_info.csv")
+# dataFile <- here("data", "subject_info.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887004"
 subjectData <- read_csv2(dataFile, col_names = TRUE, progress = FALSE, col_types = cols(
   session.order = col_factor(c("first.anodal", "first.cathodal"))
 ))

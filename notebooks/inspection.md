@@ -52,31 +52,31 @@ sessionInfo()
     ## R version 3.4.0 (2017-04-21)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
     ## Running under: OS X El Capitan 10.11.6
-    ## 
+    ##
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
     ## LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
-    ## 
+    ##
     ## locale:
     ## [1] C
-    ## 
+    ##
     ## attached base packages:
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
-    ## 
+    ##
     ## other attached packages:
     ##  [1] formatR_1.5     knitr_1.15.1    dplyr_0.5.0     purrr_0.2.2    
     ##  [5] readr_1.1.0     tidyr_0.6.1     tibble_1.3.0    ggplot2_2.2.1  
     ##  [9] tidyverse_1.1.1 here_0.1       
-    ## 
+    ##
     ## loaded via a namespace (and not attached):
     ##  [1] Rcpp_0.12.10     cellranger_1.1.0 compiler_3.4.0   plyr_1.8.4      
-    ##  [5] forcats_0.2.0    tools_3.4.0      digest_0.6.12    lubridate_1.6.0 
+    ##  [5] forcats_0.2.0    tools_3.4.0      digest_0.6.12    lubridate_1.6.0
     ##  [9] jsonlite_1.4     evaluate_0.10    nlme_3.1-131     gtable_0.2.0    
     ## [13] lattice_0.20-35  psych_1.7.3.21   DBI_0.6-1        yaml_2.1.14     
     ## [17] parallel_3.4.0   haven_1.0.0      xml2_1.1.1       stringr_1.2.0   
     ## [21] httr_1.2.1       hms_0.3          rprojroot_1.2    grid_3.4.0      
     ## [25] R6_2.2.0         readxl_1.0.0     foreign_0.8-67   rmarkdown_1.5   
-    ## [29] modelr_0.1.0     reshape2_1.4.2   magrittr_1.5     backports_1.0.5 
+    ## [29] modelr_0.1.0     reshape2_1.4.2   magrittr_1.5     backports_1.0.5
     ## [33] scales_0.4.1     htmltools_0.3.6  rvest_0.3.2      assertthat_0.2.0
     ## [37] mnormt_1.5-5     colorspace_1.3-2 stringi_1.1.5    lazyeval_0.2.0  
     ## [41] munsell_0.4.3    broom_0.4.2
@@ -88,9 +88,10 @@ The .csv file with the eye tracking data was created in MATLAB.
 
 ``` r
 # Load the data frame
-dataFile <- here("data", "sacc-tDCS_data.csv")
-groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(stimulation = col_factor(c("anodal", 
-    "cathodal")), leg = col_factor(c("pre", "tDCS", "post")), type = col_factor(c("lateral", 
+# dataFile <- here("data", "sacc-tDCS_data.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887022"
+groupData <- read_csv(dataFile, col_names = TRUE, na = "NaN", progress = FALSE, col_types = cols(stimulation = col_factor(c("anodal",
+    "cathodal")), leg = col_factor(c("pre", "tDCS", "post")), type = col_factor(c("lateral",
     "center")), direction = col_factor(c("left", "right"))))
 ```
 
@@ -130,8 +131,8 @@ Inspect distributions
 ### Histograms for each subject
 
 ``` r
-histType <- ggplot(groupData, aes(latency, fill = type)) + facet_wrap(~subject, ncol = 5, 
-    scales = "free_y") + geom_histogram(binwidth = 5, color = "grey50", size = 0.2) + 
+histType <- ggplot(groupData, aes(latency, fill = type)) + facet_wrap(~subject, ncol = 5,
+    scales = "free_y") + geom_histogram(binwidth = 5, color = "grey50", size = 0.2) +
     xlim(-50, 300)
 histType
 ```
@@ -149,7 +150,7 @@ histType
 ### Stimulation effects across subjects
 
 ``` r
-dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) + facet_grid(type ~ 
+dens <- ggplot(groupData, aes(latency, color = stimulation, linetype = leg)) + facet_grid(type ~
     direction) + geom_density() + xlim(0, 250) + scale_color_brewer(palette = "Set1")
 dens
 ```
@@ -159,8 +160,8 @@ dens
 ### Session effects in each subject
 
 ``` r
-denstDCS <- ggplot(groupData[groupData$leg == "pre" & groupData$type == "lateral", 
-    ], aes(latency, color = stimulation)) + facet_wrap(~subject, ncol = 5, scales = "free_y") + 
+denstDCS <- ggplot(groupData[groupData$leg == "pre" & groupData$type == "lateral",
+    ], aes(latency, color = stimulation)) + facet_wrap(~subject, ncol = 5, scales = "free_y") +
     geom_density() + xlim(0, 250) + scale_color_brewer(palette = "Set1") + ggtitle("Lateral saccades, baseline block")
 denstDCS
 ```
@@ -227,7 +228,7 @@ outlierPlotTrials
 ### Tally outlier types
 
 ``` r
-outlierCount <- groupData %>% group_by(subject, stimulation, leg, direction, type, 
+outlierCount <- groupData %>% group_by(subject, stimulation, leg, direction, type,
     outlier) %>% summarize(outlier_count = n())  # for each condition and subject, count how many (non)outliers there are
 ```
 
@@ -280,9 +281,9 @@ kable(outlierTable, caption = "Number of outlier saccades per subject")
 ``` r
 max_n <- nrow(filter(groupData, subject == "S01", type == "center"))  # max amount of saccades in experiment
 
-ggplot(filter(outlierCount, outlier != "non.outlier"), aes(subject, outlier_count, 
-    fill = outlier)) + geom_col() + scale_y_continuous("number of saccades", limits = c(0, 
-    max_n), sec.axis = sec_axis(~./max_n * 100, name = "percent of all saccades")) + 
+ggplot(filter(outlierCount, outlier != "non.outlier"), aes(subject, outlier_count,
+    fill = outlier)) + geom_col() + scale_y_continuous("number of saccades", limits = c(0,
+    max_n), sec.axis = sec_axis(~./max_n * 100, name = "percent of all saccades")) +
     coord_flip() + facet_wrap(~type)
 ```
 
@@ -314,7 +315,7 @@ Importantly, we should also see how many saccades are left per condition after e
 ``` r
 trialCount <- groupData %>%
   filter(outlier == "non.outlier") %>% # keep only non-outlier saccades
-  # Equally cut leg factor into 15-minute intervals, because the "post" leg is currently 30 minutes 
+  # Equally cut leg factor into 15-minute intervals, because the "post" leg is currently 30 minutes
   mutate(leg = as.character(leg), # cannot edit leg if it's still a factor
          leg = replace(leg, leg == "post" & block <= 3, "post.1"),
          leg = replace(leg, block > 3, "post.2"),
@@ -366,8 +367,8 @@ Let's also look at proportion of saccades for each outlier type:
 
 ``` r
 n_total <- nrow(filter(groupData, !(subject %in% subs2exclude)))  # total amount of saccades across all included sessions/subjects
-outlierCount %>% filter(!(subject %in% subs2exclude), !(outlier %in% c("non.outlier", 
-    "none"))) %>% group_by(outlier) %>% summarise(percentage = sum(outlier_count)/n_total * 
+outlierCount %>% filter(!(subject %in% subs2exclude), !(outlier %in% c("non.outlier",
+    "none"))) %>% group_by(outlier) %>% summarise(percentage = sum(outlier_count)/n_total *
     100) %>% kable(.)
 ```
 
@@ -418,7 +419,7 @@ To do drift correction, we simply subtract the offsets recorded in the break fro
 
 ``` r
 # Add columns with drift-corrected values
-groupData <- mutate(groupData, deviation.end.x.corr = deviation.end.x - drift.x, 
+groupData <- mutate(groupData, deviation.end.x.corr = deviation.end.x - drift.x,
     deviation.end.y.corr = deviation.end.y - drift.y)
 ```
 
@@ -433,7 +434,7 @@ groupData %>%
     smaller.drift.x = sum(abs(deviation.end.x.corr) < abs(deviation.end.x), na.rm = TRUE) / trials * 100,
     smaller.drift.y = sum(abs(deviation.end.y.corr) < abs(deviation.end.y), na.rm = TRUE) / trials * 100
   ) %>%
-  
+
   # Plot
   ggplot(aes(smaller.drift.x, smaller.drift.y)) +
   facet_wrap(~stimulation) +

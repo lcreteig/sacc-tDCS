@@ -49,22 +49,22 @@ sessionInfo()
     ## R version 3.4.0 (2017-04-21)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
     ## Running under: OS X El Capitan 10.11.6
-    ## 
+    ##
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
     ## LAPACK: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRlapack.dylib
-    ## 
+    ##
     ## locale:
     ## [1] C
-    ## 
+    ##
     ## attached base packages:
     ## [1] stats     graphics  grDevices utils     datasets  methods   base     
-    ## 
+    ##
     ## other attached packages:
     ##  [1] knitr_1.15.1    ez_4.4-0        dplyr_0.5.0     purrr_0.2.2    
     ##  [5] readr_1.1.0     tidyr_0.6.1     tibble_1.3.0    ggplot2_2.2.1  
     ##  [9] tidyverse_1.1.1 here_0.1       
-    ## 
+    ##
     ## loaded via a namespace (and not attached):
     ##  [1] reshape2_1.4.2     splines_3.4.0      haven_1.0.0       
     ##  [4] lattice_0.20-35    colorspace_1.3-2   htmltools_0.3.6   
@@ -101,7 +101,8 @@ As most participants were native Dutch speakers, we also used a [Dutch language 
 
 ``` r
 # Load the data frame
-dataFile <- here("data", "PANAS.csv")
+# dataFile <- here("data", "PANAS.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887007"
 panasData <- read_csv2(dataFile, col_types = cols( # read in data; make columns into factors
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal")),
@@ -176,7 +177,7 @@ Composite positive/negative scores
 ----------------------------------
 
 ``` r
-panasComposite <- panasData %>% 
+panasComposite <- panasData %>%
   mutate(positive = rowSums(select(., contains("pos")))) %>% # sum all the positive scores together
   mutate(negative = rowSums(select(., contains("neg")))) %>% # sum all the negative scores together
   select(subject:time, positive, negative) %>% # drop the original PANAS columns
@@ -254,7 +255,8 @@ Load data
 
 ``` r
 # Load the data frame
-dataFile <- here("data", "tdcs_sensations.csv")
+# dataFile <- here("data", "tdcs_sensations.csv") # data stored locally
+dataFile <- "https://ndownloader.figshare.com/files/11887013"
 sensData <- read_csv2(dataFile, col_types = cols(
   session = col_factor(c("first","second")),
   stimulation = col_factor(c("anodal","cathodal"))
@@ -298,7 +300,7 @@ Finally, they filled in whether they felt one electrode more than the other (`fe
 ``` r
 idxComplete <- rowSums(is.na(sensData)) != ncol(sensData) - 3 # rows that do not have all NAs (except the 3 factor columns)
 # calculate number of questionnaires completed per stimulation type
-nAnodal <- sum(sensData$stimulation == "anodal" & idxComplete) 
+nAnodal <- sum(sensData$stimulation == "anodal" & idxComplete)
 nCathodal <- sum(sensData$stimulation == "cathodal" & idxComplete)
 ```
 
