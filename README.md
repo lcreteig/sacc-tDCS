@@ -8,7 +8,9 @@
 
 Please see this project's [page on the Open Science Framework](https://osf.io/8jpv9/). All the other files from this project can be obtained from there, along with much more (and more detailed) information then in this README.
 
-__Print__: [bioRxiv](https://doi.org/10.1101/351304)
+__Published paper__: Reteig LC, Knapen T, Roelofs FJFW, Ridderinkhof KR, Slagter, HA (2018). No evidence that frontal eye field tDCS affects latency or accuracy of prosaccades. *Front. Neurosci.* 12:617. doi: [10.3389/fnins.2018.00617](https://doi.org/10.3389/fnins.2018.00617)
+
+__Preprint__: [bioRxiv](https://doi.org/10.1101/351304)
 
 __Data__: [figshare](https://doi.org/10.21942/uva.6462770)
 
