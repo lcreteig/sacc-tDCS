@@ -28,6 +28,7 @@ Alternatively, inspect the output of the notebooks here on GitHub by viewing the
 * `analysis.m`: MATLAB script that loads the raw data and creates the `.csv` file that's read in by the R notebook.
 * `install.R` and `runtime.txt`: Binder configuration files.
 
-* `notebooks/`: Additional notebooks with more in-depth analyses on each different aspect of the project. More information can be found in the notebooks themselves; they are also referred to in the main `sacc-tDCS` notebook. Like the main notebook, each has three types of files (`.Rmd`, and `.md`) and a folder with plots.
+* `docs/`: Additional notebooks with more in-depth analyses on each different aspect of the project. More information can be found in the notebooks themselves; they are also referred to in the main `sacc-tDCS` notebook. Like the main notebook, each has three types of files (`.Rmd`, and `.md`) and a folder with plots.
+* `site`: Source files for the project website (linked at top of page).
 * `src/`: All other analysis code used in the project.
 * `task/`: Code for the experimental task and control of the eye tracker; used during data collection.

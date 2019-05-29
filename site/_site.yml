@@ -13,24 +13,24 @@ navbar:
       icon: fa-file-code
       menu:
         - text: "Overview"
-          href: sacc-tDCS.nb.html
+          href: sacc-tDCS.html
         - text: "--------------"
         - text: "Saccade latency"
         - text: "Data inspection"
-          href: inspection.nb.html
+          href: inspection.html
         - text: "Median latency"
-          href: median_latency.nb.html
+          href: median_latency.html
         - text: "Quantile analysis"
-          href: RT_quantiles.nb.html
+          href: RT_quantiles.html
         - text: "Saccade accuracy"
         - text: "Deviation and variability"
-          href: accuracy.nb.html
+          href: accuracy.html
         - text: "--------------"
         - text: "Other"
         - text: "Questionnaires"
-          href: questionnaires.nb.html
+          href: questionnaires.html
         - text: "Frontal eye field coordinates"
-          href: frontal_eye_field.nb.html
+          href: frontal_eye_field.html
   right:
     - text: Source
       icon: fa-github
