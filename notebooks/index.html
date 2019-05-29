@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+
+
+<title>sacc-tDCS: Overview</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fa fa-info"></span>
+     
+    About
+  </a>
+</li>
+<li>
+  <a href="sacc-tDCS_paper.html">
+    <span class="fa fa-newspaper"></span>
+     
+    Paper
+  </a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    <span class="fa fa-file-code"></span>
+     
+    Analyses
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="sacc-tDCS.nb.html">Overview</a>
+    </li>
+    <li class="divider"></li>
+    <li class="dropdown-header">Saccade latency</li>
+    <li>
+      <a href="inspection.nb.html">Data inspection</a>
+    </li>
+    <li>
+      <a href="median_latency.nb.html">Median latency</a>
+    </li>
+    <li>
+      <a href="RT_quantiles.nb.html">Quantile analysis</a>
+    </li>
+    <li class="dropdown-header">Saccade accuracy</li>
+    <li>
+      <a href="accuracy.nb.html">Deviation and variability</a>
+    </li>
+    <li class="divider"></li>
+    <li class="dropdown-header">Other</li>
+    <li>
+      <a href="questionnaires.nb.html">Questionnaires</a>
+    </li>
+    <li>
+      <a href="frontal_eye_field.nb.html">Frontal eye field coordinates</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/lcreteig/sacc-tDCS">
+    <span class="fa fa-github"></span>
+     
+    Source
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">sacc-tDCS: Overview</h1>
+
+</div>
+
+
+<ul>
+<li><strong>Project title</strong>: No evidence that frontal eye field tDCS affects latency or accuracy of prosaccades.</li>
+<li><strong>Project code</strong>: sacc-tDCS</li>
+<li><strong>Authors</strong>: Reteig, L.C., Knapen T., Roelofs, F.J.F.W., Ridderinkhof, K.R., &amp; Slagter, H.A.</li>
+<li><strong>Affiliation</strong>: Department of Psychology, University of Amsterdam</li>
+<li><strong>Year</strong>: 2018</li>
+</ul>
+<div id="resources" class="section level1">
+<h1>Resources</h1>
+<p><strong>Published paper</strong>: Reteig LC, Knapen T, Roelofs FJFW, Ridderinkhof KR, Slagter, HA (2018). No evidence that frontal eye field tDCS affects latency or accuracy of prosaccades. <em>Front. Neurosci.</em> 12:617. doi: <a href="https://doi.org/10.3389/fnins.2018.00617">10.3389/fnins.2018.00617</a> <span class="__dimensions_badge_embed__" data-doi="10.3389/fnins.2018.00617" data-hide-zero-citations="true" data-style="small_circle"></span></p>
+<p><strong>Preprint</strong>: <a href="https://doi.org/10.1101/351304">bioRxiv</a></p>
+<p><strong>Data</strong>: <a href="https://doi.org/10.21942/uva.6462770">figshare</a></p>
+<p><strong>Code</strong>: <a href="https://doi.org/10.5281/zenodo.1410502">GitHub</a></p>
+<p><strong>Project page</strong>: <a href="https://doi.org/10.17605/OSF.IO/8JPV9">Open Science Framework</a></p>
+<div class="figure">
+<img src="badges.png" alt="“Open Science Badges” by Center for Open Science, licensed under CC BY 4.0. “Open Access logo” by Public Library of Science (PLoS), licensed under CC BY 4.0." />
+<p class="caption"><a href="https://osf.io/tvyxz/wiki/home/">“Open Science Badges”</a> by <a href="https://cos.io/our-services/open-science-badges/"><em>Center for Open Science</em></a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. <a href="https://commons.wikimedia.org/wiki/File:Open_Access_logo_with_dark_text_for_contrast,_on_transparent_background.png">“Open Access logo”</a> by <a href="http://www.plos.org/">Public Library of Science (PLoS)</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
+</div>
+<p>The <em>Paper</em> tab shows an html version of the paper at bioRxiv / Frontiers.</p>
+<p>The <em>Analyses</em> tab shows all analyses (and their results) performed performed for this project.</p>
+<hr />
+</div>
+<div id="project-setup" class="section level1">
+<h1>Project setup</h1>
+<p>All the files from this project can be obtained from its page on the <a href="https://doi.org/10.17605/OSF.IO/8JPV9">Open Science Framework</a> (which links to the data/code on figshare/GitHub).</p>
+<div id="directory-structure" class="section level2">
+<h2>Directory structure</h2>
+<p>After downloading everything, your directory structure should look like this (N.B. this is just a sketch; does not include every single file):</p>
+<pre><code>sacc-tDCS
+│   README.md [this file]
+│   analysis.m [GitHub]
+│   sacc-tDCS.md [GitHub]
+|   sacc-tDCS.nb.html [OSF]
+│   sacc-tDCS.Rmd [GitHub]
+│   sacc-tDCS.Rproj [GitHub]
+│
+└───data [figshare]
+│   │   FEF_coords.csv
+│   │   FEF.node
+│   │   PANAS.csv
+│   │   reflection.csv
+│   │   sacc-tDCS_data.csv
+│   │   sacc-tDCS_quantiles.csv
+│   │   session_info.csv   
+│   │   subject_info.csv
+│   │   tdcs_sensations.csv
+│   │
+│   └───S01
+│   │   │   sacc_tDCS*.asc [24 of these]
+│   │   └───raw
+│   │       │   sacc_tDCS*.edf [24 of these]
+│   │       │   *main.mat [2 of these]
+│   │       │   *practice.mat [2 of these]
+│   └───S02
+│       │  ...
+│   
+└───doc [OSF]
+│   │   participant_log.csv
+│   │
+│   └───questionnaires
+│   └───tDCS_blinding
+│   
+└───neuronav [OSF]
+│   
+└───docs
+│   │   median_latency.Rmd [GitHub]
+│   │   median_latency.nb.html [OSF]
+│   │   median_latency.md [GitHub]
+│   │   ...
+│   └───median_latency_files [GitHub]
+│   │   ...
+│   │   index.html [GitHub]
+│   │   sacc-tDCS_paper.html [GitHub]
+│   │   sacc-tDCS.nb.html [GitHub]
+│   └───figures [GitHub]
+│   └───site_libs [GitHub]
+
+└───site
+│   │   _site.yml [GitHub]
+│   │   badges.png [Github]
+│   │   index.Rmd [GitHub]
+│   │   sacc-tDCS_paper.Rmd [GitHub]
+│   │   sacc-tDCS.bib [GitHub]
+│   │   ...
+│   └───figures
+│   
+└───src [GitHub]
+│   │
+│   └───bin
+│   └───func
+│   └───lib
+│   
+└───task [GitHub]
+</code></pre>
+</div>
+<div id="file-descriptions" class="section level2">
+<h2>File descriptions</h2>
+<ul>
+<li><code>sacc-tDCS.Rmd</code>: R notebook with analysis code that will reproduce all of the results, figures and statistics contained in the paper. See the <code>notebooks</code> folder for additional notebooks with a more in-depth exploration of the dataset.</li>
+<li><code>sacc-tDCS.nb.html</code>: HTML Output of the notebook, meant for viewing in any browser.</li>
+<li><code>sacc-tDCS.md</code>: Markdown output of the notebook, optimized for rendering on GitHub. Plots referenced in the <code>.md</code> file are contained in <code>sacc-tDCS_files/</code>.</li>
+<li><code>sacc-tDCS.Rproj</code>: Config file with options for the R project; also determines top-level folder.</li>
+<li><code>analysis.m</code>: MATLAB script that loads the raw data and creates the <code>.csv</code> file that’s read in by the R notebook. See <code>data/README.md</code> for more info on the in- and outputs of this script.</li>
+<li><code>install.R</code> and <code>runtime.txt</code>: configuration files for running the notebooks remotely with <a href="https://mybinder.org/">Binder</a>.</li>
+</ul>
+</div>
+<div id="folder-descriptions" class="section level2">
+<h2>Folder descriptions</h2>
+<p>N.B. Each folder has its own <code>README.md</code> file with more detailed information on its contents.</p>
+<ul>
+<li><code>data/</code>: All the raw and processed data collected during this project.</li>
+<li><code>doc/</code>: Metadata and additional materials.</li>
+<li><code>neuronav/</code>: Contains (previously existing) MRI (meta)data.</li>
+<li><code>docs/</code>: Additional notebooks with more in-depth analyses on each different aspect of the project. More information can be found in the notebooks themselves; they are also referred to in the main <code>sacc-tDCS</code> notebook. Like the main notebook, each has three types of files (<code>.Rmd</code>, <code>nb.html</code> and <code>.md</code>) and a folder with plots. The html files are what this website consists of.</li>
+<li><code>site/</code>: Some other source files for building this website.</li>
+<li><code>src/</code>: All other analysis code used in the project.</li>
+<li><code>task/</code>: Code for the experimental task and control of the eye tracker; used during data collection.</li>
+</ul>
+</div>
+</div>
+<div id="reproducibility" class="section level1">
+<h1>Reproducibility</h1>
+<div id="starting-from-the-raw-data" class="section level2">
+<h2>Starting from the raw data</h2>
+<ol style="list-style-type: decimal">
+<li>Make sure you’ve downloaded and unzipped all the individual subject data (i.e. the folders starting with <code>S</code>) from figshare, and that they’re placed in the <code>data</code> folder (as outline in the <a href="#directory-structure">Directory structure</a> section).</li>
+<li>Make sure you’ve downloaded all the code in the <code>src</code> folder from GitHub.</li>
+<li>Place the <code>analysis.m</code> file in the top-level folder (i.e. the one containing <code>data</code> and <code>src</code>), and run it in MATLAB. When the script is finished, you should have generated the <code>sacc-tDCS_data.csv</code> file in the <code>data</code> folder.</li>
+</ol>
+<p>Note that this file is already available on figshare (and running the <code>analysis.m</code> script should recreate it exactly), so it is not necessary to start from this step.</p>
+</div>
+<div id="starting-from-the-processed-data" class="section level2">
+<h2>Starting from the processed data</h2>
+<ol style="list-style-type: decimal">
+<li>Make sure you’ve downloaded all the <code>.csv</code> files from figshare, and that they’re placed in the <code>data</code> folder (as outline in the <a href="#directory-structure">Directory structure</a> section).</li>
+<li>Make sure you’ve downloaded all the code in the <code>src</code> folder from GitHub.</li>
+</ol>
+<ul>
+<li>Place the <code>sacc-tDCS.Rmd</code> file ). Open the <code>sacc-tDCS.Rmd</code> (in the in the top-level folder, i.e. the one containing <code>data</code> and <code>src</code>) in <a href="https://www.rstudio.com/">RStudio</a> and run it to reproduce all the figures, results and statistics in the paper (if you don’t have RStudio, you can still run the R code in the notebook, but you might have to copy-paste individual code sections, because there is also a lot of text in the notebooks).</li>
+<li>Run any of the other notebooks in the <code>docs</code> folder to see the results of all additional data exploration / analyses we did. Or simply open up the <code>.nb.html</code> or <code>.md</code> files to see the results without having to run the code.</li>
+</ul>
+<p>Alternatively, follow this link to create a remote RStudio session in your browser with <a href="https://mybinder.org/">Binder</a>: <a href="https://mybinder.org/v2/gh/lcreteig/sacc-tDCS/master?urlpath=rstudio"><img src="https://mybinder.org/badge.svg" alt="Binder" /></a></p>
+<p>This will already set everything up for you on the server, including all packages that the analysis code depends upon. You can then run the notebooks from the comfort of your own browser (as described above).</p>
+</div>
+</div>
+<div id="licensing" class="section level1">
+<h1>Licensing</h1>
+<p>All components of this project are open and under non-restrictive licenses:</p>
+<ul>
+<li><p>The data are released to the public domain under a <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0 Universal license</a></p></li>
+<li><p>The preprint and other written materials are licensed under a <a href="https://creativecommons.org/licenses/by/4.0/">CC-By Attribution 4.0 International license</a></p></li>
+<li><p>The code is licensed under the <a href="https://tldrlegal.com/license/mit-license">MIT license</a></p></li>
+</ul>
+<script async src="https://badge.dimensions.ai/badge.js" charset="utf-8"></script>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,164 @@
+---
+title: "sacc-tDCS: Overview"
+output:
+  html_document
+---
+
+* __Project title__: No evidence that frontal eye field tDCS affects latency or accuracy of prosaccades.
+* __Project code__: sacc-tDCS
+* __Authors__: Reteig, L.C., Knapen T., Roelofs, F.J.F.W., Ridderinkhof, K.R., & Slagter, H.A.
+* __Affiliation__: Department of Psychology, University of Amsterdam
+* __Year__: 2018
+
+# Resources
+
+__Published paper__: Reteig LC, Knapen T, Roelofs FJFW, Ridderinkhof KR, Slagter, HA (2018). No evidence that frontal eye field tDCS affects latency or accuracy of prosaccades. *Front. Neurosci.* 12:617. doi: [10.3389/fnins.2018.00617](https://doi.org/10.3389/fnins.2018.00617) <span class="__dimensions_badge_embed__" data-doi="10.3389/fnins.2018.00617" data-hide-zero-citations="true" data-style="small_circle"></span>
+
+__Preprint__: [bioRxiv](https://doi.org/10.1101/351304)
+
+__Data__: [figshare](https://doi.org/10.21942/uva.6462770)
+
+__Code__: [GitHub](https://doi.org/10.5281/zenodo.1410502)
+
+__Project page__: [Open Science Framework](https://doi.org/10.17605/OSF.IO/8JPV9)
+
+![["Open Science Badges"](https://osf.io/tvyxz/wiki/home/) by [_Center for Open Science_](https://cos.io/our-services/open-science-badges/), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+["Open Access logo"](https://commons.wikimedia.org/wiki/File:Open_Access_logo_with_dark_text_for_contrast,_on_transparent_background.png) by [Public Library of Science (PLoS)](http://www.plos.org/), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).](badges.png)
+
+The _Paper_ tab shows an html version of the paper at bioRxiv / Frontiers.
+
+The _Analyses_ tab shows all analyses (and their results) performed performed for this project.
+
+---
+
+# Project setup
+
+All the files from this project can be obtained from its page on the [Open Science Framework](https://doi.org/10.17605/OSF.IO/8JPV9) (which links to the data/code on figshare/GitHub).
+
+## Directory structure
+
+After downloading everything, your directory structure should look like this (N.B. this is just a sketch; does not include every single file):
+
+```
+sacc-tDCS
+│   README.md [this file]
+│   analysis.m [GitHub]
+│   sacc-tDCS.md [GitHub]
+|   sacc-tDCS.nb.html [OSF]
+│   sacc-tDCS.Rmd [GitHub]
+│   sacc-tDCS.Rproj [GitHub]
+│
+└───data [figshare]
+│   │   FEF_coords.csv
+│   │   FEF.node
+│   │   PANAS.csv
+│   │   reflection.csv
+│   │   sacc-tDCS_data.csv
+│   │   sacc-tDCS_quantiles.csv
+│   │   session_info.csv   
+│   │   subject_info.csv
+│   │   tdcs_sensations.csv
+│   │
+│   └───S01
+│   │   │   sacc_tDCS*.asc [24 of these]
+│   │   └───raw
+│   │       │   sacc_tDCS*.edf [24 of these]
+│   │       │   *main.mat [2 of these]
+│   │       │   *practice.mat [2 of these]
+│   └───S02
+│       │  ...
+│   
+└───doc [OSF]
+│   │   participant_log.csv
+│   │
+│   └───questionnaires
+│   └───tDCS_blinding
+│   
+└───neuronav [OSF]
+│   
+└───docs
+│   │   median_latency.Rmd [GitHub]
+│   │   median_latency.nb.html [OSF]
+│   │   median_latency.md [GitHub]
+│   │   ...
+│   └───median_latency_files [GitHub]
+│   │   ...
+│   │   index.html [GitHub]
+│   │   sacc-tDCS_paper.html [GitHub]
+│   │   sacc-tDCS.nb.html [GitHub]
+│   └───figures [GitHub]
+│   └───site_libs [GitHub]
+
+└───site
+│   │   _site.yml [GitHub]
+│   │   badges.png [Github]
+│   │   index.Rmd [GitHub]
+│   │   sacc-tDCS_paper.Rmd [GitHub]
+│   │   sacc-tDCS.bib [GitHub]
+│   │   ...
+│   └───figures
+│   
+└───src [GitHub]
+│   │
+│   └───bin
+│   └───func
+│   └───lib
+│   
+└───task [GitHub]
+
+```
+
+## File descriptions
+
+* `sacc-tDCS.Rmd`: R notebook with analysis code that will reproduce all of the results, figures and statistics contained in the paper. See the `notebooks` folder for additional notebooks with a more in-depth exploration of the dataset.
+* `sacc-tDCS.nb.html`: HTML Output of the notebook, meant for viewing in any browser.
+* `sacc-tDCS.md`: Markdown output of the notebook, optimized for rendering on GitHub. Plots referenced in the `.md` file are contained in `sacc-tDCS_files/`.
+* `sacc-tDCS.Rproj`: Config file with options for the R project; also determines top-level folder.
+* `analysis.m`: MATLAB script that loads the raw data and creates the `.csv` file that's read in by the R notebook. See `data/README.md` for more info on the in- and outputs of this script.
+* `install.R` and `runtime.txt`: configuration files for running the notebooks remotely with [Binder](https://mybinder.org/).
+
+## Folder descriptions
+
+N.B. Each folder has its own `README.md` file with more detailed information on its contents.
+
+* `data/`: All the raw and processed data collected during this project.
+* `doc/`: Metadata and additional materials.
+* `neuronav/`: Contains (previously existing) MRI (meta)data.
+* `docs/`: Additional notebooks with more in-depth analyses on each different aspect of the project. More information can be found in the notebooks themselves; they are also referred to in the main `sacc-tDCS` notebook. Like the main notebook, each has three types of files (`.Rmd`, `nb.html` and `.md`) and a folder with plots. The html files are what this website consists of.
+* `site/`: Some other source files for building this website.
+* `src/`: All other analysis code used in the project.
+* `task/`: Code for the experimental task and control of the eye tracker; used during data collection.
+
+# Reproducibility
+
+## Starting from the raw data
+
+1. Make sure you've downloaded and unzipped all the individual subject data (i.e. the folders starting with `S`) from figshare, and that they're placed in the `data` folder (as outline in the [Directory structure] section).
+2. Make sure you've downloaded all the code in the `src` folder from GitHub.
+3. Place the `analysis.m` file in the top-level folder (i.e. the one containing `data` and `src`), and run it in MATLAB. When the script is finished, you should have generated the `sacc-tDCS_data.csv` file in the `data` folder.
+
+Note that this file is already available on figshare (and running the `analysis.m` script should recreate it exactly), so it is not necessary to start from this step.
+
+## Starting from the processed data
+
+1. Make sure you’ve downloaded all the `.csv` files from figshare, and that they’re placed in the `data` folder (as outline in the [Directory structure] section).
+2. Make sure you’ve downloaded all the code in the `src` folder from GitHub.
+
+* Place the `sacc-tDCS.Rmd` file ). Open the `sacc-tDCS.Rmd` (in the in the top-level folder, i.e. the one containing `data` and `src`) in [RStudio](https://www.rstudio.com/) and run it to reproduce all the figures, results and statistics in the paper (if you don't have RStudio, you can still run the R code in the notebook, but you might have to copy-paste individual code sections, because there is also a lot of text in the notebooks).
+* Run any of the other notebooks in the `docs` folder to see the results of all additional data exploration / analyses we did. Or simply open up the `.nb.html` or `.md` files to see the results without having to run the code.
+
+Alternatively, follow this link to create a remote RStudio session in your browser with [Binder](https://mybinder.org/):  [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/lcreteig/sacc-tDCS/master?urlpath=rstudio)
+
+This will already set everything up for you on the server, including all packages that the analysis code depends upon. You can then run the notebooks from the comfort of your own browser (as described above).
+
+# Licensing
+
+All components of this project are open and under non-restrictive licenses:
+
+* The data are released to the public domain under a [CC0 1.0 Universal license](https://creativecommons.org/publicdomain/zero/1.0/)
+
+* The preprint and other written materials are licensed under a [CC-By Attribution 4.0 International license](https://creativecommons.org/licenses/by/4.0/)
+
+* The code is licensed under the [MIT license](https://tldrlegal.com/license/mit-license)
+
+<script async src="https://badge.dimensions.ai/badge.js" charset="utf-8"></script>

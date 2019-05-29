@@ -1,0 +1,37 @@
+name: "sacc-tDCS"
+output_dir: _site
+new_session: true
+navbar:
+  left:
+    - text: "About"
+      icon: fa-info
+      href: index.html
+    - text: "Paper"
+      icon: fa-newspaper
+      href: sacc-tDCS_paper.html
+    - text: "Analyses"
+      icon: fa-file-code
+      menu:
+        - text: "Overview"
+          href: sacc-tDCS.nb.html
+        - text: "--------------"
+        - text: "Saccade latency"
+        - text: "Data inspection"
+          href: inspection.nb.html
+        - text: "Median latency"
+          href: median_latency.nb.html
+        - text: "Quantile analysis"
+          href: RT_quantiles.nb.html
+        - text: "Saccade accuracy"
+        - text: "Deviation and variability"
+          href: accuracy.nb.html
+        - text: "--------------"
+        - text: "Other"
+        - text: "Questionnaires"
+          href: questionnaires.nb.html
+        - text: "Frontal eye field coordinates"
+          href: frontal_eye_field.nb.html
+  right:
+    - text: Source
+      icon: fa-github
+      href: https://github.com/lcreteig/sacc-tDCS
